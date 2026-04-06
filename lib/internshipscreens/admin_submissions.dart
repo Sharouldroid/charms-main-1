@@ -1,0 +1,502 @@
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:charms/main.dart';
+class AdminSubmissionsPage extends StatefulWidget {
+  final int adminId;
+
+  const AdminSubmissionsPage({
+    super.key,
+    required this.adminId,
+  });
+
+  @override
+  _AdminSubmissionsPageState createState() => _AdminSubmissionsPageState();
+}
+
+class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
+  List<Map<String, dynamic>> _submissions = [];
+  bool _isLoading = false;
+  String _filterStatus = 'all';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSubmissions();
+  }
+
+  Future<void> _loadSubmissions() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // 2. UPDATED URL: Points to Laravel 'internship/documents/admin/submissions'
+      final response = await http.get(
+        Uri.parse('${AppConfig.hostname}internship/documents/admin/submissions'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as List;
+        setState(() {
+          _submissions = data.cast<Map<String, dynamic>>();
+        });
+      } else {
+        _showErrorMessage('Failed to load submissions');
+      }
+    } catch (e) {
+      _showErrorMessage('Error loading submissions: $e');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _downloadFile(int submissionId, String fileName) async {
+    try {
+      _showLoadingDialog('Downloading file...');
+
+     final response = await http.get(
+        Uri.parse('${AppConfig.hostname}internship/documents/download/$submissionId'),
+      );
+      Navigator.of(context).pop(); // Close loading dialog
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content:
+                Text('File download initiated. Check your downloads folder.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // Note: In a real app, you might want to use a file picker plugin
+        // to let the user choose where to save the file, or use platform-specific
+        // download handling
+      } else {
+        _showErrorMessage('Failed to download file');
+      }
+    } catch (e) {
+      Navigator.of(context).pop(); // Close loading dialog if open
+      _showErrorMessage('Error downloading file: $e');
+    }
+  }
+
+  Future<void> _updateSubmissionStatus(
+      int submissionId, String status, String comments) async {
+    try {
+      _showLoadingDialog('Updating status...');
+
+      final response = await http.put(
+        Uri.parse('${AppConfig.hostname}internship/documents/submissions/$submissionId/status'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'status': status,
+          'adminComments': comments,
+          'reviewedBy': widget.adminId,
+        }),
+      );
+
+      Navigator.of(context).pop(); // Close loading dialog
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Status updated successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _loadSubmissions(); // Reload submissions
+      } else {
+        final errorData = jsonDecode(response.body);
+        _showErrorMessage('Failed to update status: ${errorData['message']}');
+      }
+    } catch (e) {
+      Navigator.of(context).pop(); // Close loading dialog if open
+      _showErrorMessage('Error updating status: $e');
+    }
+  }
+
+  void _showStatusDialog(Map<String, dynamic> submission) {
+    String selectedStatus = submission['status'];
+    TextEditingController commentsController = TextEditingController(
+      text: submission['admin_comments'] ?? '',
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Update Submission Status'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Student: ${submission['first_name']} ${submission['last_name']}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Text('File: ${submission['file_name']}'),
+              const SizedBox(height: 16),
+              const Text('Status:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                initialValue: selectedStatus,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'pending', child: Text('Pending')),
+                  DropdownMenuItem(value: 'approved', child: Text('Approved')),
+                  DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
+                  DropdownMenuItem(
+                      value: 'resubmit', child: Text('Request Resubmit')),
+                ],
+                onChanged: (value) {
+                  selectedStatus = value!;
+                },
+              ),
+              const SizedBox(height: 16),
+              const Text('Comments:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: commentsController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: 'Add comments (optional)',
+                  contentPadding: EdgeInsets.all(12),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _updateSubmissionStatus(
+                submission['id'],
+                selectedStatus,
+                commentsController.text,
+              );
+            },
+            child: const Text('Update'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLoadingDialog(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        content: Row(
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(width: 16),
+            Text(message),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showErrorMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+
+  List<Map<String, dynamic>> get filteredSubmissions {
+    if (_filterStatus == 'all') {
+      return _submissions;
+    }
+    return _submissions.where((sub) => sub['status'] == _filterStatus).toList();
+  }
+
+  Widget _buildSubmissionCard(Map<String, dynamic> submission) {
+    Color statusColor;
+    IconData statusIcon;
+
+    switch (submission['status']) {
+      case 'pending':
+        statusColor = Colors.orange;
+        statusIcon = Icons.hourglass_empty;
+        break;
+      case 'approved':
+        statusColor = Colors.green;
+        statusIcon = Icons.check_circle;
+        break;
+      case 'rejected':
+        statusColor = Colors.red;
+        statusIcon = Icons.cancel;
+        break;
+      case 'resubmit':
+        statusColor = Colors.blue;
+        statusIcon = Icons.refresh;
+        break;
+      default:
+        statusColor = Colors.grey;
+        statusIcon = Icons.help;
+    }
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      elevation: 3,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header with student info and status
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${submission['first_name']} ${submission['last_name']}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Text(
+                        submission['email'],
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: statusColor),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(statusIcon, size: 16, color: statusColor),
+                      const SizedBox(width: 4),
+                      Text(
+                        submission['status'].toString().toUpperCase(),
+                        style: TextStyle(
+                          color: statusColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // File info
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.insert_drive_file, color: Colors.blue),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          submission['file_name'],
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                        Text(
+                          'Uploaded: ${DateTime.parse(submission['upload_date']).toString().split(' ')[0]}',
+                          style:
+                              TextStyle(color: Colors.grey[600], fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Admin comments if any
+            if (submission['admin_comments'] != null &&
+                submission['admin_comments'].isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue[200]!),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Admin Comments:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: Colors.blue[700],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      submission['admin_comments'],
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 16),
+
+            // Action buttons
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _downloadFile(
+                        submission['id'], submission['file_name']),
+                    icon: const Icon(Icons.download, size: 16),
+                    label: const Text('Download'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.blue,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _showStatusDialog(submission),
+                    icon: const Icon(Icons.edit, size: 16),
+                    label: const Text('Review'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blueAccent,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Student Submissions'),
+        backgroundColor: Colors.blueAccent,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadSubmissions,
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Filter bar
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                const Text('Filter: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildFilterChip('all', 'All'),
+                        _buildFilterChip('pending', 'Pending'),
+                        _buildFilterChip('approved', 'Approved'),
+                        _buildFilterChip('rejected', 'Rejected'),
+                        _buildFilterChip('resubmit', 'Resubmit'),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Submissions list
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : filteredSubmissions.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.inbox,
+                                size: 64, color: Colors.grey[400]),
+                            const SizedBox(height: 16),
+                            Text(
+                              _filterStatus == 'all'
+                                  ? 'No submissions yet'
+                                  : 'No $_filterStatus submissions',
+                              style: TextStyle(
+                                  color: Colors.grey[600], fontSize: 16),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: filteredSubmissions.length,
+                        itemBuilder: (context, index) {
+                          return _buildSubmissionCard(
+                              filteredSubmissions[index]);
+                        },
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(String value, String label) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: FilterChip(
+        label: Text(label),
+        selected: _filterStatus == value,
+        onSelected: (selected) {
+          setState(() {
+            _filterStatus = value;
+          });
+        },
+        selectedColor: Colors.blueAccent.withOpacity(0.2),
+        checkmarkColor: Colors.blueAccent,
+      ),
+    );
+  }
+}

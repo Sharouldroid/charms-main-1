@@ -1,0 +1,83 @@
+import 'package:charms/models/event.dart';
+import 'package:charms/models/user.dart';
+import 'package:charms/providers/events.dart';
+import 'package:charms/widgets/volunteer/event_list_tile.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+class EventListBooked extends StatelessWidget {
+  const EventListBooked({
+    super.key,
+    required this.staff,
+    required this.user,
+    required this.hostname,
+    required this.eventtype,
+  });
+
+  final bool staff;
+  final User user;
+  final String hostname;
+  final int eventtype;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder(
+      future: staff == false
+          ? Provider.of<Events>(context, listen: false)
+              .fetchBookedEvent(hostname, user.id)
+          : Provider.of<Events>(context, listen: false)
+              .fetchAllBookedEvent(hostname),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        } else {
+          if (snapshot.error != null) {
+            // Display API error message if available
+            final errorData = snapshot.error;
+            String errorMessage = "An error occurred!";
+
+            if (errorData is Map<String, dynamic> &&
+                errorData.containsKey('message')) {
+              errorMessage = errorData['message']; // API error message
+            }
+
+            return Center(
+              child: Text(
+                errorMessage,
+                style: const TextStyle(color: Colors.red, fontSize: 16),
+                textAlign: TextAlign.center,
+              ),
+            );
+          } else {
+            return Consumer<Events>(builder: (ctx, eventData, child) {
+              if (eventData.allbookedevents.isEmpty) {
+                return const Center(
+                  child: Text(
+                    "No booked events found.",
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                );
+              }
+              return ListView.builder(
+                shrinkWrap: true,
+                itemCount: eventData.allbookedevents.length,
+                itemBuilder: (_, i) => Card(
+                  child: EventListTile(
+                    id: eventData.allbookedevents[i]['id'],
+                    eventdata: Event.fromJson(eventData.allbookedevents[i]),
+                    hostname: hostname,
+                    booked: true,
+                    userid: int.parse(user.id),
+                    usertype: user.usertype,
+                  ),
+                ),
+                // ),
+              );
+            });
+          }
+        }
+      },
+    );
+  }
+}
