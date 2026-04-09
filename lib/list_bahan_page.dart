@@ -201,7 +201,7 @@ class _ListBahanPageState extends State<ListBahanPage> {
           Padding(
             padding: const EdgeInsets.all(10),
             child: DropdownButtonFormField(
-              value: selectedProgram,
+              initialValue: selectedProgram,
               items: const [
                 DropdownMenuItem(value: "4D3N", child: Text("4D3N Program")),
                 DropdownMenuItem(value: "5D4N", child: Text("5D4N Program")),

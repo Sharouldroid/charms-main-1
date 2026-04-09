@@ -157,7 +157,7 @@ class _LandscapePageState extends State<LandscapePage> {
       Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
       const SizedBox(height: 6),
       DropdownButtonFormField(
-        value: value,
+        initialValue: value,
         decoration: _boxDecoration(),
         items: list.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
         onChanged: onChanged,
@@ -599,7 +599,7 @@ class _LandscapePageState extends State<LandscapePage> {
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: selectedMonth,
+                        initialValue: selectedMonth,
                         items: months.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
                         onChanged: (v) => setState(() => selectedMonth = v),
                         decoration: const InputDecoration(labelText: 'Select Month', border: OutlineInputBorder()),
@@ -608,7 +608,7 @@ class _LandscapePageState extends State<LandscapePage> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: selectedYear,
+                        initialValue: selectedYear,
                         items: years.map((y) => DropdownMenuItem(value: y, child: Text(y))).toList(),
                         onChanged: (v) => setState(() => selectedYear = v),
                         decoration: const InputDecoration(labelText: 'Select Year', border: OutlineInputBorder()),

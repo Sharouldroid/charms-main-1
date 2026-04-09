@@ -531,7 +531,7 @@ class _IncidentReportingPageState extends State<IncidentReportingPage> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const Divider(height: 20),
           DropdownButtonFormField<String>(
-            value: _category,
+            initialValue: _category,
             items: _categories
                 .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                 .toList(),
@@ -570,7 +570,7 @@ class _IncidentReportingPageState extends State<IncidentReportingPage> {
               validator: (v) => v!.isEmpty ? 'Required' : null),
           const SizedBox(height: 14),
           DropdownButtonFormField<String>(
-            value: _severity,
+            initialValue: _severity,
             items: _severityLevels
                 .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                 .toList(),
@@ -650,7 +650,7 @@ class _IncidentReportingPageState extends State<IncidentReportingPage> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const Divider(height: 20),
           DropdownButtonFormField<String>(
-            value: _selectedFilterCategory,
+            initialValue: _selectedFilterCategory,
             isExpanded: true,
             items: ['All Categories', ..._categories]
                 .map((c) => DropdownMenuItem(
@@ -668,7 +668,7 @@ class _IncidentReportingPageState extends State<IncidentReportingPage> {
             children: [
               Flexible(
                 child: DropdownButtonFormField<String>(
-                  value: _selectedYear,
+                  initialValue: _selectedYear,
                   isExpanded: true,
                   items: _years
                       .map((y) => DropdownMenuItem(
@@ -683,7 +683,7 @@ class _IncidentReportingPageState extends State<IncidentReportingPage> {
               const SizedBox(width: 8),
               Flexible(
                 child: DropdownButtonFormField<String>(
-                  value: _selectedMonthWord,
+                  initialValue: _selectedMonthWord,
                   isExpanded: true,
                   items: _monthsWord
                       .map((m) => DropdownMenuItem(

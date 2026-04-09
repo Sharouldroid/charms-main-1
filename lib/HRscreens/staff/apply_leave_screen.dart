@@ -181,7 +181,7 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
                   labelText: 'Leave Type',
                   border: OutlineInputBorder(),
                 ),
-                value: _selectedLeaveType,
+                initialValue: _selectedLeaveType,
                 onChanged: (String? newValue) {
                   setState(() {
                     _selectedLeaveType = newValue;
@@ -280,7 +280,7 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
                   labelText: 'Proof Type',
                   border: OutlineInputBorder(),
                 ),
-                value: _selectedProofType,
+                initialValue: _selectedProofType,
                 onChanged: (String? proofValue) {
                   setState(() {
                     _selectedProofType = proofValue;

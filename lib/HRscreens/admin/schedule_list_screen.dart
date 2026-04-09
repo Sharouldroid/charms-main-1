@@ -149,9 +149,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
                     return Card(
                       margin: const EdgeInsets.all(8.0),
                       child: ListTile(
-                        title: Text(staff != null
-                            ? '${staff.username} (ID: ${schedule.staffId})'
-                            : 'Staff ID: ${schedule.staffId}'),
+                        title: Text('${staff.username} (ID: ${schedule.staffId})'),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [

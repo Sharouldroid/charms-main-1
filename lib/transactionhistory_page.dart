@@ -265,7 +265,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: historyMonth,
+                        initialValue: historyMonth,
                         decoration: dropStyle("Month"),
                         items:
                             months
@@ -286,7 +286,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: historyYear,
+                        initialValue: historyYear,
                         decoration: dropStyle("Year"),
                         items:
                             years

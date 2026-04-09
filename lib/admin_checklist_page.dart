@@ -419,7 +419,7 @@ class _AdminChecklistPageState extends State<AdminChecklistPage> {
                       final DateTime? customDate = customDates[facilityKey];
                       final bool hasCustomDate = customDate != null;
                       final String reportDateDisplay = hasCustomDate
-                          ? DateFormat('dd MMM yyyy, h:mm a').format(customDate!)
+                          ? DateFormat('dd MMM yyyy, h:mm a').format(customDate)
                           : (item['issue_date'] != null
                               ? DateFormat('dd MMM yyyy, h:mm a').format(DateTime.parse(item['issue_date']))
                               : "No reports found");

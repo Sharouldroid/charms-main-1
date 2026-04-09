@@ -162,7 +162,7 @@ class _MedicalSupplyPageState extends State<MedicalSupplyPage> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: selectedCategory,
+                initialValue: selectedCategory,
                 items: _categories
                     .where((c) => c != 'All')
                     .map((category) => DropdownMenuItem(

@@ -356,7 +356,7 @@ class _OthersMaintenancePageState extends State<OthersMaintenancePage> {
                 SizedBox(
                   width: 120,
                   child: DropdownButtonFormField<String>(
-                    value: items[entry.key],
+                    initialValue: items[entry.key],
                     items: const [
                       DropdownMenuItem(value: 'Good', child: Text('Good')),
                       DropdownMenuItem(value: 'Bad', child: Text('Bad')),

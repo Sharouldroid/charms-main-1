@@ -290,7 +290,7 @@ class _OtherFacilityPageState extends State<OtherFacilityPage> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField(
-                        value: _category,
+                        initialValue: _category,
                         items: _categories.map((cat) {
                           return DropdownMenuItem(
                             value: cat,

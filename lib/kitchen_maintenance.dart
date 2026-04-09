@@ -483,7 +483,7 @@ Future<void> _showSuccessDialog(BuildContext context, String message) {
           SizedBox(
             width: 80,
             child: DropdownButtonFormField<String>(
-              value: currentValue,
+              initialValue: currentValue,
               items: ['Yes', 'No']
                   .map((value) => DropdownMenuItem(
                         value: value,
@@ -518,7 +518,7 @@ Future<void> _showSuccessDialog(BuildContext context, String message) {
             scrollDirection: Axis.vertical,
             child: DataTable(
               columnSpacing: 12,
-              headingRowColor: MaterialStateProperty.all(Colors.grey.shade200),
+              headingRowColor: WidgetStateProperty.all(Colors.grey.shade200),
               columns: const [
                 DataColumn(label: Text('Item')),
                 DataColumn(label: Text('Total')),
@@ -599,7 +599,7 @@ Future<void> _showSuccessDialog(BuildContext context, String message) {
               style: const TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 6),
           DropdownButtonFormField<String>(
-            value: selectedValue,
+            initialValue: selectedValue,
             items: options
                 .map((value) => DropdownMenuItem(value: value, child: Text(value)))
                 .toList(),
@@ -622,7 +622,7 @@ Future<void> _showSuccessDialog(BuildContext context, String message) {
       title: Text('$number. $label'),
       value: value,
       onChanged: onChanged,
-      activeColor: Colors.teal,
+      activeThumbColor: Colors.teal,
     );
   }
 
@@ -834,7 +834,7 @@ Future<void> _showSuccessDialog(BuildContext context, String message) {
                     number: 3),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
-                  value: waterFilterType,
+                  initialValue: waterFilterType,
                   items: ['None', 'Carbon', 'Sediment', 'Reverse Osmosis', 'UV']
                       .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                       .toList(),
@@ -846,7 +846,7 @@ Future<void> _showSuccessDialog(BuildContext context, String message) {
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
-                  value: waterSupplyDetail,
+                  initialValue: waterSupplyDetail,
                   items: ['Municipal', 'Well', 'Bottled', 'Intermittent']
                       .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                       .toList(),

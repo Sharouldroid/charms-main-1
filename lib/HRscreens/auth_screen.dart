@@ -437,7 +437,7 @@ Future<void> _submit() async {
                           ),
                           Expanded(
                             child: DropdownButtonFormField<dynamic>(
-                              value: null,
+                              initialValue: null,
                               hint: const Text('Gender'),
                               items: const [
                                 DropdownMenuItem(value: 1, child: Text('Male')),
@@ -815,7 +815,7 @@ Future<void> _submit() async {
                         ],
                       ),
                       DropdownButtonFormField<dynamic>(
-                        value: null,
+                        initialValue: null,
                         hint: const Text('Role'),
                         items: const [
                           DropdownMenuItem(value: 2, child: Text('Volunteer')),

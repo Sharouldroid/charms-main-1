@@ -403,7 +403,7 @@ class _WaterSportAreaPageState extends State<WaterSportAreaPage> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: urgency,
+                          initialValue: urgency,
                           items: ["Low", "Medium", "High"]
                               .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                               .toList(),

@@ -559,7 +559,7 @@ class _OfficePageState extends State<OfficePage> {
                             ),
                             const SizedBox(height: 10),
                             DropdownButtonFormField<String>(
-                              value: urgency,
+                              initialValue: urgency,
                               items: ["Low", "Medium", "High"]
                                   .map((e) => DropdownMenuItem(
                                       value: e, child: Text(e)))

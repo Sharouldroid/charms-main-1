@@ -332,7 +332,7 @@ Future<void> _deleteAccount() async {
                     const SizedBox(width: 16),
                     Expanded(
                       child: DropdownButtonFormField<int>(
-                        value: _editedUser.gender,
+                        initialValue: _editedUser.gender,
                         decoration: _inputDecoration('Gender', Icons.people_outline),
                         items: const [
                           DropdownMenuItem(value: 1, child: Text('Male')),
@@ -389,7 +389,7 @@ Future<void> _deleteAccount() async {
                  ),
                  const SizedBox(height: 16),
                  DropdownButtonFormField<String>(
-                   value: _selectedCountry,
+                   initialValue: _selectedCountry,
                    decoration: _inputDecoration('Country', Icons.public),
                    items: AuthConstants.countries.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                    onChanged: (val) {
@@ -402,7 +402,7 @@ Future<void> _deleteAccount() async {
                  const SizedBox(height: 16),
                  if (_selectedCountry == 'Malaysia')
                    DropdownButtonFormField<String>(
-                     value: AuthConstants.statesOfMalaysia.contains(_editedUser.state) ? _editedUser.state : null,
+                     initialValue: AuthConstants.statesOfMalaysia.contains(_editedUser.state) ? _editedUser.state : null,
                      decoration: _inputDecoration('State', Icons.map),
                      items: AuthConstants.statesOfMalaysia.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                      onChanged: (val) => _updateUserField(state: val),

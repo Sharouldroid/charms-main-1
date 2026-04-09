@@ -238,7 +238,7 @@ class _SafetyHistoryPageState extends State<SafetyHistoryPage> {
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: selectedMonth,
+                        initialValue: selectedMonth,
                         decoration: dropStyle("Month"),
                         items:
                             months
@@ -258,7 +258,7 @@ class _SafetyHistoryPageState extends State<SafetyHistoryPage> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: selectedYear,
+                        initialValue: selectedYear,
                         decoration: dropStyle("Year"),
                         items:
                             years

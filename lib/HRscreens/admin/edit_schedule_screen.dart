@@ -149,7 +149,7 @@ class _EditScheduleScreenState extends State<EditScheduleScreen> {
               children: [
                 // Branch dropdown
                 DropdownButtonFormField<String>(
-                  value: _selectedBranch,
+                  initialValue: _selectedBranch,
                   decoration: const InputDecoration(labelText: 'Branch'),
                   items: _branches.map((branch) {
                     return DropdownMenuItem(

@@ -1,5 +1,4 @@
 import 'package:charms/models/optionalitem_cart.dart';
-import 'package:charms/utils/responsive_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 

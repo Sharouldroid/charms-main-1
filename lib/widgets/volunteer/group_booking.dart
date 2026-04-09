@@ -416,7 +416,7 @@ class _GroupBookingState extends State<GroupBooking> {
                       const SizedBox(height: 12),
                       
                       DropdownButtonFormField<String>(
-                        value: 'None',
+                        initialValue: 'None',
                         decoration: _buildInputDecoration(
                           label: 'Diet Restriction',
                           hint: 'Select option',
@@ -477,7 +477,7 @@ class _GroupBookingState extends State<GroupBooking> {
                       const SizedBox(height: 12),
 
                       DropdownButtonFormField<String>(
-                        value: 'No Health Issue',
+                        initialValue: 'No Health Issue',
                         decoration: _buildInputDecoration(
                           label: 'Health Condition',
                           hint: 'Select option',

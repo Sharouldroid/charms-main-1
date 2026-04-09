@@ -428,7 +428,7 @@ class _QuartersPageState extends State<QuartersPage> {
         SizedBox(
           width: 120,
           child: DropdownButtonFormField<String>(
-            value: mapRef[key],
+            initialValue: mapRef[key],
             items: const [
               DropdownMenuItem(value: 'Yes', child: Text('Yes')),
               DropdownMenuItem(value: 'No', child: Text('No')),
@@ -535,7 +535,7 @@ class _QuartersPageState extends State<QuartersPage> {
                             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black)),
                         const SizedBox(height: 16),
                         DropdownButtonFormField<String>(
-                          value: blockSelection,
+                          initialValue: blockSelection,
                           decoration: const InputDecoration(labelText: 'Block'),
                           items: ['Female Block', 'Male Block', 'Researcher Block', 'Other']
                               .map((type) => DropdownMenuItem(value: type, child: Text(type)))

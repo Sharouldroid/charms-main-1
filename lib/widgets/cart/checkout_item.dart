@@ -1,6 +1,5 @@
 import 'package:charms/models/booking_cart.dart';
 import 'package:charms/models/groupmembers.dart';
-import 'package:charms/utils/responsive_helper.dart';
 import 'package:charms/widgets/cart/checkout_members.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';

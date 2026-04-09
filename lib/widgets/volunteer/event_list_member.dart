@@ -141,7 +141,7 @@ class _EventListMemberState extends State<EventListMember> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: _selectedRelationship,
+                  initialValue: _selectedRelationship,
                   decoration: InputDecoration(
                     labelText: 'Relationship',
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),

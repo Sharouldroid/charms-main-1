@@ -6,7 +6,6 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../HRmodels/user.dart';
-import '../HRmodels/staff.dart';
  
 class Auth with ChangeNotifier {
   DateTime? lastLoginTime;

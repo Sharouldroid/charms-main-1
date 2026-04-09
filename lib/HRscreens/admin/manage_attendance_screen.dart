@@ -238,7 +238,7 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<int>(
-                  value: status,
+                  initialValue: status,
                   items: const [
                     DropdownMenuItem(child: Text('Not Clocked In'), value: 1),
                     DropdownMenuItem(child: Text('Clocked In'), value: 2),

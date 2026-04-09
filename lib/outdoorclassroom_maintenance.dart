@@ -420,7 +420,7 @@ class _OutdoorClassroomPageState extends State<OutdoorClassroomPage> {
                                 style: TextStyle(
                                     fontSize: 18, fontWeight: FontWeight.bold)),
                             DropdownButtonFormField<String>(
-                              value: issueType,
+                              initialValue: issueType,
                               decoration:
                                   const InputDecoration(labelText: 'Issue Type'),
                               items: issueTypes.map((type) {

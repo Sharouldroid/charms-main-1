@@ -465,7 +465,7 @@ class _FirstAidPageState extends State<FirstAidPage> {
                 const SizedBox(height: 20),
 
                 DropdownButtonFormField<String>(
-                  value: status,
+                  initialValue: status,
                   items: const [
                     DropdownMenuItem(value: 'Fully Stocked', child: Text('Fully Stocked')),
                     DropdownMenuItem(value: 'Needs Restocking', child: Text('Needs Restocking')),
@@ -541,7 +541,7 @@ class _FirstAidPageState extends State<FirstAidPage> {
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: selectedMonth,
+                        initialValue: selectedMonth,
                         items: months
                             .map((month) => DropdownMenuItem(
                                   value: month,
@@ -560,7 +560,7 @@ class _FirstAidPageState extends State<FirstAidPage> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: selectedYear,
+                        initialValue: selectedYear,
                         items: years
                             .map((year) => DropdownMenuItem(
                                   value: year,

@@ -417,7 +417,7 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
         hintStyle: const TextStyle(color: Colors.white),
         border: const OutlineInputBorder(),
       ),
-      value: selectedValue,
+      initialValue: selectedValue,
       items: items
           .map((item) => DropdownMenuItem(
                 value: item,

@@ -427,7 +427,7 @@ class _WaterQualityPageState extends State<WaterQualityPage> {
                               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
                           const SizedBox(height: 12),
                           DropdownButtonFormField<String>(
-                            value: labTestStatus,
+                            initialValue: labTestStatus,
                             decoration: InputDecoration(
                               labelText: 'Overall Compliance Status',
                               filled: true,
@@ -510,7 +510,7 @@ class _WaterQualityPageState extends State<WaterQualityPage> {
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: selectedMonth,
+                          initialValue: selectedMonth,
                           items: months.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
                           onChanged: (v) => setState(() => selectedMonth = v),
                           decoration: const InputDecoration(
@@ -524,7 +524,7 @@ class _WaterQualityPageState extends State<WaterQualityPage> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: selectedYear,
+                          initialValue: selectedYear,
                           items: years.map((y) => DropdownMenuItem(value: y, child: Text(y))).toList(),
                           onChanged: (v) => setState(() => selectedYear = v),
                           decoration: const InputDecoration(

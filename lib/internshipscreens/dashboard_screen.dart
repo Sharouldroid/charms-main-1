@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:charms/internshipscreens/assessment_intern.dart';
 import 'check_status.dart';
-import 'progress_tracking.dart';
 import 'schedule_calendar.dart';
 import 'monitor_performance.dart';
 import 'intern_list_assesstment.dart';
