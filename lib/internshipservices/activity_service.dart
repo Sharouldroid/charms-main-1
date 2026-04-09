@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../internshipmodels/activity.dart';
-import 'package:charms/main.dart';
+import 'package:charms/services/app_config.dart';
 class ActivityService {
   final String baseUrl;
 
@@ -11,7 +11,7 @@ class ActivityService {
   Future<Activity> addActivity(int internId, String activityDescription) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/api/activities'),
+        Uri.parse('${baseUrl}activities'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },
@@ -36,7 +36,7 @@ class ActivityService {
   Future<List<Activity>> getActivitiesByIntern(int internId) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/api/activities/$internId'),
+        Uri.parse('${baseUrl}activities/$internId'),
       );
 
       if (response.statusCode == 200) {
@@ -55,7 +55,7 @@ class ActivityService {
   Future<List<Activity>> getAllActivities() async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/api/activities'),
+        Uri.parse('${baseUrl}activities'),
       );
 
       if (response.statusCode == 200) {
@@ -74,7 +74,7 @@ class ActivityService {
   Future<void> deleteActivity(int activityId) async {
     try {
       final response = await http.delete(
-        Uri.parse('$baseUrl/api/activities/$activityId'),
+        Uri.parse('${baseUrl}activities/$activityId'),
       );
 
       if (response.statusCode != 200) {

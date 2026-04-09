@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:charms/internshipmodels/schedule.dart';
 import 'package:charms/internshipservices/schedule_service.dart';
-import 'package:charms/main.dart';
+import 'package:charms/services/app_config.dart';
 
 class ScheduleProvider with ChangeNotifier {
   List<Schedule> _schedules = [];

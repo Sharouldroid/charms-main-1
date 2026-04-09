@@ -3,7 +3,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../internshipmodels/register.dart';
-import 'package:charms/main.dart';
+import 'package:charms/services/app_config.dart';
 
 class RegisterService {
   final String baseUrl;
@@ -13,7 +13,7 @@ RegisterService({String? baseUrl}) : baseUrl = baseUrl ?? AppConfig.hostname;
   Future<int> addRegister(Register register) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/api/register'),
+        Uri.parse('${baseUrl}register'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },
@@ -33,7 +33,7 @@ RegisterService({String? baseUrl}) : baseUrl = baseUrl ?? AppConfig.hostname;
 
   Future<List<Register>> getAllRegisters() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/api/internship/registers'));
+      final response = await http.get(Uri.parse('${baseUrl}internship/registers'));
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
@@ -49,7 +49,7 @@ RegisterService({String? baseUrl}) : baseUrl = baseUrl ?? AppConfig.hostname;
   Future<void> deleteRegister(int userId) async {
     try {
       final response =
-          await http.delete(Uri.parse('$baseUrl/api/registers/$userId'));
+          await http.delete(Uri.parse('${baseUrl}registers/$userId'));
 
       if (response.statusCode != 200) {
         throw Exception('Failed to delete user: ${response.reasonPhrase}');
@@ -61,7 +61,7 @@ RegisterService({String? baseUrl}) : baseUrl = baseUrl ?? AppConfig.hostname;
 
   Future<List<Map<String, dynamic>>> fetchInterns() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/api/registers'));
+      final response = await http.get(Uri.parse('${baseUrl}registers'));
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -78,7 +78,7 @@ RegisterService({String? baseUrl}) : baseUrl = baseUrl ?? AppConfig.hostname;
       int internId, String status, String comments) async {
     try {
       final response = await http.put(
-        Uri.parse('$baseUrl/api/internApproval'),
+        Uri.parse('${baseUrl}internApproval'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },
@@ -101,7 +101,7 @@ RegisterService({String? baseUrl}) : baseUrl = baseUrl ?? AppConfig.hostname;
   Future<Register> getInternDetails(int internId) async {
     try {
       final response =
-          await http.get(Uri.parse('$baseUrl/api/registers/$internId'));
+          await http.get(Uri.parse('${baseUrl}registers/$internId'));
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
@@ -117,7 +117,7 @@ RegisterService({String? baseUrl}) : baseUrl = baseUrl ?? AppConfig.hostname;
 
   Future<Register> fetchInternDetails(int internId) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/api/registers'));
+      final response = await http.get(Uri.parse('${baseUrl}registers'));
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);

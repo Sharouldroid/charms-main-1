@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:charms/internshipmodels/register.dart';
 import 'package:charms/internshipservices/register_service.dart';
-import 'package:charms/main.dart';
+import 'package:charms/services/app_config.dart';
 
 class RegisterProvider with ChangeNotifier {
  final RegisterService _registerService =

@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../internshipmodels/schedule.dart';
-import 'package:charms/main.dart';
+import 'package:charms/services/app_config.dart';
 
 class ScheduleService {
   final String baseUrl;
@@ -10,7 +10,7 @@ ScheduleService({String? baseUrl}) : baseUrl = baseUrl ?? AppConfig.hostname;
 
   Future<List<Schedule>> fetchSchedules() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/api/internship/schedules'));
+      final response = await http.get(Uri.parse('${baseUrl}internship/schedules'));
 
       if (response.statusCode == 200) {
         List jsonResponse = json.decode(response.body);
@@ -28,7 +28,7 @@ ScheduleService({String? baseUrl}) : baseUrl = baseUrl ?? AppConfig.hostname;
   Future<void> addSchedule(Schedule schedule) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/api/schedules'),
+        Uri.parse('${baseUrl}schedules'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },
@@ -51,7 +51,7 @@ ScheduleService({String? baseUrl}) : baseUrl = baseUrl ?? AppConfig.hostname;
       int id, String newDescription, int newDuration) async {
     try {
       final response = await http.put(
-        Uri.parse('$baseUrl/api/schedules/$id'),
+        Uri.parse('${baseUrl}schedules/$id'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },

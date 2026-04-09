@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:io';
 import 'dart:convert';
 
-import 'package:charms/main.dart';
+import 'package:charms/services/app_config.dart';
 
 class DocsUpload extends StatefulWidget {
   final int userId;

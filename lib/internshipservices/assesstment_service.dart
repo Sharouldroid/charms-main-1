@@ -1,6 +1,6 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:charms/main.dart';
+import 'package:charms/services/app_config.dart';
 class AssessmentService {
   final String baseUrl;
 
@@ -9,7 +9,7 @@ AssessmentService({String? baseUrl}) : baseUrl = baseUrl ?? AppConfig.hostname;
   Future<void> submitAssessment(int internId, Map<String, int> ratings) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/api/submit-assessment'),
+        Uri.parse('${baseUrl}submit-assessment'),
         body: json.encode({
           'intern_id': internId,
           'criterion_1': ratings['criterion_1'],
@@ -37,7 +37,7 @@ AssessmentService({String? baseUrl}) : baseUrl = baseUrl ?? AppConfig.hostname;
   Future<Map<String, int>?> getAssessmentData(int internId) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/api/get-assessment/$internId'),
+        Uri.parse('${baseUrl}get-assessment/$internId'),
       );
 
       if (response.statusCode == 200) {

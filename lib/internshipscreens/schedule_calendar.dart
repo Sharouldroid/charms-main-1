@@ -5,7 +5,7 @@ import 'package:charms/internshipmodels/schedule.dart';
 import 'registrationForm.dart';
 import 'package:http/http.dart' as http; // Import the http package
 import 'dart:convert'; // Import for jsonDecode
-import 'package:charms/main.dart';
+import 'package:charms/services/app_config.dart';
 class ScheduleCalendar extends StatefulWidget {
   final bool isAdmin;
   final int userId;
