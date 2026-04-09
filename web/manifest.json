@@ -1,13 +1,12 @@
 {
-    "name": "charms",
-    "short_name": "charms",
+    "name": "Charms",
+    "short_name": "Charms",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
+    "background_color": "#ffffff",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Charms app",
     "orientation": "portrait-primary",
-    "prefer_related_applications": false,
     "icons": [
         {
             "src": "icons/Icon-192.png",
