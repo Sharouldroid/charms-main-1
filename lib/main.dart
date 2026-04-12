@@ -75,8 +75,9 @@ import 'package:charms/list_bahan_page.dart'; // Add this
 // 🌟 NEW IMPORT
 import 'app_startup.dart'; 
 
+// app_config.dart
 class AppConfig {
-  static const String hostname = 'http://10.0.2.2:8000/api/';
+  static String hostname = 'https://devcms.com.my/charmsAPI';
 }
 
 // 🌟 HR MODULE: Global Navigator Key

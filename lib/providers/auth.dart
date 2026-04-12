@@ -12,10 +12,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
 
 class ApiConfig {
-  // Use centralized AppConfig for base URL
-  static String get baseUrl => AppConfig.hostname.replaceAll('/api/', '/charmsAPI/api');
+  // Normalize hostname once (remove trailing slash)
+  static String get _host =>
+      AppConfig.hostname.replaceAll(RegExp(r'\/+$'), '');
 
-  // Example endpoints (you can add more as needed)
+  // Keep /api base explicit and consistent
+  static String get baseUrl => '$_host/api';
+
   static String get campsiteIssues => "$baseUrl/campsite-issues";
   static String get facilities => "$baseUrl/facilities";
   static String get kitchenMaintenance => "$baseUrl/kitchen-maintenance";
@@ -34,24 +37,18 @@ class Auth with ChangeNotifier {
   Timer _authTimer = Timer(const Duration(hours: 0), () {});
   String _username = '';
 
-  // Use centralized AppConfig for hostname
-  String get hostname => AppConfig.hostname;
+  // normalized host (no trailing slash)
+  String get _host => AppConfig.hostname.replaceAll(RegExp(r'\/+$'), '');
 
-  String get username {
-    return _username;
-  }
+  String get hostname => _host;
 
-  bool get isAuth {
-    return token != null;
-  }
+  String get username => _username;
 
-  String? get token {
-    return _token;
-  }
+  bool get isAuth => token != null;
 
-  int get usertype {
-    return _usertype;
-  }
+  String? get token => _token;
+
+  int get usertype => _usertype;
 
   int? get userId {
     if (_token == null) return null;
@@ -59,7 +56,8 @@ class Auth with ChangeNotifier {
   }
 
   Future<void> authenticate(String username, String passkey) async {
-    final url = Uri.parse('${hostname}users/login');
+    final url = Uri.parse('$_host/api/users/login');
+    print('LOGIN URL: $url');
 
     try {
       final response = await http.post(
@@ -71,24 +69,21 @@ class Auth with ChangeNotifier {
         body: jsonEncode({'username': username, 'passkey': passkey}),
       );
 
+      print('LOGIN STATUS: ${response.statusCode}');
+      print('LOGIN BODY: ${response.body}');
+
       final responseData = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        // --- START ADDED STATUS CHECK ---
         final userData = responseData['user'];
         final status = userData['status'] ?? 'approved';
-        if (status != 'approved') {
-          if (status == 'pending') {
-            throw HttpException('account_pending');
-          } else if (status == 'rejected') {
-            throw HttpException('account_rejected');
-          } else {
-            throw HttpException('account_status_unknown');
-          }
-        }
-        // --- END STATUS CHECK ---
 
-        // Successful login
+        if (status != 'approved') {
+          if (status == 'pending') throw HttpException('account_pending');
+          if (status == 'rejected') throw HttpException('account_rejected');
+          throw HttpException('account_status_unknown');
+        }
+
         _token = responseData['user']['userid'].toString();
         _username = responseData['user']['username'];
         _usertype = responseData['user']['usertype'];
@@ -106,15 +101,12 @@ class Auth with ChangeNotifier {
         });
         await prefs.setString('userData', userData2);
       } else {
-        // Handle different error statuses
         if (response.statusCode == 401) {
           throw HttpException('invalid_credentials');
         } else if (response.statusCode == 404) {
           throw HttpException('user_not_found');
         } else {
-          throw HttpException(
-            responseData['message'] ?? 'Authentication failed',
-          );
+          throw HttpException(responseData['message'] ?? 'Authentication failed');
         }
       }
     } on http.ClientException catch (e) {
@@ -125,7 +117,8 @@ class Auth with ChangeNotifier {
   }
 
   Future<Map<String, dynamic>?> register(User newUser) async {
-    final url = Uri.parse('${hostname}users/create');
+    final url = Uri.parse('$_host/api/users/create');
+    print('REGISTER URL: $url');
 
     final response = await http.post(
       url,
@@ -155,16 +148,17 @@ class Auth with ChangeNotifier {
       }),
     );
 
+    print('REGISTER STATUS: ${response.statusCode}');
+    print('REGISTER BODY: ${response.body}');
+
     final responseData = jsonDecode(response.body);
 
     if (response.statusCode == 201 || response.statusCode == 200) {
-      print('✅ Registration Successful');
       return {
         'status': response.statusCode,
         'message': responseData['message'] ?? 'User created successfully',
       };
     } else {
-      print('❌ Registration Failed: ${response.body}');
       return {
         'status': response.statusCode,
         'message': responseData['message'] ?? 'Registration failed',
@@ -173,34 +167,22 @@ class Auth with ChangeNotifier {
   }
 
   Future<void> logout() async {
-    // Clear all authentication data
     _token = null;
     _usertype = 0;
     _username = '';
     _expiryDate = DateTime.now();
 
-    // Cancel any active timer
     if (_authTimer.isActive) {
       _authTimer.cancel();
     }
 
-    // Clear all stored data
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('userData');
-    // DON'T clear 'username' and 'passkey' - those are for Remember Me
-    // await prefs.remove('username');
-    // await prefs.remove('passkey');
 
-    // DON'T call clearAll - it wipes Remember Me credentials!
-    // await SecureStorageService.clearAll();
-
-    // Notify listeners about the change
     notifyListeners();
   }
 
-  // Update your tryAutoLogin to use userData instead of username/passkey
   Future<bool> tryAutoLogin() async {
-    // Always return false to force login screen on every start
     return false;
   }
 
@@ -219,8 +201,11 @@ class Auth with ChangeNotifier {
       final nameParts =
           googleUser.displayName?.split(' ') ?? ['Google', 'User'];
 
+      final url = Uri.parse('$_host/api/social-login');
+      print('GOOGLE LOGIN URL: $url');
+
       final response = await http.post(
-        Uri.parse('${hostname}social-login'),
+        url,
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           'provider': 'google',
@@ -230,8 +215,13 @@ class Auth with ChangeNotifier {
           'lastname':
               nameParts.length > 1 ? nameParts.sublist(1).join(' ') : 'User',
           'avatar': googleUser.photoUrl,
+          'google_access_token': googleAuth.accessToken,
+          'google_id_token': googleAuth.idToken,
         }),
       );
+
+      print('GOOGLE LOGIN STATUS: ${response.statusCode}');
+      print('GOOGLE LOGIN BODY: ${response.body}');
 
       _handleSocialResponse(response);
     } catch (error) {
@@ -250,8 +240,6 @@ class Auth with ChangeNotifier {
 
       _autoLogout();
       notifyListeners();
-
-      // Save to shared preferences
       _saveAuthData();
     } else {
       throw HttpException(responseData['message'] ?? 'Social login failed');
@@ -267,7 +255,7 @@ class Auth with ChangeNotifier {
         'usertype': _usertype,
         'username': _username,
         'expiryDate': _expiryDate.toIso8601String(),
-        'isSocial': true, // Add social login flag
+        'isSocial': true,
       }),
     );
   }

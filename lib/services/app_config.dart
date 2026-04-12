@@ -4,15 +4,15 @@ import 'package:flutter/foundation.dart';
 
 class AppConfig {
   static bool _initialized = false;
-  static String _hostname = 'https://devcms.com.my/charmsAPI/api/';
+  static String _hostname = 'https://devcms.com.my/charmsAPI';
   
   // API Configuration - use hardcoded default that works
   static String get hostname => _hostname;
 
   // Alternative hostnames for different environments
   static String get devHostname => 'http://10.0.2.2:8000/api/';
-  static String get stagingHostname => 'https://staging.devcms.com.my/charmsAPI/api/';
-  static String get productionHostname => 'https://devcms.com.my/charmsAPI/api/';
+  static String get stagingHostname => 'https://staging.devcms.com.my/charmsAPI';
+  static String get productionHostname => 'https://devcms.com.my/charmsAPI';
 
   // Stripe Configuration
   static String get stripePublishableKey {

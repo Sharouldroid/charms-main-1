@@ -11,41 +11,26 @@ class ScheduleProvider with ChangeNotifier {
   List<Schedule> get schedules => _schedules;
 
   Future<void> loadSchedules() async {
-    try {
-      _schedules = await _scheduleService.fetchSchedules();
-      notifyListeners();
-    } catch (e) {
-      print('Error loading schedules: $e');
-    }
+    _schedules = await _scheduleService.fetchSchedules();
+    notifyListeners();
   }
 
   Future<void> addSchedule(Schedule schedule) async {
-    try {
-      // Debug log to verify schedule data
-      print('Adding schedule: ${schedule.toJson()}');
-
-      await _scheduleService.addSchedule(schedule);
-      _schedules.add(schedule);
-      notifyListeners();
-    } catch (e) {
-      print('Error adding schedule: $e');
-    }
+    await _scheduleService.addSchedule(schedule);
+    await loadSchedules(); // safer than local append
   }
 
   Future<void> updateSchedule(Schedule updatedSchedule) async {
-    try {
-      await _scheduleService.updateSchedule(
-        updatedSchedule.id,
-        updatedSchedule.description,
-        updatedSchedule.duration ?? 0, // Add duration
-      );
-      final index = _schedules.indexWhere((s) => s.id == updatedSchedule.id);
-      if (index != -1) {
-        _schedules[index] = updatedSchedule;
-        notifyListeners();
-      }
-    } catch (e) {
-      print('Error updating schedule: $e');
+    await _scheduleService.updateSchedule(
+      updatedSchedule.id,
+      updatedSchedule.description,
+      (updatedSchedule.duration ?? '').toString(), // fixed type
+    );
+
+    final index = _schedules.indexWhere((s) => s.id == updatedSchedule.id);
+    if (index != -1) {
+      _schedules[index] = updatedSchedule;
+      notifyListeners();
     }
   }
 }

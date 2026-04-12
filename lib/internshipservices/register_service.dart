@@ -1,132 +1,117 @@
-// register_service.dart
-
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../internshipmodels/register.dart';
 import 'package:charms/main.dart';
+import '../internshipmodels/register.dart';
 
 class RegisterService {
   final String baseUrl;
+  final String? token;
 
-RegisterService({String? baseUrl}) : baseUrl = baseUrl ?? AppConfig.hostname;
+  RegisterService({String? baseUrl, this.token})
+      : baseUrl = (baseUrl ?? AppConfig.hostname).replaceAll(RegExp(r'\/+$'), '');
 
+  Map<String, String> _headers() {
+    final headers = <String, String>{
+      'Content-Type': 'application/json; charset=UTF-8',
+    };
+
+    if (token != null && token!.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+
+    return headers;
+  }
+
+  // POST /api/internship/registers
   Future<int> addRegister(Register register) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/register'),
-        headers: <String, String>{
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
-        body: jsonEncode(register.toJson()),
-      );
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/internship/registers'),
+      headers: _headers(),
+      body: jsonEncode(register.toJson()),
+    );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data['id']; // Assuming the response includes the user ID
-      } else {
-        throw Exception('Failed to register: ${response.reasonPhrase}');
-      }
-    } catch (e) {
-      throw Exception('Error registering: $e');
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['id'] as int;
     }
+
+    throw Exception('Failed to register: ${response.statusCode} ${response.body}');
   }
 
+  // GET /api/internship/registers
   Future<List<Register>> getAllRegisters() async {
-    try {
-      final response = await http.get(Uri.parse('$baseUrl/api/internship/registers'));
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/internship/registers'),
+      headers: _headers(),
+    );
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        return data.map((json) => Register.fromJson(json)).toList();
-      } else {
-        throw Exception('Failed to fetch users: ${response.reasonPhrase}');
-      }
-    } catch (e) {
-      throw Exception('Error fetching users: $e');
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.map((json) => Register.fromJson(json)).toList();
     }
+
+    throw Exception('Failed to fetch users: ${response.statusCode} ${response.body}');
   }
 
+  // DELETE /api/internship/registers/{id}
   Future<void> deleteRegister(int userId) async {
-    try {
-      final response =
-          await http.delete(Uri.parse('$baseUrl/api/registers/$userId'));
+    final response = await http.delete(
+      Uri.parse('$baseUrl/api/internship/registers/$userId'),
+      headers: _headers(),
+    );
 
-      if (response.statusCode != 200) {
-        throw Exception('Failed to delete user: ${response.reasonPhrase}');
-      }
-    } catch (e) {
-      throw Exception('Error deleting user: $e');
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete user: ${response.statusCode} ${response.body}');
     }
   }
 
+  // alias for list interns (same endpoint)
   Future<List<Map<String, dynamic>>> fetchInterns() async {
-    try {
-      final response = await http.get(Uri.parse('$baseUrl/api/registers'));
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/internship/registers'),
+      headers: _headers(),
+    );
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        return List<Map<String, dynamic>>.from(data);
-      } else {
-        throw Exception('Failed to load interns');
-      }
-    } catch (e) {
-      throw Exception('Failed to load interns: $e');
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return List<Map<String, dynamic>>.from(data);
     }
+
+    throw Exception('Failed to load interns: ${response.statusCode} ${response.body}');
   }
 
+  // PUT /api/internship/internApproval
+  // Keep only if this endpoint exists in your Laravel routes/controller
   Future<void> updateInternApprovalStatus(
       int internId, String status, String comments) async {
-    try {
-      final response = await http.put(
-        Uri.parse('$baseUrl/api/internApproval'),
-        headers: <String, String>{
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
-        body: jsonEncode({
-          'intern_id': internId,
-          'status': status,
-          'comments': comments,
-        }),
-      );
+    final response = await http.put(
+      Uri.parse('$baseUrl/api/internship/internApproval'),
+      headers: _headers(),
+      body: jsonEncode({
+        'intern_id': internId,
+        'status': status,
+        'comments': comments,
+      }),
+    );
 
-      if (response.statusCode != 200) {
-        throw Exception(
-            'Failed to update approval status: ${response.reasonPhrase}');
-      }
-    } catch (e) {
-      throw Exception('Error updating approval status: $e');
+    if (response.statusCode != 200) {
+      throw Exception(
+          'Failed to update approval status: ${response.statusCode} ${response.body}');
     }
   }
 
+  // GET /api/internship/registers/{id}
   Future<Register> getInternDetails(int internId) async {
-    try {
-      final response =
-          await http.get(Uri.parse('$baseUrl/api/registers/$internId'));
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/internship/registers/$internId'),
+      headers: _headers(),
+    );
 
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = jsonDecode(response.body);
-        return Register.fromJson(
-            data); // Convert JSON response to Register object
-      } else {
-        throw Exception('Failed to load intern details');
-      }
-    } catch (e) {
-      throw Exception('Error fetching intern details: $e');
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      return Register.fromJson(data);
     }
-  }
 
-  Future<Register> fetchInternDetails(int internId) async {
-    try {
-      final response = await http.get(Uri.parse('$baseUrl/api/registers'));
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = jsonDecode(response.body);
-        return Register.fromJson(data);
-      } else {
-        throw Exception('Failed to fetch intern details');
-      }
-    } catch (e) {
-      throw Exception('Error fetching intern details: $e');
-    }
+    throw Exception('Failed to load intern details: ${response.statusCode} ${response.body}');
   }
 }
