@@ -30,27 +30,35 @@ class VersionService {
   }
 
   // Check for updates from server
-  Future<bool> checkForUpdate() async {
-    try {
-      final response = await http.get(
-        Uri.parse('${AppConfig.hostname}app-version'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      ).timeout(const Duration(seconds: 10));
+ Future<bool> checkForUpdate() async {
+  try {
+    final base = AppConfig.hostname.replaceAll(RegExp(r'\/+$'), '');
+    final url = Uri.parse('$base/api/app-version'); // if backend route is /api/app-version
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        _latestVersion = data['latest_version'] ?? _currentVersion;
-        _forceUpdate = data['force_update'] ?? false;
-        return _isNewerVersion(_latestVersion, _currentVersion);
-      }
-    } catch (e) {
-      debugPrint('Version check error: $e');
+    debugPrint('VERSION URL: $url');
+
+    final response = await http.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    ).timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      _latestVersion = data['latest_version'] ?? _currentVersion;
+      _forceUpdate = data['force_update'] ?? false;
+      return _isNewerVersion(_latestVersion, _currentVersion);
+    } else {
+      debugPrint('Version endpoint status: ${response.statusCode}');
+      debugPrint('Version endpoint body: ${response.body}');
     }
-    return false;
+  } catch (e) {
+    debugPrint('Version check error: $e');
   }
+  return false;
+}
 
   // Compare version strings
   bool _isNewerVersion(String latest, String current) {

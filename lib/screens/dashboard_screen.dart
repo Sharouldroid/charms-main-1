@@ -35,11 +35,12 @@ class RecentActivityController {
   factory RecentActivityController() => _instance;
   RecentActivityController._internal();
 
-  Future<List<String>> fetchRecentActivities(int userId) async {
-    try {
-      final response = await http.get(
-        Uri.parse('https://devcms.com.my/charmsAPI/api/recent-activities?limit=5&userid=$userId'),
-      );
+  Future<List<String>> fetchRecentActivities(String hostname, int userId) async {
+  try {
+    final base = hostname.replaceAll(RegExp(r'\/+$'), '');
+    final response = await http.get(
+      Uri.parse('$base/api/recent-activities?limit=5&userid=$userId'),
+    ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         List data = json.decode(response.body);
@@ -91,7 +92,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _recentActivitiesFuture = RecentActivityController().fetchRecentActivities(widget.userid);
+    _recentActivitiesFuture =
+    RecentActivityController().fetchRecentActivities(widget.hostname, widget.userid);
 
     // Check for app updates after widget is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -156,6 +158,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _fetchUser() async {
+  try {
     final fetchedUser = await Provider.of<Users>(
       context,
       listen: false,
@@ -167,11 +170,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
       userdata = fetchedUser;
       _isLoading = false;
     });
+  } catch (e, st) {
+    debugPrint('DASHBOARD _fetchUser error: $e');
+    debugPrint('$st');
+
+    if (!mounted) return;
+
+    setState(() {
+      _isLoading = false; // IMPORTANT: stop infinite spinner
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Failed to load profile: $e')),
+    );
   }
+}
 
   void _refreshRecentActivities() {
     setState(() {
-      _recentActivitiesFuture = RecentActivityController().fetchRecentActivities(widget.userid);
+    _recentActivitiesFuture =
+    RecentActivityController().fetchRecentActivities(widget.hostname, widget.userid);
     });
   }
 
@@ -334,13 +352,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final cartI = Provider.of<OptionalItemCartOut>(context, listen: false);
     final cartG = Provider.of<GroupMembersOut>(context, listen: false);
 
-    if (_isLoading) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('CHARMS Dashboard')),
-        body: const Center(child: CircularProgressIndicator()),
-      );
-    }
-
+   if (userdata == null) {
+  return Scaffold(
+    appBar: AppBar(title: const Text('CHARMS Dashboard')),
+    body: Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('Unable to load dashboard data.'),
+          const SizedBox(height: 12),
+          ElevatedButton(
+            onPressed: () {
+              setState(() => _isLoading = true);
+              _fetchUser();
+            },
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
     String today = DateFormat('EEEE, d MMMM yyyy').format(DateTime.now());
 
     final String initials = '${userdata!.firstname.isNotEmpty ? userdata!.firstname[0] : ''}${userdata!.lastname.isNotEmpty ? userdata!.lastname[0] : ''}'.toUpperCase();

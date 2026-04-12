@@ -8,9 +8,7 @@ import 'package:http/http.dart' as http;
 class Users with ChangeNotifier {
   List<User> _userlist = [];
 
-  List<User> get userlist {
-    return [..._userlist];
-  }
+  List<User> get userlist => [..._userlist];
 
   User findById(String id) {
     return _userlist.firstWhere(
@@ -19,40 +17,56 @@ class Users with ChangeNotifier {
     );
   }
 
-  // all checked 23 Mar 2025
+  // Normalize hostname and force /api base
+  String _apiBase(String hostname) {
+    final base = hostname.replaceAll(RegExp(r'\/+$'), '');
+    return '$base/api';
+  }
 
   Future<void> fetchUser(String hostname) async {
-    final url = '${hostname}users/';
+    final url = '${_apiBase(hostname)}/users';
 
     try {
-      final response = await http.get(Uri.parse(url));
+      final response = await http.get(
+        Uri.parse(url),
+        headers: const {'Accept': 'application/json'},
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to fetch users. Status: ${response.statusCode}');
+      }
+
       final extractedStaff = jsonDecode(response.body);
       final List<User> loadedUser = [];
-      extractedStaff.forEach((userData) {
-        loadedUser.add(
-          User(
-            id: userData['id'].toString(),
-            firstname: userData['firstname'] ?? '',
-            lastname: userData['lastname'] ?? '',
-            phone: userData['phone'] ?? '',
-            email: userData['login']['email'] ?? '',
-            dob: userData['dob'] ?? '',
-            address1: userData['address1'] ?? '',
-            address2: userData['address2'] ?? '',
-            city: userData['city'] ?? '',
-            postcode: userData['postcode'] ?? '',
-            state: userData['state'] ?? '',
-            country: userData['country'] ?? '',
-            occupation: userData['occupation'] ?? '',
-            username: userData['login']['username'] ?? '',
-            password: userData['login']['passkey'] ?? '',
-            usertype: userData['login']['usertype'] ?? 2,
-            status: userData['status'] ?? '',
-            gender: userData['gender'] ?? 1,
-            idnum: userData['idnum'].toString(),
-          ),
-        );
-      });
+
+      if (extractedStaff is List) {
+        for (final userData in extractedStaff) {
+          loadedUser.add(
+            User(
+              id: (userData['id'] ?? '').toString(),
+              firstname: userData['firstname'] ?? '',
+              lastname: userData['lastname'] ?? '',
+              phone: userData['phone'] ?? '',
+              email: userData['login']?['email'] ?? '',
+              dob: userData['dob'] ?? '',
+              address1: userData['address1'] ?? '',
+              address2: userData['address2'] ?? '',
+              city: userData['city'] ?? '',
+             postcode: int.tryParse('${userData['postcode'] ?? 0}') ?? 0,
+              state: userData['state'] ?? '',
+              country: userData['country'] ?? '',
+              occupation: userData['occupation'] ?? '',
+              username: userData['login']?['username'] ?? '',
+              password: userData['login']?['passkey'] ?? '',
+              usertype: userData['login']?['usertype'] ?? 2,
+              status: userData['status'] ?? '',
+              gender: userData['gender'] ?? 1,
+              idnum: (userData['idnum'] ?? '').toString(),
+            ),
+          );
+        }
+      }
+
       _userlist = loadedUser;
       notifyListeners();
     } catch (error) {
@@ -61,14 +75,13 @@ class Users with ChangeNotifier {
   }
 
   Future<void> update(String hostname, User editedUser, int userid) async {
-    final userIndex = _userlist.indexWhere(
-      (user) => user.id == userid.toString(),
-    );
-    final url = '${hostname}users/$userid';
+    final userIndex = _userlist.indexWhere((user) => user.id == userid.toString());
+    final url = '${_apiBase(hostname)}/users/$userid';
+
     try {
-      await http.put(
+      final response = await http.put(
         Uri.parse(url),
-        headers: {
+        headers: const {
           'Content-type': 'application/json',
           'Accept': 'application/json',
         },
@@ -94,7 +107,13 @@ class Users with ChangeNotifier {
         }),
       );
 
-      _userlist[userIndex] = editedUser;
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('Failed to update user. Status: ${response.statusCode}');
+      }
+
+      if (userIndex >= 0) {
+        _userlist[userIndex] = editedUser;
+      }
 
       notifyListeners();
     } catch (error) {
@@ -103,25 +122,25 @@ class Users with ChangeNotifier {
   }
 
   Future<void> updateLogin(String hostname, UserLogin user, int userid) async {
-    // final userIndex =
-    //     _userlist.indexWhere((user) => user.id == userid.toString());
-    final url = '${hostname}users/$userid';
+    final url = '${_apiBase(hostname)}/users/$userid';
+
     try {
-      await http.put(
+      final response = await http.put(
         Uri.parse(url),
-        headers: {
+        headers: const {
           'Content-type': 'application/json',
           'Accept': 'application/json',
         },
         encoding: Encoding.getByName('utf-8'),
         body: jsonEncode({
-          // 'username': user.username,
           'passkey': user.password,
           'id': userid,
         }),
       );
 
-      // _userlist[userIndex] = user;
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('Failed to update login. Status: ${response.statusCode}');
+      }
 
       notifyListeners();
     } catch (error) {
@@ -130,23 +149,25 @@ class Users with ChangeNotifier {
   }
 
   Future<void> updateUserRole(String hostname, int usertype, int userid) async {
-    final url = '${hostname}users/$userid';
+    final url = '${_apiBase(hostname)}/users/$userid';
+
     try {
-      await http.put(
+      final response = await http.put(
         Uri.parse(url),
-        headers: {
+        headers: const {
           'Content-type': 'application/json',
           'Accept': 'application/json',
         },
         encoding: Encoding.getByName('utf-8'),
         body: jsonEncode({
-          // 'username': user.username,
           'usertype': usertype,
           'id': userid,
         }),
       );
 
-      // _userlist[userIndex] = user;
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('Failed to update role. Status: ${response.statusCode}');
+      }
 
       notifyListeners();
     } catch (error) {
@@ -154,30 +175,26 @@ class Users with ChangeNotifier {
     }
   }
 
-  Future<void> resetPassword(
-    String hostname,
-    String password,
-    int userid,
-  ) async {
-    // final userIndex =
-    //     _userlist.indexWhere((user) => user.id == userid.toString());
-    final url = '${hostname}users/$userid';
+  Future<void> resetPassword(String hostname, String password, int userid) async {
+    final url = '${_apiBase(hostname)}/users/$userid';
+
     try {
-      await http.put(
+      final response = await http.put(
         Uri.parse(url),
-        headers: {
+        headers: const {
           'Content-type': 'application/json',
           'Accept': 'application/json',
         },
         encoding: Encoding.getByName('utf-8'),
         body: jsonEncode({
-          // 'username': user.username,
           'passkey': password,
           'id': userid,
         }),
       );
 
-      // _userlist[userIndex] = user;
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('Failed to reset password. Status: ${response.statusCode}');
+      }
 
       notifyListeners();
     } catch (error) {
@@ -186,35 +203,41 @@ class Users with ChangeNotifier {
   }
 
   Future<User> fetchIndividual(String hostname, int userid) async {
-    final url = '${hostname}users/$userid';
+    final url = '${_apiBase(hostname)}/users/$userid';
 
     try {
-      final response = await http.get(Uri.parse(url));
-      final extractedData = jsonDecode(response.body);
+      final response = await http.get(
+        Uri.parse(url),
+        headers: const {'Accept': 'application/json'},
+      );
 
-      // If your backend returns the user under a 'user' key
+      if (response.statusCode != 200) {
+        throw Exception('Failed to fetch user. Status: ${response.statusCode}');
+      }
+
+      final extractedData = jsonDecode(response.body);
       final userData = extractedData['user'] ?? extractedData;
 
       final user = User(
-        id: userData['id'].toString(),
+        id: (userData['id'] ?? '').toString(),
         firstname: userData['firstname'] ?? '',
         lastname: userData['lastname'] ?? '',
         phone: userData['phone'] ?? '',
-        email: userData['login']['email'] ?? '',
+        email: userData['login']?['email'] ?? '',
         dob: userData['dob'] ?? '',
         address1: userData['address1'] ?? '',
         address2: userData['address2'] ?? '',
         city: userData['city'] ?? '',
-        postcode: userData['postcode'] ?? 0,
+        postcode: int.tryParse('${userData['postcode'] ?? 0}') ?? 0,
         state: userData['state'] ?? '',
         country: userData['country'] ?? '',
         occupation: userData['occupation'] ?? '',
-        username: userData['login']['username'] ?? '',
-        password: userData['login']['passkey'] ?? '',
-        usertype: userData['login']['usertype'] ?? 3,
+        username: userData['login']?['username'] ?? '',
+        password: userData['login']?['passkey'] ?? '',
+        usertype: userData['login']?['usertype'] ?? 3,
         status: userData['status'] ?? '',
         gender: userData['gender'] ?? 1,
-        idnum: userData['idnum'].toString(),
+        idnum: (userData['idnum'] ?? '').toString(),
       );
 
       _userlist = [user];
@@ -224,26 +247,27 @@ class Users with ChangeNotifier {
       rethrow;
     }
   }
-}
 
-Future<void> softDeleteUser(String hostname, int userid) async {
-  final url = '${hostname}users/soft-delete/$userid'; // ✅ match route
-  try {
-    final response = await http.put(
-      Uri.parse(url),
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-    );
+  Future<void> softDeleteUser(String hostname, int userid) async {
+    final url = '${_apiBase(hostname)}/users/soft-delete/$userid';
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to delete user. Status: ${response.statusCode}');
+    try {
+      final response = await http.put(
+        Uri.parse(url),
+        headers: const {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to delete user. Status: ${response.statusCode}');
+      }
+
+      _userlist.removeWhere((u) => u.id == userid.toString());
+      notifyListeners();
+    } catch (error) {
+      rethrow;
     }
-  } catch (error) {
-    rethrow;
   }
 }
-
-
-// all checked 23 Mar 2025
