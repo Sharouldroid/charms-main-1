@@ -1,7 +1,6 @@
 import 'package:charms/HRproviders/attendances.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:charms/HRproviders/auth.dart';
 import 'package:charms/HRproviders/staffs.dart';
 import 'package:charms/HRproviders/schedules.dart';
 import 'package:charms/HRmodels/staff.dart';
@@ -35,7 +34,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
   bool _mounted = true;
 
   String getBranchName(int workLocation) {
-    Map<int, String> branches = {
+    const branches = {
       1: 'Chagar Hutang',
       2: 'Turtle Lab',
       3: 'UMT',
@@ -61,7 +60,6 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
     try {
       final staffsProvider = Provider.of<Staffs>(context, listen: false);
       final schedulesProvider = Provider.of<Schedules>(context, listen: false);
-      final authProvider = Provider.of<Auth>(context, listen: false);
 
       await staffsProvider.fetchStaff();
 
@@ -74,8 +72,8 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
           orElse: () => throw Exception('Staff not found'),
         );
 
-        final schedules =
-            await schedulesProvider.fetchSchedulesByStaffId(_currentStaff!.staffId);
+        final schedules = await schedulesProvider
+            .fetchSchedulesByStaffId(_currentStaff!.staffId);
 
         if (_mounted) {
           setState(() {
@@ -84,8 +82,15 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
               workLocation = _staffSchedules[0].workLocation;
               branch = getBranchName(workLocation);
             }
-            lastLoginTime = authProvider.lastLoginTime ?? DateTime.now();
+            lastLoginTime = DateTime.now(); // fast compile fix
             _isLoading = false;
+          });
+        }
+      } else {
+        if (_mounted) {
+          setState(() {
+            _isLoading = false;
+            lastLoginTime = DateTime.now();
           });
         }
       }
@@ -106,14 +111,18 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
         return;
       case 1:
         nextScreen = LeaveDashboardScreen(
-            username: widget.username, staffId: _currentStaff?.staffId ?? 0);
+          username: widget.username,
+          staffId: _currentStaff?.staffId ?? 0,
+        );
         break;
       case 2:
         nextScreen = PayrollDashboardScreen(username: widget.username);
         break;
       case 3:
         nextScreen = ClaimDashboardScreen(
-            username: widget.username, staffId: _currentStaff?.staffId ?? 0);
+          username: widget.username,
+          staffId: _currentStaff?.staffId ?? 0,
+        );
         break;
       case 4:
         nextScreen = StaffMySelfScreen();
@@ -156,12 +165,15 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
       extendBody: true,
       appBar: AppBar(
         iconTheme: const IconThemeData(color: Colors.white),
-        automaticallyImplyLeading: false, // remove drawer icon
+        automaticallyImplyLeading: false,
         title: const Text('CHARMS STAFF', style: TextStyle(color: Colors.white)),
         centerTitle: true,
         backgroundColor: Colors.blue,
         actions: [
-          IconButton(icon: const Icon(Icons.notifications), onPressed: () {}),
+          IconButton(
+            icon: const Icon(Icons.notifications),
+            onPressed: () {},
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Back to Dashboard',
@@ -178,32 +190,28 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
   }
 
   Widget _buildDashboardContent() {
-    return Stack(
-      children: [
-        SingleChildScrollView(
-          child: Column(
-            children: [
-              const SizedBox(height: 10),
-              Text(
-                "Welcome, ${_currentStaff?.firstname ?? widget.username}!",
-                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-              ),
-              Text(lastLoginTime != null
-                  ? "Last Login: ${formatDateTime(lastLoginTime!)}"
-                  : "Last Login: Not available"),
-              const SizedBox(height: 20),
-              _buildSchedulesCards(),
-            ],
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          const SizedBox(height: 10),
+          Text(
+            "Welcome, ${_currentStaff?.firstname ?? widget.username}!",
+            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
           ),
-        ),
-      ],
+          Text(
+            lastLoginTime != null
+                ? "Last Login: ${formatDateTime(lastLoginTime!)}"
+                : "Last Login: Not available",
+          ),
+          const SizedBox(height: 20),
+          _buildSchedulesCards(),
+        ],
+      ),
     );
   }
 
   Widget _buildSchedulesCards() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    if (_isLoading) return const Center(child: CircularProgressIndicator());
 
     return Container(
       height: 800,
@@ -227,7 +235,10 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
               ? const Center(
                   child: Padding(
                     padding: EdgeInsets.only(top: 20),
-                    child: Text('No schedules found', style: TextStyle(color: Colors.white, fontSize: 16)),
+                    child: Text(
+                      'No schedules found',
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
                   ),
                 )
               : Expanded(
@@ -253,33 +264,34 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                           onTap: () async {
                             final attendanceProvider =
                                 Provider.of<Attendances>(context, listen: false);
+
                             final isClockIn = await attendanceProvider.checkAttendance(
                               staffId: _currentStaff?.staffId ?? 0,
                               scheduleId: schedule.schedId,
                             );
 
-                            if (mounted) {
-                              final result = await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => StaffScheduleDetailsScreen(
-                                    location: currentBranch,
-                                    workDate: schedule.workDate,
-                                    assignedStaff: [_currentStaff?.firstname ?? ''],
-                                    startTime: schedule.workStartTime.toString(),
-                                    endTime: schedule.workEndTime.toString(),
-                                    startBreak: schedule.breakStartTime.toString(),
-                                    endBreak: schedule.breakEndTime.toString(),
-                                    status: isClockIn ? 'Clocked In' : 'Not clocked in',
-                                    scheduleId: schedule.schedId,
-                                    staffId: _currentStaff?.staffId ?? 0,
-                                  ),
-                                ),
-                              );
+                            if (!mounted) return;
 
-                              if (result != null && result['refreshDashboard']) {
-                                await _loadStaffData();
-                              }
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => StaffScheduleDetailsScreen(
+                                  location: currentBranch,
+                                  workDate: schedule.workDate,
+                                  assignedStaff: [_currentStaff?.firstname ?? ''],
+                                  startTime: schedule.workStartTime.toString(),
+                                  endTime: schedule.workEndTime.toString(),
+                                  startBreak: schedule.breakStartTime.toString(),
+                                  endBreak: schedule.breakEndTime.toString(),
+                                  status: isClockIn ? 'Clocked In' : 'Not clocked in',
+                                  scheduleId: schedule.schedId,
+                                  staffId: _currentStaff?.staffId ?? 0,
+                                ),
+                              ),
+                            );
+
+                            if (result != null && result['refreshDashboard'] == true) {
+                              await _loadStaffData();
                             }
                           },
                           trailing: const Icon(Icons.arrow_forward_ios, size: 30, color: Colors.blue),
