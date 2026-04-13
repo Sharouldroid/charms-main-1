@@ -918,7 +918,7 @@ class HRSelectionScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Logout',
-            onPressed: () => LogoutHelper.logoutAndGoLogin(context),
+           onPressed: () => LogoutHelper.backToMainDashboard(context),
           ),
         ],
       ),

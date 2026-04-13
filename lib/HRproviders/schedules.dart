@@ -12,21 +12,40 @@ class Schedules with ChangeNotifier {
   List<Schedule> get schedules => [..._schedules];
 
   Future<void> fetchSchedules() async {
-    try {
-      // Aligned with Route::get('/', [HRScheduleController::class, 'getAllSchedules'])
-      final response = await http.get(Uri.parse('$_hostname/staff-schedule/'));
+  try {
+    final response = await http
+        .get(Uri.parse('$_hostname/staff-schedule'), headers: {'Accept': 'application/json'})
+        .timeout(const Duration(seconds: 20));
 
-      if (response.statusCode == 200) {
-        final List<dynamic> scheduleData = json.decode(response.body);
-        _schedules =
-            scheduleData.map((data) => Schedule.fromJson(data)).toList();
-        notifyListeners();
-      }
-    } catch (error) {
-      print('Error fetching schedules: $error');
-      rethrow;
+    if (response.statusCode != 200) {
+      throw Exception('Failed to fetch schedules: ${response.statusCode} ${response.body}');
     }
+
+    final decoded = json.decode(response.body);
+
+    // supports: {data:[...]} OR {schedules:[...]} OR [...]
+    List<dynamic> scheduleData;
+    if (decoded is Map<String, dynamic>) {
+      if (decoded['data'] is List) {
+        scheduleData = decoded['data'] as List<dynamic>;
+      } else if (decoded['schedules'] is List) {
+        scheduleData = decoded['schedules'] as List<dynamic>;
+      } else {
+        scheduleData = [];
+      }
+    } else if (decoded is List) {
+      scheduleData = decoded;
+    } else {
+      scheduleData = [];
+    }
+
+    _schedules = scheduleData.map((data) => Schedule.fromJson(data)).toList();
+    notifyListeners();
+  } catch (error) {
+    debugPrint('Error fetching schedules: $error');
+    rethrow;
   }
+}
 
   Future<List<Schedule>> fetchSchedulesByStaffId(int staffId) async {
     try {

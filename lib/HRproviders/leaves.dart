@@ -12,27 +12,40 @@ class Leaves with ChangeNotifier {
   List<Leave> get leaves => [..._leaves];
 
   Future<void> fetchLeaves() async {
-    try {
-      // Aligned with Laravel: Route::get('/', [HRLeaveController::class, 'getAllLeaves'])
-      final response = await http.get(Uri.parse('$_hostname/leave/'));
-      
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = json.decode(response.body);
-        
-        // Aligned with Laravel response: return response()->json(['leaves' => $leaves], 200);
-        if (responseData.containsKey('leaves')) {
-          final List<dynamic> leaveData = responseData['leaves'];
-          _leaves = leaveData.map((data) => Leave.fromJson(data)).toList();
-          notifyListeners();
-        }
-      } else {
-        print('Error fetching leaves: ${response.body}');
-      }
-    } catch (error) {
-      print('Exception fetching leaves: $error');
-      throw Exception('Failed to fetch leaves: $error');
+  try {
+    final response = await http
+        .get(Uri.parse('$_hostname/leave'), headers: {'Accept': 'application/json'})
+        .timeout(const Duration(seconds: 20));
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to fetch leaves: ${response.statusCode} ${response.body}');
     }
+
+    final decoded = json.decode(response.body);
+
+    // supports: {leaves:[...]} OR {data:[...]} OR [...]
+    List<dynamic> leaveData;
+    if (decoded is Map<String, dynamic>) {
+      if (decoded['leaves'] is List) {
+        leaveData = decoded['leaves'] as List<dynamic>;
+      } else if (decoded['data'] is List) {
+        leaveData = decoded['data'] as List<dynamic>;
+      } else {
+        leaveData = [];
+      }
+    } else if (decoded is List) {
+      leaveData = decoded;
+    } else {
+      leaveData = [];
+    }
+
+    _leaves = leaveData.map((data) => Leave.fromJson(data)).toList();
+    notifyListeners();
+  } catch (error) {
+    debugPrint('Exception fetching leaves: $error');
+    rethrow;
   }
+}
 
   Future<Leave> getLeaveById(int leaveId) async {
     try {

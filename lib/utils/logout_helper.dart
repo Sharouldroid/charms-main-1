@@ -1,11 +1,16 @@
-import 'package:charms/providers/auth.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 class LogoutHelper {
-  static Future<void> logoutAndGoLogin(BuildContext context) async {
-    final navigator = Navigator.of(context); // capture before await
-    await Provider.of<Auth>(context, listen: false).logout();
+  /// For module-level logout (HR/Intern) -> go back to main dashboard
+  static Future<void> backToMainDashboard(BuildContext context) async {
+    final navigator = Navigator.of(context);
+    navigator.pushNamedAndRemoveUntil('/dashboard', (route) => false);
+  }
+
+  /// Full app logout (clear auth) -> go login
+  static Future<void> fullLogoutToLogin(BuildContext context, Future<void> Function() logoutAction) async {
+    final navigator = Navigator.of(context);
+    await logoutAction();
     navigator.pushNamedAndRemoveUntil('/', (route) => false);
   }
 }

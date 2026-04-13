@@ -6,13 +6,12 @@ import 'package:charms/HRproviders/staffs.dart';
 import 'package:charms/HRproviders/schedules.dart';
 import 'package:charms/HRmodels/staff.dart';
 import 'package:charms/HRmodels/schedule.dart';
-import 'package:charms/HRscreens/auth_screen.dart';
+import 'package:charms/screens/dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/leave_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/payroll_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/claim_dashboard.dart';
 import 'package:charms/HRscreens/staff/staff_myself_screen.dart';
 import 'package:charms/HRscreens/staff/staff_schedule_details_screen.dart';
-import 'package:charms/HRwidgets/custom_drawer.dart';
 import 'package:charms/HRwidgets/staff/bottom_nav_staff.dart';
 
 class StaffDashboardScreen extends StatefulWidget {
@@ -27,8 +26,6 @@ class StaffDashboardScreen extends StatefulWidget {
 
 class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
   int _selectedIndex = 0;
-  String _selectedLanguage = 'English';
-  final List<String> _languages = ['English', 'Spanish', 'French', 'German'];
   List<Schedule> _staffSchedules = [];
   Staff? _currentStaff;
   bool _isLoading = true;
@@ -66,9 +63,8 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
       final schedulesProvider = Provider.of<Schedules>(context, listen: false);
       final authProvider = Provider.of<Auth>(context, listen: false);
 
-      // FIXED: fetchStaff() no longer takes a hostname parameter
       await staffsProvider.fetchStaff();
-      
+
       if (!_mounted) return;
 
       final staffList = staffsProvider.staffList;
@@ -78,25 +74,22 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
           orElse: () => throw Exception('Staff not found'),
         );
 
-        if (_currentStaff != null) {
-          final schedules = await schedulesProvider
-              .fetchSchedulesByStaffId(_currentStaff!.staffId);
+        final schedules =
+            await schedulesProvider.fetchSchedulesByStaffId(_currentStaff!.staffId);
 
-          if (_mounted) {
-            setState(() {
-              _staffSchedules = schedules;
-              if (_staffSchedules.isNotEmpty) {
-                workLocation = _staffSchedules[0].workLocation;
-                branch = getBranchName(workLocation);
-              }
-              lastLoginTime = authProvider.lastLoginTime ?? DateTime.now();
-              _isLoading = false;
-            });
-          }
+        if (_mounted) {
+          setState(() {
+            _staffSchedules = schedules;
+            if (_staffSchedules.isNotEmpty) {
+              workLocation = _staffSchedules[0].workLocation;
+              branch = getBranchName(workLocation);
+            }
+            lastLoginTime = authProvider.lastLoginTime ?? DateTime.now();
+            _isLoading = false;
+          });
         }
       }
     } catch (error) {
-      print('Error loading staff data: $error');
       if (_mounted) {
         setState(() => _isLoading = false);
       }
@@ -105,21 +98,22 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
 
   void _onItemTapped(int index) {
     if (index == _selectedIndex) return;
-    
     setState(() => _selectedIndex = index);
 
     Widget nextScreen;
     switch (index) {
       case 0:
-        return; // Already here
+        return;
       case 1:
-        nextScreen = LeaveDashboardScreen(username: widget.username, staffId: _currentStaff?.staffId ?? 0);
+        nextScreen = LeaveDashboardScreen(
+            username: widget.username, staffId: _currentStaff?.staffId ?? 0);
         break;
       case 2:
         nextScreen = PayrollDashboardScreen(username: widget.username);
         break;
       case 3:
-        nextScreen = ClaimDashboardScreen(username: widget.username, staffId: _currentStaff?.staffId ?? 0);
+        nextScreen = ClaimDashboardScreen(
+            username: widget.username, staffId: _currentStaff?.staffId ?? 0);
         break;
       case 4:
         nextScreen = StaffMySelfScreen();
@@ -128,7 +122,6 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
         return;
     }
 
-    // Using pushReplacement to keep the navigation stack clean
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => nextScreen),
@@ -136,9 +129,9 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
   }
 
   Future<void> _logout() async {
-    await Provider.of<Auth>(context, listen: false).logout();
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const AuthScreen()),
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      DashboardScreen.routeName,
+      (route) => false,
     );
   }
 
@@ -163,20 +156,18 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
       extendBody: true,
       appBar: AppBar(
         iconTheme: const IconThemeData(color: Colors.white),
+        automaticallyImplyLeading: false, // remove drawer icon
         title: const Text('CHARMS STAFF', style: TextStyle(color: Colors.white)),
         centerTitle: true,
         backgroundColor: Colors.blue,
         actions: [
           IconButton(icon: const Icon(Icons.notifications), onPressed: () {}),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Back to Dashboard',
+            onPressed: _logout,
+          ),
         ],
-      ),
-      drawer: CustomDrawer(
-        selectedLanguage: _selectedLanguage,
-        languages: _languages,
-        onLanguageChanged: (String? newValue) {
-          setState(() => _selectedLanguage = newValue!);
-        },
-        onLogOut: _logout,
       ),
       body: _buildDashboardContent(),
       bottomNavigationBar: BottomNavStaff(
@@ -230,17 +221,13 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
           const SizedBox(height: 10),
           const Text(
             "   Your Schedules:",
-            style: TextStyle(
-                fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
           ),
           _staffSchedules.isEmpty
               ? const Center(
                   child: Padding(
                     padding: EdgeInsets.only(top: 20),
-                    child: Text(
-                      'No schedules found',
-                      style: TextStyle(color: Colors.white, fontSize: 16),
-                    ),
+                    child: Text('No schedules found', style: TextStyle(color: Colors.white, fontSize: 16)),
                   ),
                 )
               : Expanded(
@@ -254,22 +241,19 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                         elevation: 2,
                         margin: const EdgeInsets.all(5.0),
                         child: ListTile(
-                          leading: const Icon(Icons.location_on_outlined,
-                              size: 30, color: Colors.blue),
+                          leading: const Icon(Icons.location_on_outlined, size: 30, color: Colors.blue),
                           title: Text(
                             currentBranch,
-                            style: const TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold),
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                           subtitle: Text(
-                              'Date: ${schedule.workDate.toString().split(' ')[0]}\n'
-                              'Time: ${schedule.workStartTime} - ${schedule.workEndTime}'),
+                            'Date: ${schedule.workDate.toString().split(' ')[0]}\n'
+                            'Time: ${schedule.workStartTime} - ${schedule.workEndTime}',
+                          ),
                           onTap: () async {
-                            final attendanceProvider = Provider.of<Attendances>(
-                                context,
-                                listen: false);
-                            final isClockIn =
-                                await attendanceProvider.checkAttendance(
+                            final attendanceProvider =
+                                Provider.of<Attendances>(context, listen: false);
+                            final isClockIn = await attendanceProvider.checkAttendance(
                               staffId: _currentStaff?.staffId ?? 0,
                               scheduleId: schedule.schedId,
                             );
@@ -278,34 +262,27 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                               final result = await Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) =>
-                                      StaffScheduleDetailsScreen(
+                                  builder: (context) => StaffScheduleDetailsScreen(
                                     location: currentBranch,
                                     workDate: schedule.workDate,
-                                    assignedStaff: [
-                                      _currentStaff?.firstname ?? ''
-                                    ],
+                                    assignedStaff: [_currentStaff?.firstname ?? ''],
                                     startTime: schedule.workStartTime.toString(),
                                     endTime: schedule.workEndTime.toString(),
                                     startBreak: schedule.breakStartTime.toString(),
                                     endBreak: schedule.breakEndTime.toString(),
-                                    status: isClockIn
-                                        ? 'Clocked In'
-                                        : 'Not clocked in',
+                                    status: isClockIn ? 'Clocked In' : 'Not clocked in',
                                     scheduleId: schedule.schedId,
                                     staffId: _currentStaff?.staffId ?? 0,
                                   ),
                                 ),
                               );
 
-                              if (result != null &&
-                                  result['refreshDashboard']) {
+                              if (result != null && result['refreshDashboard']) {
                                 await _loadStaffData();
                               }
                             }
                           },
-                          trailing: const Icon(Icons.arrow_forward_ios,
-                              size: 30, color: Colors.blue),
+                          trailing: const Icon(Icons.arrow_forward_ios, size: 30, color: Colors.blue),
                         ),
                       );
                     },

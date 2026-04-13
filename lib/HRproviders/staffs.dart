@@ -18,54 +18,72 @@ class Staffs with ChangeNotifier {
 
   // Fetch Staff Data
   Future<void> fetchStaff() async {
-    try {
-      // Aligned with Route::get('/', [HRStaffController::class, 'fetchAllStaff'])
-      final response = await http.get(Uri.parse('$_hostname/staff/'));
-      
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = json.decode(response.body);
+  try {
+    // no trailing slash
+    final response = await http
+        .get(Uri.parse('$_hostname/staff'), headers: {'Accept': 'application/json'})
+        .timeout(const Duration(seconds: 20));
 
-        // Aligned with Laravel response: return response()->json(['success' => true, 'data' => $staffList], 200);
-        if (responseData['success'] == true && responseData['data'] != null) {
-          final List<dynamic> staffData = responseData['data'];
-          _staffList = staffData.map((data) => Staff(
-            staffId: data['id'] ?? 0,
-            userId: data['userid'] ?? 0,
-            username: data['username'] ?? '',
-            email: data['email'] ?? '',
-            usertype: data['usertype'] ?? 0,
-            firstname: data['firstname'] ?? '',
-            lastname: data['lastname'] ?? '',
-            occupation: data['occupation'] ?? '',
-            phone: data['phone'] ?? '',
-            category: data['category'] ?? 0,
-            nationality: data['nationality'] ?? '',
-            religion: data['religion'] ?? '',
-            maritalStatus: data['marital_status'] ?? 0,
-            officePhone: data['office_phone'],
-            emergencyName: data['emergency_name'] ?? '',
-            emergencyIc: data['emergency_ic'] ?? '',
-            emergencyRelation: data['emergency_relation'] ?? '',
-            emergencyGender: data['emergency_gender'] ?? 0,
-            emergencyPhone: data['emergency_phone'] ?? '',
-            idNum: data['id_num'] ?? '',
-            dob: data['dob'] ?? '',
-            address1: data['address1'] ?? '',
-            address2: data['address2'] ?? '',
-            city: data['city'] ?? '',
-            postcode: data['postcode'] ?? 0,
-            state: data['state'] ?? '',
-            country: data['country'] ?? '',
-          )).toList();
-          
-          notifyListeners();
-        }
-      }
-    } catch (error) {
-      print('Error fetching staff: $error');
-      rethrow;
+    if (response.statusCode != 200) {
+      throw Exception('Failed to fetch staff: ${response.statusCode} ${response.body}');
     }
+
+    final decoded = json.decode(response.body);
+
+    // supports: {success:true,data:[...]} OR {staff:[...]} OR [...]
+    List<dynamic> staffData;
+    if (decoded is Map<String, dynamic>) {
+      if (decoded['data'] is List) {
+        staffData = decoded['data'] as List<dynamic>;
+      } else if (decoded['staff'] is List) {
+        staffData = decoded['staff'] as List<dynamic>;
+      } else {
+        staffData = [];
+      }
+    } else if (decoded is List) {
+      staffData = decoded;
+    } else {
+      staffData = [];
+    }
+
+    _staffList = staffData
+        .map((data) => Staff(
+              staffId: data['id'] ?? 0,
+              userId: data['userid'] ?? 0,
+              username: data['username'] ?? '',
+              email: data['email'] ?? '',
+              usertype: data['usertype'] ?? 0,
+              firstname: data['firstname'] ?? '',
+              lastname: data['lastname'] ?? '',
+              occupation: data['occupation'] ?? '',
+              phone: data['phone'] ?? '',
+              category: data['category'] ?? 0,
+              nationality: data['nationality'] ?? '',
+              religion: data['religion'] ?? '',
+              maritalStatus: data['marital_status'] ?? 0,
+              officePhone: data['office_phone'],
+              emergencyName: data['emergency_name'] ?? '',
+              emergencyIc: data['emergency_ic'] ?? '',
+              emergencyRelation: data['emergency_relation'] ?? '',
+              emergencyGender: data['emergency_gender'] ?? 0,
+              emergencyPhone: data['emergency_phone'] ?? '',
+              idNum: data['id_num'] ?? '',
+              dob: data['dob'] ?? '',
+              address1: data['address1'] ?? '',
+              address2: data['address2'] ?? '',
+              city: data['city'] ?? '',
+              postcode: data['postcode'] ?? 0,
+              state: data['state'] ?? '',
+              country: data['country'] ?? '',
+            ))
+        .toList();
+
+    notifyListeners();
+  } catch (error) {
+    debugPrint('Error fetching staff: $error');
+    rethrow;
   }
+}
 
   // Update Staff Details
   Future<void> updateStaffDetails(int staffId, Staff updatedStaff) async {
