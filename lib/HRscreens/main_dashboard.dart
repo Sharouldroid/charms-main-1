@@ -1,4 +1,4 @@
-import 'package:charms/HRproviders/auth.dart';
+import 'package:charms/HRproviders/auth.dart' as hr_auth;
 import 'package:charms/HRscreens/auth_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -48,7 +48,7 @@ class MainDashboard extends StatelessWidget {
               title: const Text('Logout'),
               onTap: () async {
               // Trigger the logout in the Auth provider
-              await Provider.of<Auth>(context, listen: false).logout();
+              await Provider.of<hr_auth.Auth>(context, listen: false).logout();
 
               // Navigate to the AuthScreen after logout
               Navigator.of(context).pushReplacement(

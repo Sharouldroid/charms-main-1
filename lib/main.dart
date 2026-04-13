@@ -5,7 +5,7 @@ import 'package:charms/models/booking_cart.dart';
 import 'package:charms/models/groupmembers.dart';
 import 'package:charms/models/optionalitem_cart.dart';
 import 'package:charms/models/specialbooking_cart.dart';
-import 'package:charms/providers/auth.dart';
+import 'package:charms/providers/auth.dart' as app_auth;
 import 'package:charms/providers/boats.dart';
 import 'package:charms/providers/bookevents.dart';
 import 'package:charms/providers/bookingsettings.dart';
@@ -41,6 +41,7 @@ import 'package:charms/internshipscreens/dashboard_screen.dart' as internship_sc
 // 🌟 HR MODULE IMPORTS (ADDED)
 // ------------------------
 import 'package:charms/camera_service.dart';
+import 'package:charms/HRproviders/auth.dart' as hr_auth;
 import 'package:charms/HRproviders/attendances.dart';
 import 'package:charms/HRproviders/claims.dart';
 import 'package:charms/HRproviders/leaves.dart';
@@ -108,7 +109,8 @@ class MyApp extends StatelessWidget {
         // --------------------------------
         // CHARMS PROVIDERS
         // --------------------------------
-        ChangeNotifierProvider.value(value: Auth()),
+        ChangeNotifierProvider<app_auth.Auth>(create: (_) => app_auth.Auth()),
+        ChangeNotifierProvider<hr_auth.Auth>(create: (_) => hr_auth.Auth()),
         ChangeNotifierProvider(create: (_) => Users()),
         ChangeNotifierProvider(create: (_) => Events()),
         ChangeNotifierProvider(create: (_) => ResearcherEvents()),
@@ -150,7 +152,7 @@ class MyApp extends StatelessWidget {
       ],
 
       child: OverlaySupport.global(
-        child: Consumer<Auth>(
+        child: Consumer<app_auth.Auth>(
           builder: (ctx, auth, _) => MaterialApp(
             navigatorKey: navigatorKey, // 🌟 HR MODULE: Add Navigator Key
             title: 'charms',
@@ -208,7 +210,7 @@ class MyApp extends StatelessWidget {
               '/transactionhistory': (context) => const TransactionHistoryPage(),
 
              '/campsite': (context) {
-  final auth = Provider.of<Auth>(context, listen: false);
+  final auth = Provider.of<app_auth.Auth>(context, listen: false);
   if (auth.userId == null) {
     // Handle gracefully – maybe redirect to login or show an error
     return const AuthScreen(); // Or a placeholder
@@ -216,14 +218,14 @@ class MyApp extends StatelessWidget {
   return CampsitePage(userId: auth.userId!);
 },
 '/kitchen': (context) {
-  final auth = Provider.of<Auth>(context, listen: false);
+  final auth = Provider.of<app_auth.Auth>(context, listen: false);
   if (auth.userId == null) {
     return const AuthScreen();
   }
   return const KitchenPage();
 
 },'/quarters': (context) {
-  final auth = Provider.of<Auth>(context, listen: false);
+  final auth = Provider.of<app_auth.Auth>(context, listen: false);
   if (auth.userId == null) {
     // If somehow userId is null, redirect to auth
     return const AuthScreen();
@@ -232,14 +234,14 @@ class MyApp extends StatelessWidget {
 },             
 
 '/outdoorclassroom': (context) {
-  final auth = Provider.of<Auth>(context, listen: false);
+  final auth = Provider.of<app_auth.Auth>(context, listen: false);
   if (auth.userId == null) {
     return const AuthScreen();
   }
   return const OutdoorClassroomPage();
 
 },'/watersportarea': (context) {
-  final auth = Provider.of<Auth>(context, listen: false);
+  final auth = Provider.of<app_auth.Auth>(context, listen: false);
   if (auth.userId == null) {
     return const AuthScreen();
   }
@@ -248,7 +250,7 @@ class MyApp extends StatelessWidget {
    '/safety': (context) => const SafetyPage(),
 
 '/firstaid': (context) {
-  final auth = Provider.of<Auth>(context, listen: false);
+ final auth = Provider.of<app_auth.Auth>(context, listen: false);
   if (auth.userId == null) {
     return const AuthScreen(); // or handle appropriately
   }
@@ -256,7 +258,7 @@ class MyApp extends StatelessWidget {
 },            
 
 '/backpacking': (context) {
-  final auth = Provider.of<Auth>(context, listen: false);
+  final auth = Provider.of<app_auth.Auth>(context, listen: false);
   if (auth.userId == null) {
     return const AuthScreen(); // or handle appropriately
   }
@@ -264,7 +266,7 @@ class MyApp extends StatelessWidget {
 },          
 
 '/incident': (context) {
-  final auth = Provider.of<Auth>(context, listen: false);
+  final auth = Provider.of<app_auth.Auth>(context, listen: false);
   if (auth.userId == null) {
     return const AuthScreen();
   }
@@ -274,7 +276,7 @@ class MyApp extends StatelessWidget {
               '/facilities': (context) => const OtherFacilityPage(),
 
 '/office': (context) {
-  final auth = Provider.of<Auth>(context, listen: false);
+  final auth = Provider.of<app_auth.Auth>(context, listen: false);
   if (auth.userId == null) {
     // If userId is null, redirect to auth screen (or show an error)
     return const AuthScreen();
@@ -283,7 +285,7 @@ class MyApp extends StatelessWidget {
 },
 
 '/balaisafsurau': (context) {
-  final auth = Provider.of<Auth>(context, listen: false);
+  final auth = Provider.of<app_auth.Auth>(context, listen: false);
   if (auth.userId == null) {
     return const AuthScreen();
   }
@@ -291,14 +293,14 @@ class MyApp extends StatelessWidget {
 },        
 
 '/landscape': (context) {
-  final auth = Provider.of<Auth>(context, listen: false);
+  final auth = Provider.of<app_auth.Auth>(context, listen: false);
   if (auth.userId == null) {
     return const AuthScreen(); // or handle appropriately
   }
   return LandscapePage(userId: auth.userId!);
 },
 '/replacementitems': (context) {
-  final auth = Provider.of<Auth>(context, listen: false);
+  final auth = Provider.of<app_auth.Auth>(context, listen: false);
   if (auth.userId == null) {
     return const AuthScreen(); // or handle appropriately
   }
@@ -306,7 +308,7 @@ class MyApp extends StatelessWidget {
 },       
 
 '/others_maintenance': (context) {
-  final auth = Provider.of<Auth>(context, listen: false);
+  final auth = Provider.of<app_auth.Auth>(context, listen: false);
   if (auth.userId == null) {
     return const AuthScreen();
   }
@@ -314,7 +316,7 @@ class MyApp extends StatelessWidget {
 },
             
 '/water_quality': (context) {
-  final auth = Provider.of<Auth>(context, listen: false);
+  final auth = Provider.of<app_auth.Auth>(context, listen: false);
   if (auth.userId == null) {
     return const AuthScreen(); // or handle appropriately
   }
