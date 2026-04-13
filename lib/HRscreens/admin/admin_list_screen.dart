@@ -7,9 +7,10 @@ import 'package:charms/HRscreens/admin/myself_screen.dart';
 import 'package:charms/HRscreens/admin/notification_screen.dart';
 import 'package:charms/HRscreens/auth_screen.dart';
 import 'package:charms/HRwidgets/admin/bottom_nav_bar.dart';
-import 'package:charms/HRwidgets/custom_drawer.dart';
+//import 'package:charms/HRwidgets/custom_drawer.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:charms/screens/dashboard_screen.dart';
 
 class AdminListScreen extends StatefulWidget {
   @override
@@ -63,11 +64,11 @@ class _AdminListScreenState extends State<AdminListScreen> {
 }
 
   Future<void> _logout() async {
-    await Provider.of<hr_auth.Auth>(context, listen: false).logout();
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const AuthScreen()),
-    );
-  }
+  Navigator.of(context).pushNamedAndRemoveUntil(
+    DashboardScreen.routeName,
+    (route) => false,
+  );
+}
 
   void _onItemTapped(int index) {
     setState(() {
@@ -106,26 +107,29 @@ class _AdminListScreenState extends State<AdminListScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.blue,
-        iconTheme: IconThemeData(color: Colors.white),
-        title: Text('CHARMS ADMIN', style: TextStyle(color: Colors.white)),
-        centerTitle: true,
-        actions: [
-          IconButton(icon: const Icon(Icons.notifications), onPressed: () {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => NotificationScreen()));
-          }),
-        ],
-      ),
-      drawer: CustomDrawer(
-        selectedLanguage: _selectedLanguage,
-        languages: _languages,
-        onLanguageChanged: (String? newValue) {
-          setState(() {
-            _selectedLanguage = newValue!;
-          });
-        },
-        onLogOut: _logout,
-      ),
+          backgroundColor: Colors.blue,
+          iconTheme: const IconThemeData(color: Colors.white),
+          automaticallyImplyLeading: false, // ✅ remove drawer/hamburger
+          title: const Text('CHARMS ADMIN', style: TextStyle(color: Colors.white)),
+          centerTitle: true,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.notifications),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => NotificationScreen()),
+                );
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.logout), // ✅ like admin_dashboard
+              tooltip: 'Back to Dashboard',
+              onPressed: _logout,
+            ),
+          ],
+        ),
+      
       body: _isLoading
           ? Center(child: CircularProgressIndicator())
           : Column(
