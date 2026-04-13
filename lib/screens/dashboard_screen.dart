@@ -28,6 +28,7 @@ import 'package:charms/admin_checklist_page.dart';
 import 'package:charms/notification_page.dart';
 import 'package:charms/HRscreens/admin/admin_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
+import 'package:charms/utils/logout_helper.dart';
 
 // --- CONTROLLER (Recent Activity) ---
 class RecentActivityController {
@@ -351,6 +352,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final cartK = Provider.of<BookingCartOut>(context, listen: false);
     final cartI = Provider.of<OptionalItemCartOut>(context, listen: false);
     final cartG = Provider.of<GroupMembersOut>(context, listen: false);
+
+    if (_isLoading) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('CHARMS Dashboard')),
+      body: const Center(child: CircularProgressIndicator()),
+    );
+  }
 
    if (userdata == null) {
   return Scaffold(
@@ -906,6 +914,13 @@ class HRSelectionScreen extends StatelessWidget {
         title: const Text('Select HR Role'),
         centerTitle: true,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Logout',
+            onPressed: () => LogoutHelper.logoutAndGoLogin(context),
+          ),
+        ],
       ),
       body: Center(
         child: Padding(
@@ -919,7 +934,6 @@ class HRSelectionScreen extends StatelessWidget {
               ),
               const SizedBox(height: 40),
 
-              // Admin Login Button
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -931,7 +945,10 @@ class HRSelectionScreen extends StatelessWidget {
                     ),
                   ),
                   icon: const Icon(Icons.admin_panel_settings, color: Colors.white),
-                  label: const Text('Login as HR Admin', style: TextStyle(fontSize: 18, color: Colors.white)),
+                  label: const Text(
+                    'Login as HR Admin',
+                    style: TextStyle(fontSize: 18, color: Colors.white),
+                  ),
                   onPressed: () {
                     Navigator.push(
                       context,
@@ -942,10 +959,8 @@ class HRSelectionScreen extends StatelessWidget {
                   },
                 ),
               ),
-
               const SizedBox(height: 20),
 
-              // Staff Login Button
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -957,7 +972,10 @@ class HRSelectionScreen extends StatelessWidget {
                     ),
                   ),
                   icon: const Icon(Icons.people, color: Colors.white),
-                  label: const Text('Login as Staff', style: TextStyle(fontSize: 18, color: Colors.white)),
+                  label: const Text(
+                    'Login as Staff',
+                    style: TextStyle(fontSize: 18, color: Colors.white),
+                  ),
                   onPressed: () {
                     Navigator.push(
                       context,
