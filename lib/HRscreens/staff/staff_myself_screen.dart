@@ -1,32 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:charms/HRproviders/auth.dart';
+import 'package:charms/HRproviders/auth.dart' as hr_auth;
 import 'package:charms/HRproviders/staffs.dart';
 import 'package:charms/HRmodels/staff.dart';
-import 'package:charms/HRscreens/auth_screen.dart';
 import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/leave_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/payroll_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/claim_dashboard.dart';
-import 'package:charms/HRwidgets/custom_drawer.dart';
 import 'package:charms/HRwidgets/staff/bottom_nav_staff.dart';
+import 'package:charms/screens/dashboard_screen.dart';
 
 class StaffMySelfScreen extends StatefulWidget {
+  const StaffMySelfScreen({super.key});
+
   @override
   State<StaffMySelfScreen> createState() => _StaffMySelfScreenState();
 }
 
 class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
   int _selectedIndex = 4;
-  String _selectedLanguage = 'English';
-  final List<String> _languages = ['English', 'Spanish', 'French', 'German'];
-  
-  late Staff? _currentStaff;
+
+  Staff? _currentStaff;
   bool _isLoading = true;
   bool _isEditing = false;
-  
+
   final _formKey = GlobalKey<FormState>();
-  
+
   late TextEditingController _nameController;
   late TextEditingController _icNumberController;
   late TextEditingController _dobController;
@@ -86,154 +85,160 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
 
   Future<void> _loadStaffData() async {
     try {
-      final staffsProvider = Provider.of<Staffs>(context, listen: false);
-      final authProvider = Provider.of<Auth>(context, listen: false);
-      
-      // FIXED: fetchStaff() no longer takes a hostname parameter
+      final staffsProvider = context.read<Staffs>();
+      final authProvider = context.read<hr_auth.Auth>();
+
       await staffsProvider.fetchStaff();
-      
+
       final staffList = staffsProvider.staffList;
       if (staffList.isNotEmpty) {
         _currentStaff = staffList.firstWhere(
           (staff) => staff.username == authProvider.username,
           orElse: () => throw Exception('Staff not found'),
         );
-        
         _updateControllers();
       }
-      
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
     } catch (error) {
-      print('Error loading staff data: $error');
+      debugPrint('Error loading staff data: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load staff profile: $error')),
+        );
+      }
+    } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
   void _updateControllers() {
-    if (_currentStaff != null) {
-      _nameController.text = "${_currentStaff!.firstname} ${_currentStaff!.lastname}";
-      _icNumberController.text = _currentStaff!.idNum;
-      _dobController.text = _currentStaff!.dob;
-      _emailController.text = _currentStaff!.email;
-      _phoneController.text = _currentStaff!.phone;
-      _nationalityController.text = _currentStaff!.nationality;
-      _religionController.text = _currentStaff!.religion;
-      _genderController.text = _currentStaff!.emergencyGender == 1 ? "Male" : "Female";
-      _maritalStatusController.text = _currentStaff!.maritalStatus == 1 ? "Single" : "Married";
-      _statusController.text = "Active";
-      _addressController.text = _currentStaff!.address1;
-      _address2Controller.text = _currentStaff!.address2;
-      _cityController.text = _currentStaff!.city;
-      _stateController.text = _currentStaff!.state;
-      _countryController.text = _currentStaff!.country;
-      _postcodeController.text = _currentStaff!.postcode.toString();
-      _officePhoneController.text = _currentStaff!.officePhone ?? '';
-      _occupationController.text = _currentStaff!.occupation;
-      _emergencyNameController.text = _currentStaff!.emergencyName;
-      _emergencyIcController.text = _currentStaff!.emergencyIc;
-      _emergencyRelationController.text = _currentStaff!.emergencyRelation;
-      _emergencyGenderController.text = _currentStaff!.emergencyGender == 1 ? "Male" : "Female";
-      _emergencyPhoneController.text = _currentStaff!.emergencyPhone;
-    }
+    if (_currentStaff == null) return;
+
+    _nameController.text = "${_currentStaff!.firstname} ${_currentStaff!.lastname}";
+    _icNumberController.text = _currentStaff!.idNum;
+    _dobController.text = _currentStaff!.dob;
+    _emailController.text = _currentStaff!.email;
+    _phoneController.text = _currentStaff!.phone;
+    _nationalityController.text = _currentStaff!.nationality;
+    _religionController.text = _currentStaff!.religion;
+    _genderController.text = _currentStaff!.emergencyGender == 1 ? "Male" : "Female";
+    _maritalStatusController.text = _currentStaff!.maritalStatus == 1 ? "Single" : "Married";
+    _statusController.text = "Active";
+    _addressController.text = _currentStaff!.address1;
+    _address2Controller.text = _currentStaff!.address2;
+    _cityController.text = _currentStaff!.city;
+    _stateController.text = _currentStaff!.state;
+    _countryController.text = _currentStaff!.country;
+    _postcodeController.text = _currentStaff!.postcode.toString();
+    _officePhoneController.text = _currentStaff!.officePhone ?? '';
+    _occupationController.text = _currentStaff!.occupation;
+    _emergencyNameController.text = _currentStaff!.emergencyName;
+    _emergencyIcController.text = _currentStaff!.emergencyIc;
+    _emergencyRelationController.text = _currentStaff!.emergencyRelation;
+    _emergencyGenderController.text = _currentStaff!.emergencyGender == 1 ? "Male" : "Female";
+    _emergencyPhoneController.text = _currentStaff!.emergencyPhone;
   }
 
   Future<void> _updateStaffInfo() async {
-    if (_formKey.currentState!.validate() && _currentStaff != null) {
-      try {
-        setState(() => _isLoading = true);
-        
-        final updatedStaff = Staff(
-          staffId: _currentStaff!.staffId,
-          userId: _currentStaff!.userId,
-          username: _currentStaff!.username,
-          email: _emailController.text,
-          usertype: _currentStaff!.usertype,
-          firstname: _currentStaff!.firstname,
-          lastname: _currentStaff!.lastname,
-          occupation: _occupationController.text,
-          phone: _phoneController.text,
-          category: _currentStaff!.category,
-          nationality: _nationalityController.text,
-          religion: _religionController.text,
-          maritalStatus: _maritalStatusController.text == "Single" ? 1 : 2,
-          officePhone: _officePhoneController.text,
-          emergencyName: _emergencyNameController.text,
-          emergencyIc: _emergencyIcController.text,
-          emergencyRelation: _emergencyRelationController.text,
-          emergencyGender: _emergencyGenderController.text == "Male" ? 1 : 2,
-          emergencyPhone: _emergencyPhoneController.text,
-          idNum: _icNumberController.text,
-          dob: _dobController.text,
-          address1: _addressController.text,
-          address2: _address2Controller.text,
-          city: _cityController.text,
-          postcode: int.tryParse(_postcodeController.text) ?? 0,
-          state: _stateController.text,
-          country: _countryController.text,
-        );
+    if (!_formKey.currentState!.validate() || _currentStaff == null) return;
 
-        await Provider.of<Staffs>(context, listen: false)
-            .updateStaffDetails(_currentStaff!.staffId, updatedStaff);
+    try {
+      setState(() => _isLoading = true);
 
-        setState(() {
-          _isEditing = false;
-          _currentStaff = updatedStaff;
-        });
+      final updatedStaff = Staff(
+        staffId: _currentStaff!.staffId,
+        userId: _currentStaff!.userId,
+        username: _currentStaff!.username,
+        email: _emailController.text,
+        usertype: _currentStaff!.usertype,
+        firstname: _currentStaff!.firstname,
+        lastname: _currentStaff!.lastname,
+        occupation: _occupationController.text,
+        phone: _phoneController.text,
+        category: _currentStaff!.category,
+        nationality: _nationalityController.text,
+        religion: _religionController.text,
+        maritalStatus: _maritalStatusController.text == "Single" ? 1 : 2,
+        officePhone: _officePhoneController.text,
+        emergencyName: _emergencyNameController.text,
+        emergencyIc: _emergencyIcController.text,
+        emergencyRelation: _emergencyRelationController.text,
+        emergencyGender: _emergencyGenderController.text == "Male" ? 1 : 2,
+        emergencyPhone: _emergencyPhoneController.text,
+        idNum: _icNumberController.text,
+        dob: _dobController.text,
+        address1: _addressController.text,
+        address2: _address2Controller.text,
+        city: _cityController.text,
+        postcode: int.tryParse(_postcodeController.text) ?? 0,
+        state: _stateController.text,
+        country: _countryController.text,
+      );
 
-        await _loadStaffData();
+      await context.read<Staffs>().updateStaffDetails(_currentStaff!.staffId, updatedStaff);
 
+      setState(() {
+        _isEditing = false;
+        _currentStaff = updatedStaff;
+      });
+
+      await _loadStaffData();
+
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Profile updated successfully')),
         );
-      } catch (error) {
+      }
+    } catch (error) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to update profile: $error')),
         );
-      } finally {
-        if (mounted) setState(() => _isLoading = false);
       }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _logout() async {
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      DashboardScreen.routeName,
+      (route) => false,
+    );
   }
 
   void _onItemTapped(int index) {
     if (index == _selectedIndex) return;
-    
     setState(() => _selectedIndex = index);
-    
+
     Widget nextScreen;
     switch (index) {
       case 0:
         nextScreen = StaffDashboardScreen(username: _currentStaff?.username ?? '');
         break;
       case 1:
-        nextScreen = LeaveDashboardScreen(username: _currentStaff?.username ?? '', staffId: _currentStaff?.staffId ?? 0);
+        nextScreen = LeaveDashboardScreen(
+          username: _currentStaff?.username ?? '',
+          staffId: _currentStaff?.staffId ?? 0,
+        );
         break;
       case 2:
         nextScreen = PayrollDashboardScreen(username: _currentStaff?.username ?? '');
         break;
       case 3:
-        nextScreen = ClaimDashboardScreen(username: _currentStaff?.username ?? '', staffId: _currentStaff?.staffId ?? 0);
+        nextScreen = ClaimDashboardScreen(
+          username: _currentStaff?.username ?? '',
+          staffId: _currentStaff?.staffId ?? 0,
+        );
         break;
       case 4:
-        return; // Already here
+        return;
       default:
         return;
     }
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => nextScreen),
-    );
-  }
-
-  Future<void> _logout() async {
-    await Provider.of<Auth>(context, listen: false).logout();
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const AuthScreen()),
+      MaterialPageRoute(builder: (_) => nextScreen),
     );
   }
 
@@ -249,12 +254,7 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
           filled: !enabled,
           fillColor: !enabled ? Colors.grey[200] : null,
         ),
-        validator: (value) {
-          if (value == null || value.isEmpty) {
-            return 'Please enter $label';
-          }
-          return null;
-        },
+        validator: (value) => (value == null || value.isEmpty) ? 'Please enter $label' : null,
       ),
     );
   }
@@ -264,6 +264,7 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
     return Scaffold(
       appBar: AppBar(
         iconTheme: const IconThemeData(color: Colors.white),
+        automaticallyImplyLeading: false, // remove drawer/hamburger
         title: const Text('CHARMS STAFF', style: TextStyle(color: Colors.white)),
         centerTitle: true,
         backgroundColor: Colors.blue,
@@ -278,15 +279,12 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
               }
             },
           ),
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+            tooltip: 'Back to Dashboard',
+            onPressed: _logout,
+          ),
         ],
-      ),
-      drawer: CustomDrawer(
-        selectedLanguage: _selectedLanguage,
-        languages: _languages,
-        onLanguageChanged: (String? newValue) {
-          setState(() => _selectedLanguage = newValue!);
-        },
-        onLogOut: _logout,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -314,7 +312,6 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
                       ),
                     ),
                     const SizedBox(height: 30),
-                    
                     const Text("Personal Details", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 10),
                     _buildInfoField('Name', _nameController, enabled: _isEditing),
@@ -328,7 +325,6 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
                     _buildInfoField('Marital Status', _maritalStatusController, enabled: _isEditing),
                     _buildInfoField('Status', _statusController, enabled: _isEditing),
                     _buildInfoField('Occupation', _occupationController, enabled: _isEditing),
-                    
                     const SizedBox(height: 20),
                     const Text("Address Details", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 10),
@@ -339,7 +335,6 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
                     _buildInfoField('Country', _countryController, enabled: _isEditing),
                     _buildInfoField('Postcode', _postcodeController, enabled: _isEditing),
                     _buildInfoField('Office Phone', _officePhoneController, enabled: _isEditing),
-                    
                     const SizedBox(height: 20),
                     const Text("Emergency Contact Details", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 10),

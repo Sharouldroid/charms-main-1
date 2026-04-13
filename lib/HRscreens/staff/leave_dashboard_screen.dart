@@ -1,7 +1,7 @@
 
 import 'dart:typed_data';
 import 'package:charms/HRmodels/leave.dart';
-import 'package:charms/HRproviders/auth.dart';
+import 'package:charms/HRproviders/auth.dart' as hr_auth;
 import 'package:charms/HRproviders/leaves.dart';
 import 'package:charms/HRscreens/auth_screen.dart';
 import 'package:charms/HRscreens/staff/claim_dashboard.dart';
@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:charms/HRscreens/staff/apply_leave_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:charms/screens/dashboard_screen.dart';
 
 class LeaveDashboardScreen extends StatefulWidget {
   final String username;
@@ -223,32 +224,29 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
     return Scaffold(
       extendBody: true,
       appBar: AppBar(
-        iconTheme: IconThemeData(color: Colors.white),
-        title: Text("CHARMS STAFF", style: TextStyle(color: Colors.white)),
-        backgroundColor: Colors.blue,
-        centerTitle: true,
-        actions: [
-          IconButton(icon: const Icon(Icons.notifications), onPressed: () {}),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: [
-            Tab(child: Text("Pending", style: TextStyle(color: Colors.white))),
-            Tab(child: Text("Approved", style: TextStyle(color: Colors.white))),
-            Tab(child: Text("Rejected", style: TextStyle(color: Colors.white))),
+          iconTheme: const IconThemeData(color: Colors.white),
+          automaticallyImplyLeading: false, // remove drawer/hamburger
+          title: const Text("CHARMS STAFF", style: TextStyle(color: Colors.white)),
+          backgroundColor: Colors.blue,
+          centerTitle: true,
+          actions: [
+            IconButton(icon: const Icon(Icons.notifications), onPressed: () {}),
+            IconButton(
+              icon: const Icon(Icons.logout),
+              tooltip: 'Back to Dashboard',
+              onPressed: _logout,
+            ),
           ],
+          bottom: TabBar(
+            controller: _tabController,
+            tabs: const [
+              Tab(child: Text("Pending", style: TextStyle(color: Colors.white))),
+              Tab(child: Text("Approved", style: TextStyle(color: Colors.white))),
+              Tab(child: Text("Rejected", style: TextStyle(color: Colors.white))),
+            ],
+          ),
         ),
-      ),
-      drawer: CustomDrawer(
-        selectedLanguage: _selectedLanguage,
-        languages: _languages,
-        onLanguageChanged: (String? newValue) {
-          setState(() {
-            _selectedLanguage = newValue!;
-          });
-        },
-        onLogOut: _logout,
-      ),
+      
       body: Consumer<Leaves>(
         builder: (context, leavesData, child) {
           return Column(
@@ -322,11 +320,11 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
   }
 
   Future<void> _logout() async {
-    await Provider.of<Auth>(context, listen: false).logout();
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const AuthScreen()),
-    );
-  }
+  Navigator.of(context).pushNamedAndRemoveUntil(
+    DashboardScreen.routeName,
+    (route) => false,
+  );
+}
 
   void _onItemTapped(int index) {
     setState(() {

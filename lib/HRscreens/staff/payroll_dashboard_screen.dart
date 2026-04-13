@@ -1,22 +1,21 @@
 import 'package:charms/HRmodels/payment.dart';
 import 'package:charms/HRmodels/staff.dart';
-import 'package:charms/HRproviders/auth.dart';
+import 'package:charms/HRproviders/auth.dart' as hr_auth;
 import 'package:charms/HRproviders/payments.dart';
 import 'package:charms/HRproviders/staffs.dart';
-import 'package:charms/HRscreens/auth_screen.dart';
 import 'package:charms/HRscreens/staff/claim_dashboard.dart';
 import 'package:charms/HRscreens/staff/leave_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/staff_myself_screen.dart';
 import 'package:charms/HRscreens/staff/staff_payroll_details_screen.dart';
-import 'package:charms/HRwidgets/custom_drawer.dart';
 import 'package:charms/HRwidgets/staff/bottom_nav_staff.dart';
+import 'package:charms/screens/dashboard_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 class PayrollDashboardScreen extends StatefulWidget {
   final String username;
-  
+
   const PayrollDashboardScreen({
     Key? key,
     required this.username,
@@ -31,11 +30,9 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
   bool _isLoading = true;
   List<Payment> _monthlyPayments = [];
   Staff? _currentStaff;
-  String _selectedLanguage = 'English';
-  final List<String> _languages = ['English', 'Spanish', 'French', 'German'];
   int _selectedIndex = 2;
 
-  final List<String> months = [
+  final List<String> months = const [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
@@ -48,12 +45,9 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
 
   Future<void> _loadPayrollData() async {
     try {
-      final staffsProvider = Provider.of<Staffs>(context, listen: false);
-      
-      // FIXED: fetchStaff() no longer takes a hostname parameter 
-      // as it is defined as a constant inside the Staffs provider.
+      final staffsProvider = context.read<Staffs>();
       await staffsProvider.fetchStaff();
-      
+
       final staffList = staffsProvider.staffList;
       if (staffList.isNotEmpty) {
         _currentStaff = staffList.firstWhere(
@@ -63,43 +57,34 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
         await _fetchPaymentsForYear();
       }
     } catch (error) {
-      print('Error loading payroll data: $error');
-    } finally {
+      debugPrint('Error loading payroll data: $error');
       if (mounted) {
-        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load payroll data: $error')),
+        );
       }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _fetchPaymentsForYear() async {
-    final paymentsProvider = Provider.of<Payments>(context, listen: false);
-    
+    final paymentsProvider = context.read<Payments>();
     try {
-      // Fetches using the current year
-      await paymentsProvider.fetchPaymentsByMonth(selectedYear, 1); 
-      
+      await paymentsProvider.fetchPaymentsByMonth(selectedYear, 1);
+
       if (mounted) {
         setState(() {
           _monthlyPayments = paymentsProvider.payments
-              .where((payment) => 
-                  payment.staffId == _currentStaff?.staffId && 
+              .where((payment) =>
+                  payment.staffId == _currentStaff?.staffId &&
                   payment.workDate.year == selectedYear)
               .toList();
         });
       }
     } catch (error) {
-      print('Error fetching payments: $error');
+      debugPrint('Error fetching payments: $error');
     }
-  }
-
-  Future<void> _fetchPaymentsByStaffId() async {
-    final paymentsProvider = Provider.of<Payments>(context, listen: false);
-    await paymentsProvider.fetchPaymentsByMonth(selectedYear, DateTime.now().month);
-    setState(() {
-      _monthlyPayments = paymentsProvider.payments
-          .where((p) => p.staffId == _currentStaff?.staffId)
-          .toList();
-    });
   }
 
   void _viewPayslip(String monthName) {
@@ -126,7 +111,7 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
           ),
         ),
       );
-    } catch (e) {
+    } catch (_) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Payslip data not available for $monthName')),
       );
@@ -134,29 +119,34 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
   }
 
   Future<void> _logout() async {
-    await Provider.of<Auth>(context, listen: false).logout();
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const AuthScreen()),
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      DashboardScreen.routeName,
+      (route) => false,
     );
   }
 
   void _onItemTapped(int index) {
     if (index == _selectedIndex) return;
-    
     setState(() => _selectedIndex = index);
-    
+
     Widget nextScreen;
     switch (index) {
       case 0:
         nextScreen = StaffDashboardScreen(username: widget.username);
         break;
       case 1:
-        nextScreen = LeaveDashboardScreen(username: widget.username, staffId: _currentStaff?.staffId ?? 0);
+        nextScreen = LeaveDashboardScreen(
+          username: widget.username,
+          staffId: _currentStaff?.staffId ?? 0,
+        );
         break;
       case 2:
-        return; // Already here
+        return;
       case 3:
-        nextScreen = ClaimDashboardScreen(username: widget.username, staffId: _currentStaff?.staffId ?? 0);
+        nextScreen = ClaimDashboardScreen(
+          username: widget.username,
+          staffId: _currentStaff?.staffId ?? 0,
+        );
         break;
       case 4:
         nextScreen = StaffMySelfScreen();
@@ -167,7 +157,7 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => nextScreen),
+      MaterialPageRoute(builder: (_) => nextScreen),
     );
   }
 
@@ -179,19 +169,17 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
         backgroundColor: Colors.blue,
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
+        automaticallyImplyLeading: false, // remove drawer/hamburger
         actions: [
           IconButton(icon: const Icon(Icons.notifications), onPressed: () {}),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Back to Dashboard',
+            onPressed: _logout,
+          ),
         ],
       ),
-      drawer: CustomDrawer(
-        selectedLanguage: _selectedLanguage,
-        languages: _languages,
-        onLanguageChanged: (String? newValue) {
-          setState(() => _selectedLanguage = newValue!);
-        },
-        onLogOut: _logout,
-      ),
-      body: _isLoading 
+      body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
@@ -200,14 +188,16 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Payroll', 
-                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                      const Text(
+                        'Payroll',
+                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      ),
                       Row(
                         children: [
                           const Text('Year: ', style: TextStyle(fontSize: 16)),
                           DropdownButton<int>(
                             value: selectedYear,
-                            items: List.generate(5, (index) => DateTime.now().year - index)
+                            items: List.generate(5, (i) => DateTime.now().year - i)
                                 .map((year) => DropdownMenuItem(
                                       value: year,
                                       child: Text(year.toString()),
@@ -219,7 +209,7 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
                                 _isLoading = true;
                               });
                               await _fetchPaymentsForYear();
-                              setState(() => _isLoading = false);
+                              if (mounted) setState(() => _isLoading = false);
                             },
                           ),
                         ],
@@ -241,15 +231,14 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
                       final monthName = months[index];
                       final monthIndex = index + 1;
                       final hasPayslip = _monthlyPayments.any(
-                        (p) => p.workDate.month == monthIndex && 
-                              p.workDate.year == selectedYear
+                        (p) => p.workDate.month == monthIndex && p.workDate.year == selectedYear,
                       );
 
                       return Card(
                         elevation: 3,
                         child: InkWell(
                           onTap: hasPayslip ? () => _viewPayslip(monthName) : null,
-                          child: Container(
+                          child: Padding(
                             padding: const EdgeInsets.all(8),
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
