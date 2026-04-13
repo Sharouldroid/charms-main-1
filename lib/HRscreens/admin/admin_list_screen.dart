@@ -1,5 +1,5 @@
 import 'package:charms/HRmodels/user.dart';
-import 'package:charms/HRproviders/auth.dart';
+import 'package:charms/HRproviders/auth.dart' as hr_auth;
 import 'package:charms/HRproviders/users.dart';
 import 'package:charms/HRscreens/admin/admin_dashboard_screen.dart';
 import 'package:charms/HRscreens/admin/manage_staff_screen.dart';
@@ -29,40 +29,41 @@ class _AdminListScreenState extends State<AdminListScreen> {
   @override
   void initState() {
     super.initState();
-    username = Provider.of<Auth>(context, listen: false).username;
+    username = Provider.of<hr_auth.Auth>(context, listen: false).username;
     _loadAdminUsers();
   }
 
   Future<void> _loadAdminUsers() async {
-    try {
-      final usersProvider = Provider.of<Users>(context, listen: false);
-      final authProvider = Provider.of<Auth>(context, listen: false);
-      
-      // FIXED: Updated the API URL to match your production environment
-      await usersProvider.fetchUsers(authProvider.hostname);
-      
-      // Get the data from the response
-      final admins = usersProvider.userlist
-          .where((user) => user.usertype == 6)
-          .toList();
+  if (!mounted) return;
+  setState(() => _isLoading = true);
 
-      setState(() {
-        _adminUsers = admins;
-        _isLoading = false;
-      });
-    } catch (error) {
-      print('Error details: $error');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load admin users: $error')),
-        );
-        setState(() => _isLoading = false);
-      }
-    }
+  try {
+    final usersProvider = context.read<Users>();
+    final authProvider = Provider.of<hr_auth.Auth>(context, listen: false);
+
+    await usersProvider
+        .fetchUsers(authProvider.hostname)
+        .timeout(const Duration(seconds: 12));
+
+    final admins = usersProvider.userlist.where((u) => u.usertype == 6).toList();
+
+    if (!mounted) return;
+    setState(() {
+      _adminUsers = admins;
+      _isLoading = false;
+    });
+  } catch (error) {
+    debugPrint('AdminList load error: $error');
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Failed to load admins. ${error.toString()}')),
+    );
   }
+}
 
   Future<void> _logout() async {
-    await Provider.of<Auth>(context, listen: false).logout();
+    await Provider.of<hr_auth.Auth>(context, listen: false).logout();
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (context) => const AuthScreen()),
     );
@@ -164,19 +165,26 @@ class _AdminListScreenState extends State<AdminListScreen> {
                   ),
                 ),
                 Expanded(
-                  child: ListView.builder(
-                    itemCount: filteredAdmins.length,
-                    itemBuilder: (context, index) {
-                      var admin = filteredAdmins[index];
-                      return StaffListTile(
-                        staffId: int.tryParse(admin.id) ?? 0,
-                        name: '${admin.firstname} ${admin.lastname}',
-                        occupation: admin.occupation,
-                        status: 'Active',
-                      );
-                    },
-                  ),
-                ),
+                  child: filteredAdmins.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'No admin data found',
+                            style: TextStyle(fontSize: 16, color: Colors.black54),
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: filteredAdmins.length,
+                          itemBuilder: (context, index) {
+                            final admin = filteredAdmins[index];
+                            return StaffListTile(
+                              staffId: int.tryParse(admin.id) ?? 0,
+                              name: '${admin.firstname} ${admin.lastname}',
+                              occupation: admin.occupation,
+                              status: 'Active',
+                            );
+                          },
+                        ),
+                )
               ],
             ),
       bottomNavigationBar: BottomNavBar(

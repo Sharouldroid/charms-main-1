@@ -17,57 +17,70 @@ class Users with ChangeNotifier {
 
   // Aligned with Route::get('/', [HRUserController::class, 'fetchUsers'])
   Future<void> fetchUsers(String hostname) async {
-    final url = '$_hostname/user/';
+  // normalize incoming hostname from HR Auth provider
+  final base = hostname.replaceAll(RegExp(r'\/+$'), ''); // remove trailing /
+  final url = '$base/user'; // no trailing slash needed
 
-    try {
-      final response = await http.get(Uri.parse(url));
-      final extractedData = jsonDecode(response.body);
-      
-      // Aligned with Laravel: return response()->json(['success' => true, 'data' => $userList], 200);
-      if (extractedData['success'] == true && extractedData['data'] != null) {
-        final List<dynamic> extractedUsers = extractedData['data'];
-        final List<User> loadedUsers = [];
+  try {
+    final response = await http
+        .get(
+          Uri.parse(url),
+          headers: {'Accept': 'application/json'},
+        )
+        .timeout(const Duration(seconds: 12));
 
-        for (var userData in extractedUsers) {
-          loadedUsers.add(User(
-            id: userData['id'].toString(),
-            firstname: userData['firstname'] ?? '',
-            lastname: userData['lastname'] ?? '',
-            phone: userData['phone'] ?? '',
-            email: userData['email'] ?? '',
-            dob: userData['dob'] ?? '',
-            address1: userData['address1'] ?? '',
-            address2: userData['address2'],
-            city: userData['city'] ?? '',
-            postcode: userData['postcode'] ?? 0,
-            state: userData['state'] ?? '',
-            country: userData['country'] ?? '',
-            occupation: userData['occupation'] ?? '',
-            username: userData['username'] ?? '',
-            password: userData['passkey'] ?? '',
-            usertype: userData['usertype'] ?? 0,
-            gender: userData['gender'] ?? 1,
-            staff_id: userData['staff_id'],
-            category: userData['category'],
-            nationality: userData['nationality'],
-            religion: userData['religion'],
-            marital_status: userData['marital_status'],
-            office_phone: userData['office_phone'],
-            emergency_name: userData['emergency_name'],
-            emergency_ic: userData['emergency_ic'],
-            emergency_relation: userData['emergency_relation'],
-            emergency_gender: userData['emergency_gender'],
-            emergency_phone: userData['emergency_phone'],
-          ));
-        }
-        _userlist = loadedUsers;
-        notifyListeners();
-      }
-    } catch (error) {
-      print('Error fetching users: $error');
-      rethrow;
+    if (response.statusCode != 200) {
+      throw Exception('fetchUsers failed (${response.statusCode}): ${response.body}');
     }
+
+    final extractedData = jsonDecode(response.body);
+
+    if (extractedData['success'] == true && extractedData['data'] != null) {
+      final List<dynamic> extractedUsers = extractedData['data'];
+      final List<User> loadedUsers = extractedUsers.map((userData) {
+        return User(
+          id: userData['id'].toString(),
+          firstname: userData['firstname'] ?? '',
+          lastname: userData['lastname'] ?? '',
+          phone: userData['phone'] ?? '',
+          email: userData['email'] ?? '',
+          dob: userData['dob'] ?? '',
+          address1: userData['address1'] ?? '',
+          address2: userData['address2'],
+          city: userData['city'] ?? '',
+          postcode: userData['postcode'] ?? 0,
+          state: userData['state'] ?? '',
+          country: userData['country'] ?? '',
+          occupation: userData['occupation'] ?? '',
+          username: userData['username'] ?? '',
+          password: userData['passkey'] ?? '',
+          usertype: userData['usertype'] ?? 0,
+          gender: userData['gender'] ?? 1,
+          staff_id: userData['staff_id'],
+          category: userData['category'],
+          nationality: userData['nationality'],
+          religion: userData['religion'],
+          marital_status: userData['marital_status'],
+          office_phone: userData['office_phone'],
+          emergency_name: userData['emergency_name'],
+          emergency_ic: userData['emergency_ic'],
+          emergency_relation: userData['emergency_relation'],
+          emergency_gender: userData['emergency_gender'],
+          emergency_phone: userData['emergency_phone'],
+        );
+      }).toList();
+
+      _userlist = loadedUsers;
+      notifyListeners();
+      return;
+    }
+
+    throw Exception('Invalid API response: ${response.body}');
+  } catch (error) {
+    debugPrint('Error fetching users: $error');
+    rethrow;
   }
+}
 
   // Aligned with Route::get('/data/{username}', [HRUserController::class, 'fetchUserByUsername'])
   Future<void> fetchUserByUsername(String username) async {
