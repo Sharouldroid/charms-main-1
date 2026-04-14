@@ -4,92 +4,87 @@ import 'package:http/http.dart' as http;
 import 'package:charms/HRmodels/staff.dart';
 
 class Staffs with ChangeNotifier {
-  // Updated hostname to match your CHARMS API production URL
   static const _hostname = 'https://devcms.com.my/charmsAPI/api';
-  
+
   List<Staff> _staffList = [];
 
-  // Getter for staff
   List<Staff> get staffList => [..._staffList];
 
   List<Staff> getStaffByCategory(int category) {
     return _staffList.where((staff) => staff.category == category).toList();
   }
 
+  int _toInt(dynamic v) => int.tryParse(v?.toString() ?? '') ?? 0;
+  String _toStr(dynamic v) => (v ?? '').toString();
+
   // Fetch Staff Data
   Future<void> fetchStaff() async {
-  try {
-    // no trailing slash
-    final response = await http
-        .get(Uri.parse('$_hostname/staff'), headers: {'Accept': 'application/json'})
-        .timeout(const Duration(seconds: 20));
+    try {
+      final response = await http
+          .get(
+            Uri.parse('$_hostname/staff/all'),
+            headers: {'Accept': 'application/json'},
+          )
+          .timeout(const Duration(seconds: 20));
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to fetch staff: ${response.statusCode} ${response.body}');
-    }
-
-    final decoded = json.decode(response.body);
-
-    // supports: {success:true,data:[...]} OR {staff:[...]} OR [...]
-    List<dynamic> staffData;
-    if (decoded is Map<String, dynamic>) {
-      if (decoded['data'] is List) {
-        staffData = decoded['data'] as List<dynamic>;
-      } else if (decoded['staff'] is List) {
-        staffData = decoded['staff'] as List<dynamic>;
-      } else {
-        staffData = [];
+      if (response.statusCode != 200) {
+        throw Exception(
+          'Failed to fetch staff: ${response.statusCode} ${response.body}',
+        );
       }
-    } else if (decoded is List) {
-      staffData = decoded;
-    } else {
-      staffData = [];
+
+      final decoded = json.decode(response.body);
+
+      // Expected format: { success: true, data: [...] }
+      final List<dynamic> staffData =
+          (decoded is Map<String, dynamic> && decoded['data'] is List)
+              ? decoded['data'] as List<dynamic>
+              : (decoded is List ? decoded : <dynamic>[]);
+
+      _staffList = staffData.map((data) {
+        return Staff(
+          // prefer staff_id if API provides it, fallback to id
+          staffId: _toInt(data['staff_id'] ?? data['id']),
+          // prefer user_id, fallback userid
+          userId: _toInt(data['user_id'] ?? data['userid']),
+          username: _toStr(data['username']),
+          email: _toStr(data['email']),
+          usertype: _toInt(data['usertype']),
+          firstname: _toStr(data['firstname']),
+          lastname: _toStr(data['lastname']),
+          occupation: _toStr(data['occupation']),
+          phone: _toStr(data['phone']),
+          category: _toInt(data['category']),
+          nationality: _toStr(data['nationality']),
+          religion: _toStr(data['religion']),
+          maritalStatus: _toInt(data['marital_status']),
+          officePhone: _toStr(data['office_phone']),
+          emergencyName: _toStr(data['emergency_name']),
+          emergencyIc: _toStr(data['emergency_ic']),
+          emergencyRelation: _toStr(data['emergency_relation']),
+          emergencyGender: _toInt(data['emergency_gender']),
+          emergencyPhone: _toStr(data['emergency_phone']),
+          idNum: _toStr(data['idnum'] ?? data['id_num']),
+          dob: _toStr(data['dob']),
+          address1: _toStr(data['address1']),
+          address2: _toStr(data['address2']),
+          city: _toStr(data['city']),
+          postcode: _toInt(data['postcode']),
+          state: _toStr(data['state']),
+          country: _toStr(data['country']),
+        );
+      }).toList();
+
+      notifyListeners();
+    } catch (error) {
+      debugPrint('Error fetching staff: $error');
+      rethrow;
     }
-
-    _staffList = staffData
-        .map((data) => Staff(
-              staffId: data['id'] ?? 0,
-              userId: data['userid'] ?? 0,
-              username: data['username'] ?? '',
-              email: data['email'] ?? '',
-              usertype: data['usertype'] ?? 0,
-              firstname: data['firstname'] ?? '',
-              lastname: data['lastname'] ?? '',
-              occupation: data['occupation'] ?? '',
-              phone: data['phone'] ?? '',
-              category: data['category'] ?? 0,
-              nationality: data['nationality'] ?? '',
-              religion: data['religion'] ?? '',
-              maritalStatus: data['marital_status'] ?? 0,
-              officePhone: data['office_phone'],
-              emergencyName: data['emergency_name'] ?? '',
-              emergencyIc: data['emergency_ic'] ?? '',
-              emergencyRelation: data['emergency_relation'] ?? '',
-              emergencyGender: data['emergency_gender'] ?? 0,
-              emergencyPhone: data['emergency_phone'] ?? '',
-              idNum: data['id_num'] ?? '',
-              dob: data['dob'] ?? '',
-              address1: data['address1'] ?? '',
-              address2: data['address2'] ?? '',
-              city: data['city'] ?? '',
-              postcode: data['postcode'] ?? 0,
-              state: data['state'] ?? '',
-              country: data['country'] ?? '',
-            ))
-        .toList();
-
-    notifyListeners();
-  } catch (error) {
-    debugPrint('Error fetching staff: $error');
-    rethrow;
   }
-}
 
   // Update Staff Details
   Future<void> updateStaffDetails(int staffId, Staff updatedStaff) async {
     try {
-      // Aligned with Route::put('/{id}', [HRStaffController::class, 'updateStaff'])
-      // Controller expects 'staff_data' and 'user_data'
       final payload = {
         'staff_data': {
           'firstname': updatedStaff.firstname,
@@ -106,23 +101,23 @@ class Staffs with ChangeNotifier {
           'emergency_ic': updatedStaff.emergencyIc,
           'emergency_relation': updatedStaff.emergencyRelation,
           'emergency_gender': updatedStaff.emergencyGender,
-          'emergency_phone': updatedStaff.emergencyPhone
+          'emergency_phone': updatedStaff.emergencyPhone,
         },
         'user_data': {
-          'email': updatedStaff.email, // Combined email into user_data as per typical User model
+          'email': updatedStaff.email,
           'phone': updatedStaff.phone,
           'address1': updatedStaff.address1,
           'address2': updatedStaff.address2,
           'city': updatedStaff.city,
           'postcode': updatedStaff.postcode,
           'state': updatedStaff.state,
-          'country': updatedStaff.country
+          'country': updatedStaff.country,
         },
       };
 
       final response = await http.put(
         Uri.parse('$_hostname/staff/$staffId'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
         body: json.encode(payload),
       );
 
@@ -130,13 +125,13 @@ class Staffs with ChangeNotifier {
         final index = _staffList.indexWhere((staff) => staff.staffId == staffId);
         if (index != -1) {
           _staffList[index] = updatedStaff;
+          notifyListeners();
         }
-        notifyListeners();
       } else {
         throw Exception('Failed to update staff details: ${response.body}');
       }
     } catch (error) {
-      print('Error updating staff: $error');
+      debugPrint('Error updating staff: $error');
       rethrow;
     }
   }
@@ -144,9 +139,11 @@ class Staffs with ChangeNotifier {
   // Delete Staff
   Future<void> deleteStaff(int staffId) async {
     try {
-      // Aligned with Route::delete('/{id}', [HRStaffController::class, 'deleteStaff'])
-      final response = await http.delete(Uri.parse('$_hostname/staff/$staffId'));
-      
+      final response = await http.delete(
+        Uri.parse('$_hostname/staff/$staffId'),
+        headers: {'Accept': 'application/json'},
+      );
+
       if (response.statusCode == 200) {
         _staffList.removeWhere((staff) => staff.staffId == staffId);
         notifyListeners();
@@ -154,7 +151,7 @@ class Staffs with ChangeNotifier {
         throw Exception('Failed to delete staff: ${response.body}');
       }
     } catch (error) {
-      print('Error deleting staff: $error');
+      debugPrint('Error deleting staff: $error');
       rethrow;
     }
   }

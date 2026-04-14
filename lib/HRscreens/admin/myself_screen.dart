@@ -4,7 +4,7 @@ import 'package:charms/HRmodels/staff.dart';
 import 'package:charms/HRmodels/user.dart';
 import 'package:charms/HRproviders/auth.dart' as hr_auth;
 import 'package:charms/HRproviders/staffs.dart';
-import 'package:charms/HRproviders/users.dart';
+import 'package:charms/HRproviders/users.dart' as hr_users;
 import 'package:charms/HRscreens/admin/admin_dashboard_screen.dart';
 import 'package:charms/HRscreens/admin/admin_list_screen.dart';
 import 'package:charms/HRscreens/admin/manage_staff_screen.dart';
@@ -79,7 +79,7 @@ class _MySelfScreenState extends State<MySelfScreen> {
 
   Future<void> _loadUserData() async {
     try {
-      final usersProvider = context.read<Users>();
+      final usersProvider = Provider.of<hr_users.Users>(context, listen: false);
       final authProvider = context.read<hr_auth.Auth>();
 
       await usersProvider.fetchUserByUsername(authProvider.username);
@@ -175,7 +175,7 @@ class _MySelfScreenState extends State<MySelfScreen> {
     try {
       setState(() => _isLoading = true);
 
-      final usersProvider = context.read<Users>();
+      final usersProvider = Provider.of<hr_users.Users>(context, listen: false);
       if (usersProvider.userlist.isEmpty) {
         throw Exception('No user data found to update');
       }
@@ -183,6 +183,7 @@ class _MySelfScreenState extends State<MySelfScreen> {
       final payload = {
         'firstname': _firstNameController.text,
         'lastname': _lastNameController.text,
+        'email': _emailController.text,
         'phone': _phoneController.text,
         'dob': _dobController.text,
         'address1': _addressController.text,
@@ -313,7 +314,7 @@ class _MySelfScreenState extends State<MySelfScreen> {
                     const SizedBox(height: 20),
                     _buildInfoField('First Name', _firstNameController, enabled: true),
                     _buildInfoField('Last Name', _lastNameController, enabled: true),
-                    _buildInfoField('Email', _emailController, enabled: false),
+                    _buildInfoField('Email', _emailController, enabled: true),
                     _buildInfoField('Phone', _phoneController, enabled: true),
                     _buildInfoField('Date of Birth', _dobController, enabled: true),
                     _buildInfoField('Gender', _genderController, enabled: true),

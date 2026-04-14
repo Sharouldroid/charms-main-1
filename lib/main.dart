@@ -21,7 +21,7 @@ import 'package:charms/providers/receipts.dart';
 import 'package:charms/providers/reports.dart';
 import 'package:charms/providers/stripe_service.dart';
 import 'package:charms/providers/surveys.dart';
-import 'package:charms/providers/users.dart';
+import 'package:charms/providers/users.dart'as charms_users;
 import 'package:charms/screens/auth_screen.dart';
 import 'package:charms/screens/dashboard_screen.dart'; // CHARMS Dashboard
 import 'package:charms/screens/splash_screen.dart';
@@ -49,6 +49,7 @@ import 'package:charms/HRproviders/payments.dart';
 import 'package:charms/HRproviders/schedules.dart' as hr_schedules; // Alias to avoid conflict
 import 'package:charms/HRproviders/staffs.dart';
 import 'package:charms/HRproviders/theme_provider.dart';
+import 'package:charms/HRproviders/users.dart' as hr_users;
 import 'package:charms/HRscreens/admin/admin_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
 
@@ -111,7 +112,8 @@ class MyApp extends StatelessWidget {
         // --------------------------------
         ChangeNotifierProvider<app_auth.Auth>(create: (_) => app_auth.Auth()),
         ChangeNotifierProvider<hr_auth.Auth>(create: (_) => hr_auth.Auth()),
-        ChangeNotifierProvider(create: (_) => Users()),
+        ChangeNotifierProvider<charms_users.Users>(create: (_) => charms_users.Users()),
+        ChangeNotifierProvider<hr_users.Users>(create: (_) => hr_users.Users()),
         ChangeNotifierProvider(create: (_) => Events()),
         ChangeNotifierProvider(create: (_) => ResearcherEvents()),
         ChangeNotifierProvider(create: (_) => EventsSpecial()),

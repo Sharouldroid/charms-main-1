@@ -27,8 +27,9 @@ class RegisterStaffForm extends StatefulWidget {
 class _RegisterStaffFormState extends State<RegisterStaffForm> {
   final GlobalKey<FormState> _formKey = GlobalKey();
   final Map<String, String> _staffData = {
+    'userid': '',
     'username': '',
-    'password': '',
+    'passkey': '',
     'firstname': '',
     'lastname': '',
     'dob': '',
@@ -42,8 +43,8 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
     'postcode': '',
     'state': '',
     'country': '',
-    'role': '',
-    'idnum': '',
+    'usertype': '',
+    'id_num': '',
     'filename': '',
     // Additional fields for the staff table
     'category': '',
@@ -61,27 +62,42 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
   bool _isLoading = false;
   DateTime? _selectedDate;
 
-  void _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    _formKey.currentState!.save();
-    print('Submitting staff data:');
-    print('Category: ${_staffData['category']}');
-    print('Marital Status: ${_staffData['marital_status']}');
-    setState(() => _isLoading = true);
+  Future<void> _submit() async {
+  if (!_formKey.currentState!.validate()) return;
+  _formKey.currentState!.save();
 
-    try {
-      await Provider.of<Auth>(context, listen: false).registerStaff(_staffData);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Staff registered successfully!')),
-      );
-    } catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Registration failed: $error')),
-      );
-    }
+  setState(() => _isLoading = true);
 
-    setState(() => _isLoading = false);
+  try {
+    // Ensure password key expected by backend
+    _staffData['password'] = _staffData['passkey'] ?? '';
+
+    // Optional defaults to avoid null/empty for required dropdowns
+    _staffData['category'] = (_staffData['category'] ?? '').isEmpty ? '1' : _staffData['category']!;
+    _staffData['usertype'] = (_staffData['usertype'] ?? '').isEmpty ? '9' : _staffData['usertype']!;
+    _staffData['marital_status'] = (_staffData['marital_status'] ?? '').isEmpty ? '1' : _staffData['marital_status']!;
+    _staffData['emergency_gender'] = (_staffData['emergency_gender'] ?? '').isEmpty ? '1' : _staffData['emergency_gender']!;
+    _staffData['filename'] = _staffData['filename'] ?? '';
+
+    // Call your provider (step1->step2->step3)
+    await Provider.of<Auth>(context, listen: false).registerStaff(_staffData);
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Staff registered successfully!')),
+    );
+
+    // IMPORTANT: return true so StaffList can refresh
+    Navigator.of(context).pop(true);
+  } catch (error) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Registration failed: $error')),
+    );
+  } finally {
+    if (mounted) setState(() => _isLoading = false);
   }
+}
 
   Future<void> _pickDate(BuildContext context) async {
     final pickedDate = await showDatePicker(
@@ -123,7 +139,10 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
                 TextFormField(
                   decoration: const InputDecoration(labelText: 'Password'),
                   obscureText: true,
-                  onSaved: (value) => _staffData['password'] = value!,
+                  onSaved: (value) {
+                    _staffData['passkey'] = value ?? '';
+                    _staffData['password'] = value ?? '';
+                  },
                 ),
                 // First Name
                 TextFormField(
@@ -147,7 +166,7 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
                   validator: (value) => value == null || value.trim().isEmpty
                       ? 'Please enter your identity card number'
                       : null,
-                  onSaved: (value) => _staffData['idnum'] = value!,
+                  onSaved: (value) => _staffData['id_num'] = value!,
                 ),
                 // Date of Birth
                 TextFormField(
@@ -264,7 +283,7 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
                     DropdownMenuItem(value: '10', child: Text('Trainee')),
                   ],
                   onChanged: (value) =>
-                      setState(() => _staffData['role'] = value!),
+                      setState(() => _staffData['usertype'] = value!),
                   validator: (value) =>
                       value == null ? 'Please select a role' : null,
                 ),
