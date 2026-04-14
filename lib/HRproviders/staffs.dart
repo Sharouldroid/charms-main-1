@@ -84,57 +84,74 @@ class Staffs with ChangeNotifier {
 
   // Update Staff Details
   Future<void> updateStaffDetails(int staffId, Staff updatedStaff) async {
-    try {
-      final payload = {
-        'staff_data': {
-          'firstname': updatedStaff.firstname,
-          'lastname': updatedStaff.lastname,
-          'occupation': updatedStaff.occupation,
-          'category': updatedStaff.category,
-          'nationality': updatedStaff.nationality,
-          'religion': updatedStaff.religion,
-          'marital_status': updatedStaff.maritalStatus,
-          'office_phone': updatedStaff.officePhone,
-          'id_num': updatedStaff.idNum,
-          'dob': updatedStaff.dob,
-          'emergency_name': updatedStaff.emergencyName,
-          'emergency_ic': updatedStaff.emergencyIc,
-          'emergency_relation': updatedStaff.emergencyRelation,
-          'emergency_gender': updatedStaff.emergencyGender,
-          'emergency_phone': updatedStaff.emergencyPhone,
-        },
-        'user_data': {
-          'email': updatedStaff.email,
-          'phone': updatedStaff.phone,
-          'address1': updatedStaff.address1,
-          'address2': updatedStaff.address2,
-          'city': updatedStaff.city,
-          'postcode': updatedStaff.postcode,
-          'state': updatedStaff.state,
-          'country': updatedStaff.country,
-        },
-      };
+  try {
+    final payload = {
+      // HR_staff table fields
+      'staff_data': {
+        'category': updatedStaff.category.toString(),
+        'nationality': updatedStaff.nationality,
+        'religion': updatedStaff.religion,
+        'marital_status': updatedStaff.maritalStatus.toString(),
+        'office_phone': updatedStaff.officePhone,
+        'emergency_name': updatedStaff.emergencyName,
+        'emergency_ic': updatedStaff.emergencyIc,
+        'emergency_relation': updatedStaff.emergencyRelation,
+        'emergency_gender': updatedStaff.emergencyGender.toString(),
+        'emergency_phone': updatedStaff.emergencyPhone,
+      },
 
-      final response = await http.put(
-        Uri.parse('$_hostname/staff/$staffId'),
-        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
-        body: json.encode(payload),
-      );
+      // HR_userlogin table fields
+      'user_data': {
+        'username': updatedStaff.username,
+        'email': updatedStaff.email,
+      },
 
-      if (response.statusCode == 200) {
-        final index = _staffList.indexWhere((staff) => staff.staffId == staffId);
-        if (index != -1) {
-          _staffList[index] = updatedStaff;
-          notifyListeners();
-        }
-      } else {
-        throw Exception('Failed to update staff details: ${response.body}');
+      // HR_userdata table fields
+      'userdata_data': {
+        'firstname': updatedStaff.firstname,
+        'lastname': updatedStaff.lastname,
+        'idnum': updatedStaff.idNum, // column is idnum
+        'dob': updatedStaff.dob,
+        'phone': updatedStaff.phone,
+        'address1': updatedStaff.address1,
+        'address2': updatedStaff.address2,
+        'city': updatedStaff.city,
+        'postcode': updatedStaff.postcode.toString(),
+        'state': updatedStaff.state,
+        'country': updatedStaff.country,
+        'occupation': updatedStaff.occupation,
+      },
+    };
+
+    debugPrint('UPDATE STAFF URL: $_hostname/staff/$staffId');
+    debugPrint('UPDATE STAFF PAYLOAD: ${json.encode(payload)}');
+
+    final response = await http.put(
+      Uri.parse('$_hostname/staff/$staffId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: json.encode(payload),
+    );
+
+    debugPrint('UPDATE STAFF STATUS: ${response.statusCode}');
+    debugPrint('UPDATE STAFF RESPONSE: ${response.body}');
+
+    if (response.statusCode == 200) {
+      final index = _staffList.indexWhere((staff) => staff.staffId == staffId);
+      if (index != -1) {
+        _staffList[index] = updatedStaff;
+        notifyListeners();
       }
-    } catch (error) {
-      debugPrint('Error updating staff: $error');
-      rethrow;
+    } else {
+      throw Exception('Failed to update staff details: ${response.body}');
     }
+  } catch (error) {
+    debugPrint('Error updating staff: $error');
+    rethrow;
   }
+}
 
   // Delete Staff
   Future<void> deleteStaff(int staffId) async {
