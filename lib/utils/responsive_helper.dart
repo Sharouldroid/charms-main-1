@@ -8,6 +8,11 @@ class ResponsiveHelper {
     return size.shortestSide >= 600;
   }
 
+  static bool isMobile(BuildContext context) {
+  final size = MediaQuery.of(context).size;
+  return size.shortestSide < 600;
+}
+
   /// Check if device is a large tablet (shortest side >= 720dp)
   static bool isLargeTablet(BuildContext context) {
     return MediaQuery.of(context).size.shortestSide >= 720;

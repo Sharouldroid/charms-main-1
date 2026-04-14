@@ -7,55 +7,76 @@ class AuthScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isTablet = ResponsiveHelper.isTablet(context);
-    final maxWidth = isTablet ? 500.0 : double.infinity;
-    final titleFontSize = isTablet ? 40.0 : 32.0;
-    final padding = ResponsiveHelper.getResponsivePadding(context);
-    
+    final isMobile = ResponsiveHelper.isMobile(context);
+
     return Scaffold(
-      resizeToAvoidBottomInset: false,
-      body: Stack(
-        children: [
-          // Background image
-          Container(
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/logo/seatrulogo2.png'),
-                fit: BoxFit.contain,
-              ),
-            ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(0xFF567FD7), // Charms blue
+              Color(0xFFDA291C), // Charms red
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          // Semi-transparent overlay
-          Container(color: Colors.blueGrey.withOpacity(0.7)),
-          // Content
-          Center(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: padding,
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: maxWidth),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'CHARMS',
-                          style: TextStyle(
-                            fontSize: titleFontSize,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
+        ),
+        child: Center(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Logo / Branding
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 30),
+                  child: Column(
+                    children: [
+                      Image.asset(
+                        'assets/images/logo/seatrulogo1.png', // replace with your logo asset
+                        height: isMobile ? 100 : 150,
+                      ),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'Welcome to Charms',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
-                        SizedBox(height: isTablet ? 40 : 32),
-                        const AuthCard(),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
+
+                // Auth Card (login form)
+                Card(
+                  elevation: 8,
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Padding(
+                    padding: EdgeInsets.all(20),
+                    child: AuthCard(), // existing login form
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Footer / Extra options
+                TextButton(
+                  onPressed: () {
+                    // Add forgot password navigation here
+                  },
+                  child: const Text(
+                    'Forgot Password?',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
