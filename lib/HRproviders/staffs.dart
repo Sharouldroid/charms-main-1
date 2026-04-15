@@ -155,21 +155,26 @@ class Staffs with ChangeNotifier {
 
   // Delete Staff
   Future<void> deleteStaff(int staffId) async {
-    try {
-      final response = await http.delete(
-        Uri.parse('$_hostname/staff/$staffId'),
-        headers: {'Accept': 'application/json'},
-      );
+  try {
+    debugPrint('DELETE URL: $_hostname/staff/$staffId');
 
-      if (response.statusCode == 200) {
-        _staffList.removeWhere((staff) => staff.staffId == staffId);
-        notifyListeners();
-      } else {
-        throw Exception('Failed to delete staff: ${response.body}');
-      }
-    } catch (error) {
-      debugPrint('Error deleting staff: $error');
-      rethrow;
+    final response = await http.delete(
+      Uri.parse('$_hostname/staff/$staffId'),
+      headers: {'Accept': 'application/json'},
+    );
+
+    debugPrint('DELETE STATUS: ${response.statusCode}');
+    debugPrint('DELETE RESPONSE: ${response.body}');
+
+    if (response.statusCode == 200) {
+      _staffList.removeWhere((staff) => staff.staffId == staffId);
+      notifyListeners();
+    } else {
+      throw Exception('Failed to delete staff: ${response.body}');
     }
+  } catch (error) {
+    debugPrint('Error deleting staff: $error');
+    rethrow;
   }
+}
 }

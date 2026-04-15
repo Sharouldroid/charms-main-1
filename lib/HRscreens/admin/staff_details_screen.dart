@@ -132,19 +132,26 @@ class StaffDetailsScreen extends StatelessWidget {
 
   // Function to delete staff
   Future<void> _deleteStaff(BuildContext context) async {
-    final staffProvider = Provider.of<Staffs>(context, listen: false);
-    try {
-      await staffProvider.deleteStaff(staff.userId);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Staff deleted successfully!')),
-      );
-      Navigator.pop(context); // Go back to the previous screen
-    } catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to delete staff: $error')),
-      );
-    }
+  final staffProvider = Provider.of<Staffs>(context, listen: false);
+
+  try {
+    await staffProvider.deleteStaff(staff.staffId);
+
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Staff deleted successfully!')),
+    );
+
+    // Close detail page after success
+    if (!context.mounted) return;
+    Navigator.of(context).pop();
+  } catch (error) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Failed to delete staff: $error')),
+    );
   }
+}
 }
 
 class DetailsRow extends StatelessWidget {
