@@ -66,47 +66,23 @@ class Schedules with ChangeNotifier {
   }
 
   Future<void> addSchedule(Schedule schedule) async {
-    // Aligned with Route::post('/create', [HRScheduleController::class, 'addSchedule'])
-    // Using MultipartRequest as per your CHARMS API example
-    final url = Uri.parse('$_hostname/staff-schedule/create');
-    var request = http.MultipartRequest('POST', url);
+  final url = Uri.parse('$_hostname/staff-schedule/create');
+  final body = schedule.toJson();  // already fixes work_location!
+  body['work_date'] = schedule.workDate.toIso8601String().split('T')[0]; // keep date format
 
-    request.fields['staff_id'] = schedule.staffId.toString();
-    request.fields['work_date'] = schedule.workDate.toIso8601String().split('T')[0];
-    request.fields['work_location'] = schedule.workLocation.toString();
-    request.fields['staff_type'] = schedule.staffType.toString();
-    
-    if (schedule.internSlot != null) {
-      request.fields['intern_slot'] = schedule.internSlot.toString();
-    }
-    if (schedule.workStartTime != null) {
-      request.fields['work_start_time'] = schedule.workStartTime!;
-    }
-    if (schedule.workEndTime != null) {
-      request.fields['work_end_time'] = schedule.workEndTime!;
-    }
-    if (schedule.breakStartTime != null) {
-      request.fields['break_start_time'] = schedule.breakStartTime!;
-    }
-    if (schedule.breakEndTime != null) {
-      request.fields['break_end_time'] = schedule.breakEndTime!;
-    }
+  final response = await http.post(
+    url,
+    headers: {'Content-Type': 'application/json'},
+    body: jsonEncode(body),
+  );
 
-    try {
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
-
-      if (response.statusCode == 201) {
-        await fetchSchedules();
-        notifyListeners();
-      } else {
-        throw Exception('Failed to add schedule: ${response.body}');
-      }
-    } catch (error) {
-      print('Error adding schedule: $error');
-      rethrow;
-    }
+  if (response.statusCode == 201) {
+    await fetchSchedules();
+    notifyListeners();
+  } else {
+    throw Exception('Failed to add schedule: ${response.body}');
   }
+}
 
   Future<void> updateSchedule(Schedule schedule) async {
     try {

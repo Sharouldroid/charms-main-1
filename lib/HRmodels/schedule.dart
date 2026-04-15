@@ -35,37 +35,38 @@ class Schedule {
   });
 
   factory Schedule.fromJson(Map<String, dynamic> json) {
-    return Schedule(
-      schedId: json['sched_id'] ?? 0,
-      staffId: json['staff_id'] ?? 0,
-      workDate: DateTime.parse(json['work_date']),
-      workLocation: json['work_location'] ?? 1,
-      staffType: json['staff_type'] ?? 1,
-      internSlot: json['intern_slot'],
-      workStartTime: json['work_start_time'],
-      workEndTime: json['work_end_time'],
-      breakStartTime: json['break_start_time'],
-      breakEndTime: json['break_end_time'],
-      workingPeriods: json['working_periods'] != null
-          ? (json['working_periods'] as List)
-              .map((period) => WorkingPeriod.fromJson(period))
-              .toList()
-          : null,
-      breakPeriods: json['break_periods'] != null
-          ? (json['break_periods'] as List)
-              .map((period) => BreakPeriod.fromJson(period))
-              .toList()
-          : null,
-    );
-  }
+  return Schedule(
+    schedId: json['sched_id'] is int ? json['sched_id'] : int.tryParse(json['sched_id'].toString()) ?? 0,
+    staffId: json['staff_id'] is int ? json['staff_id'] : int.tryParse(json['staff_id'].toString()) ?? 0,
+    workDate: DateTime.parse(json['work_date']),
+    workLocation: json['work_location'] is int ? json['work_location'] : int.tryParse(json['work_location'].toString()) ?? 1,
+    staffType: json['staff_type'] is int ? json['staff_type'] : int.tryParse(json['staff_type'].toString()) ?? 1,
+    internSlot: json['intern_slot'] == null ? null
+      : (json['intern_slot'] is int ? json['intern_slot'] : int.tryParse(json['intern_slot'].toString())),
+    workStartTime: json['work_start_time'],
+    workEndTime: json['work_end_time'],
+    breakStartTime: json['break_start_time'],
+    breakEndTime: json['break_end_time'],
+    workingPeriods: json['working_periods'] != null
+        ? (json['working_periods'] as List)
+            .map((period) => WorkingPeriod.fromJson(period))
+            .toList()
+        : null,
+    breakPeriods: json['break_periods'] != null
+        ? (json['break_periods'] as List)
+            .map((period) => BreakPeriod.fromJson(period))
+            .toList()
+        : null,
+  );
+}
 
   Map<String, dynamic> toJson() {
     return {
       'sched_id': schedId,
       'staff_id': staffId,
       'work_date': workDate.toIso8601String(),
-      'work_location': workLocation,
-      'staff_type': staffType,
+      'work_location': workLocation.toString(),
+      'staff_type': staffType.toString(),
       'intern_slot': internSlot,
       'work_start_time': workStartTime,
       'work_end_time': workEndTime,
