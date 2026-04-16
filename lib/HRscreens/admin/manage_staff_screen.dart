@@ -52,7 +52,7 @@ class _ManageStaffScreenState extends State<ManageStaffScreen> {
       case 3:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => MySelfScreen(username: widget.username)),
+          MaterialPageRoute(builder: (_) => const MySelfScreen()),
         );
         break;
     }

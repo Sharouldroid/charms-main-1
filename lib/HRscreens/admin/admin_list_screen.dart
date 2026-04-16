@@ -40,7 +40,7 @@ class _AdminListScreenState extends State<AdminListScreen> {
       final authProvider = Provider.of<hr_auth.Auth>(context, listen: false);
 
       await usersProvider
-          .fetchUsers(authProvider.hostname)
+          .fetchUsers(authProvider.hostname, token: authProvider.token)
           .timeout(const Duration(seconds: 12));
 
       final admins = usersProvider.userlist.where((u) => u.usertype == 6).toList();
@@ -89,7 +89,7 @@ class _AdminListScreenState extends State<AdminListScreen> {
       case 3:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => MySelfScreen(username: widget.username)),
+          MaterialPageRoute(builder: (_) => const MySelfScreen()),
         );
         break;
     }

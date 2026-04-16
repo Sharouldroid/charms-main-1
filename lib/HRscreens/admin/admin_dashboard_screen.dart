@@ -154,7 +154,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       case 3:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => MySelfScreen(username: widget.username)),
+          MaterialPageRoute(builder: (_) => const MySelfScreen()),
         );
         break;
     }

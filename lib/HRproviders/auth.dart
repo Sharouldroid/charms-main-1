@@ -9,7 +9,8 @@ import '../HRmodels/user.dart';
 
 class Auth with ChangeNotifier {
   DateTime? lastLoginTime;
-  String? _token;
+  String? _token;        // Sanctum Bearer token
+  String? _userId;       // User's login ID
   DateTime _expiryDate = DateTime.now();
   int _usertype = 2;
   Timer _authTimer = Timer(const Duration(hours: 0), () {});
@@ -19,8 +20,9 @@ class Auth with ChangeNotifier {
 
   String get username => _username;
   String get hostname => _hostname;
-  bool get isAuth => token != null;
+  bool get isAuth => _token != null && _token!.isNotEmpty;
   String? get token => _token;
+  String? get userId => _userId;
   int get usertype => _usertype;
 
   // Login
@@ -43,7 +45,9 @@ class Auth with ChangeNotifier {
     if (response.statusCode == 200 && responseData['success'] == true) {
       final data = responseData['data'];
 
-      _token = (data['id'] ?? data['userid']).toString();
+      // Save the Sanctum Bearer token
+      _token = responseData['token'] ?? '';
+      _userId = (data['id'] ?? data['userid']).toString();
       _username = data['username'] ?? username;
       _usertype =
           data['usertype'] != null ? int.parse(data['usertype'].toString()) : 2;
@@ -54,6 +58,7 @@ class Auth with ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       final userData = json.encode({
         'token': _token,
+        'userId': _userId,
         'usertype': _usertype,
         'username': _username,
         'expiryDate': _expiryDate.toIso8601String(),
@@ -108,10 +113,7 @@ class Auth with ChangeNotifier {
     notifyListeners();
   }
 
-  // Register staff (3-step):
-  // 1) HR_userdata -> /staff/create
-  // 2) HR_userlogin -> /user/create (userid = HR_userdata.id)
-  // 3) HR_staff -> /staff/profile/create (user_id = HR_userdata.id)  <-- IMPORTANT
+  // Register staff (3-step)
   Future<void> registerStaff(Map<String, String> staffData) async {
     const staffDataUrl = '${_hostname}staff/create';
     const userUrl = '${_hostname}user/create';
@@ -198,7 +200,6 @@ class Auth with ChangeNotifier {
         throw Exception('User creation failed: ${userRes.body}');
       }
 
-      // Optional parse (kept for debug visibility)
       final userJson = jsonDecode(userRes.body);
       final dynamic rawLoginId = userJson['data']?['id'] ?? userJson['id'];
       final int? createdLoginId = rawLoginId is int
@@ -207,9 +208,8 @@ class Auth with ChangeNotifier {
       debugPrint('USER LOGIN ID (not used for HR_staff FK): $createdLoginId');
 
       // STEP 3: create HR_staff profile
-      // IMPORTANT: FK HR_staff.user_id references HR_userdata.id
       final staffProfilePayload = {
-        'user_id': createdStaffId, // <-- FIXED
+        'user_id': createdStaffId,
         'category': staffData['category'],
         'nationality': staffData['nationality'],
         'religion': staffData['religion'],
@@ -256,9 +256,10 @@ class Auth with ChangeNotifier {
         json.decode(prefs.getString('userData')!) as Map<String, Object>;
 
     final expiryDate = DateTime.parse(extractedData['expiryDate'].toString());
-    if (expiryDate.isAfter(DateTime.now())) return false;
+    if (expiryDate.isBefore(DateTime.now())) return false;
 
     _token = extractedData['token'].toString();
+    _userId = extractedData['userId']?.toString();
     _usertype = int.parse(extractedData['usertype'].toString());
     _username = extractedData['username'].toString();
     lastLoginTime = DateTime.now();
@@ -270,6 +271,7 @@ class Auth with ChangeNotifier {
 
   Future<void> logout() async {
     _token = '';
+    _userId = '';
     _usertype = 0;
     _username = '';
     _expiryDate = DateTime.now();
