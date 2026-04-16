@@ -5,7 +5,6 @@ import 'package:charms/HRscreens/admin/admin_dashboard_screen.dart';
 import 'package:charms/HRscreens/admin/manage_staff_screen.dart';
 import 'package:charms/HRscreens/admin/myself_screen.dart';
 import 'package:charms/HRscreens/admin/notification_screen.dart';
-import 'package:charms/HRscreens/auth_screen.dart';
 import 'package:charms/HRwidgets/admin/bottom_nav_bar.dart';
 //import 'package:charms/HRwidgets/custom_drawer.dart';
 import 'package:flutter/material.dart';

@@ -1,14 +1,11 @@
 
 import 'dart:typed_data';
 import 'package:charms/HRmodels/leave.dart';
-import 'package:charms/HRproviders/auth.dart' as hr_auth;
 import 'package:charms/HRproviders/leaves.dart';
-import 'package:charms/HRscreens/auth_screen.dart';
 import 'package:charms/HRscreens/staff/claim_dashboard.dart';
 import 'package:charms/HRscreens/staff/payroll_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/staff_myself_screen.dart';
-import 'package:charms/HRwidgets/custom_drawer.dart';
 import 'package:charms/HRwidgets/staff/bottom_nav_staff.dart';
 import 'package:flutter/material.dart';
 import 'package:charms/HRscreens/staff/apply_leave_screen.dart';

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'login_screen.dart';
+// Corrected import statement
 
 class SelectHRRoleScreen extends StatelessWidget {
   const SelectHRRoleScreen({super.key});
@@ -18,7 +18,10 @@ class SelectHRRoleScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Select HR Role'),
-        leading: const Icon(Icons.arrow_back),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
         backgroundColor: Colors.red,
       ),
       body: Center(

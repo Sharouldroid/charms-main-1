@@ -16,7 +16,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
-  bool _obscurePassword = true;
+  final bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -128,12 +128,12 @@ class _LoginScreenState extends State<LoginScreen> {
 }
 
 Future<void> loginUser(BuildContext context, String username, String password, String role) async {
-  final url = Uri.parse('https://your-backend-api.com/login');
+  final url = Uri.parse('https://devcms.com.my/charmsAPI/api/users/login');
 
   try {
     final response = await http.post(
       url,
-      headers: {'Content-Type': 'application/json'},
+      headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
       body: json.encode({'username': username, 'password': password, 'role': role}),
     );
 

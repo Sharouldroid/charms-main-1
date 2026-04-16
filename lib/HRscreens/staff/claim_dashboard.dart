@@ -1,10 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:charms/HRmodels/claim.dart';
-import 'package:charms/HRproviders/auth.dart' as hr_auth;
 import 'package:charms/HRproviders/claims.dart';
 import 'package:charms/HRscreens/staff/apply_claim_screen.dart';
-import 'package:charms/HRscreens/staff/claim_dashboard.dart';
 import 'package:charms/HRscreens/staff/leave_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/payroll_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
