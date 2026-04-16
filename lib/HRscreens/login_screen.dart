@@ -1,8 +1,8 @@
+import 'package:charms/HRproviders/auth.dart' as hr_auth;
 import 'package:charms/HRscreens/admin/admin_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:provider/provider.dart';
 
 class LoginScreen extends StatefulWidget {
   final String role;
@@ -16,7 +16,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
-  final bool _obscurePassword = true;
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -25,7 +25,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     final username = _usernameController.text.trim();
     final password = _passwordController.text.trim();
 
@@ -37,9 +37,45 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     setState(() => _isLoading = true);
-    loginUser(context, username, password, widget.role).whenComplete(() {
+
+    try {
+      // Use the Auth provider to login — this saves username, token, usertype
+      final authProvider = Provider.of<hr_auth.Auth>(context, listen: false);
+      final usertype = await authProvider.authenticate(username, password);
+      final loggedUsername = authProvider.username;
+
+      if (!mounted) return;
+
+      // usertype 6 = HR Admin
+      if (usertype == 6) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AdminDashboardScreen(username: loggedUsername),
+          ),
+        );
+      }
+      // usertype 7,8,9,10 = Staff
+      else if ([7, 8, 9, 10].contains(usertype)) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => StaffDashboardScreen(username: loggedUsername),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invalid user role for HR module')),
+        );
+      }
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Login failed: ${error.toString()}')),
+      );
+    } finally {
       if (mounted) setState(() => _isLoading = false);
-    });
+    }
   }
 
   @override
@@ -123,50 +159,6 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       ),
-    );
-  }
-}
-
-Future<void> loginUser(BuildContext context, String username, String password, String role) async {
-  final url = Uri.parse('https://devcms.com.my/charmsAPI/api/users/login');
-
-  try {
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
-      body: json.encode({'username': username, 'password': password, 'role': role}),
-    );
-
-    if (response.statusCode == 200) {
-      final responseData = json.decode(response.body);
-
-      if (responseData['usertype'] == 6) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => AdminDashboardScreen(username: username),
-          ),
-        );
-      } else if ([7, 8, 9, 10].contains(responseData['usertype'])) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => StaffDashboardScreen(username: username),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invalid user role')),
-        );
-      }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login failed. Please try again.')),
-      );
-    }
-  } catch (error) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('An error occurred. Please try again later.')),
     );
   }
 }

@@ -29,6 +29,7 @@ import 'package:charms/notification_page.dart';
 import 'package:charms/HRscreens/admin/admin_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
 import 'package:charms/utils/logout_helper.dart';
+import 'package:charms/HRscreens/login_screen.dart';
 
 // --- CONTROLLER (Recent Activity) ---
 class RecentActivityController {
@@ -914,11 +915,12 @@ class HRSelectionScreen extends StatelessWidget {
         title: const Text('Select HR Role'),
         centerTitle: true,
         elevation: 0,
+        backgroundColor: Colors.red,
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Logout',
-           onPressed: () => LogoutHelper.backToMainDashboard(context),
+            onPressed: () => LogoutHelper.backToMainDashboard(context),
           ),
         ],
       ),
@@ -934,6 +936,7 @@ class HRSelectionScreen extends StatelessWidget {
               ),
               const SizedBox(height: 40),
 
+              // ✅ Login as HR Admin → goes to LoginScreen first
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -953,7 +956,7 @@ class HRSelectionScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const AdminDashboard(username: 'Admin'),
+                        builder: (context) => const LoginScreen(role: 'HR Admin'),
                       ),
                     );
                   },
@@ -961,6 +964,7 @@ class HRSelectionScreen extends StatelessWidget {
               ),
               const SizedBox(height: 20),
 
+              // ✅ Login as Staff → goes to LoginScreen first
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -971,7 +975,7 @@ class HRSelectionScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  icon: const Icon(Icons.people, color: Colors.white),
+                  icon: const Icon(Icons.group, color: Colors.white),
                   label: const Text(
                     'Login as Staff',
                     style: TextStyle(fontSize: 18, color: Colors.white),
@@ -980,7 +984,7 @@ class HRSelectionScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const StaffDashboardScreen(username: 'Staff'),
+                        builder: (context) => const LoginScreen(role: 'Staff'),
                       ),
                     );
                   },

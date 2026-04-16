@@ -15,7 +15,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 class MySelfScreen extends StatefulWidget {
-  const MySelfScreen({super.key});
+  final String username;
+  const MySelfScreen({super.key, required this.username});
 
   @override
   State<MySelfScreen> createState() => _MySelfScreenState();
@@ -110,7 +111,6 @@ class _MySelfScreenState extends State<MySelfScreen> {
       await staffsProvider.fetchStaff();
       final staffList = staffsProvider.staffList;
 
-      // Safe matching to avoid "Bad state: No element"
       final matches = staffList.where((s) {
         final sUser = s.username.trim().toLowerCase();
         final sType = s.usertype.toString();
@@ -234,18 +234,28 @@ class _MySelfScreenState extends State<MySelfScreen> {
     if (index == _selectedIndex) return;
     setState(() => _selectedIndex = index);
 
-    final username = context.read<hr_auth.Auth>().username;
-    final routes = [
-      () => AdminDashboard(username: username),
-      () => ManageStaffScreen(),
-      () => AdminListScreen(),
-      () => const MySelfScreen(),
-    ];
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => routes[index]()),
-    );
+    switch (index) {
+      case 0:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => AdminDashboard(username: widget.username)),
+        );
+        break;
+      case 1:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => ManageStaffScreen(username: widget.username)),
+        );
+        break;
+      case 2:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => AdminListScreen(username: widget.username)),
+        );
+        break;
+      case 3:
+        break; // current page
+    }
   }
 
   Widget _buildInfoField(String label, TextEditingController controller, {bool enabled = false}) {

@@ -1,4 +1,3 @@
-import 'package:charms/HRproviders/auth.dart' as hr_auth;
 import 'package:charms/HRscreens/admin/admin_dashboard_screen.dart';
 import 'package:charms/HRscreens/admin/admin_list_screen.dart';
 import 'package:charms/HRscreens/admin/manage_attendance_screen.dart';
@@ -12,24 +11,17 @@ import 'package:charms/HRscreens/admin/staff_list_screen.dart';
 import 'package:charms/HRwidgets/admin/bottom_nav_bar.dart';
 import 'package:charms/screens/dashboard_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 class ManageStaffScreen extends StatefulWidget {
-  const ManageStaffScreen({super.key});
+  final String username;
+  const ManageStaffScreen({super.key, required this.username});
 
   @override
   State<ManageStaffScreen> createState() => _ManageStaffScreenState();
 }
 
 class _ManageStaffScreenState extends State<ManageStaffScreen> {
-  late String username;
   int _selectedIndex = 1;
-
-  @override
-  void initState() {
-    super.initState();
-    username = context.read<hr_auth.Auth>().username;
-  }
 
   Future<void> _logout() async {
     Navigator.of(context).pushNamedAndRemoveUntil(
@@ -46,7 +38,7 @@ class _ManageStaffScreenState extends State<ManageStaffScreen> {
       case 0:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => AdminDashboard(username: username)),
+          MaterialPageRoute(builder: (_) => AdminDashboard(username: widget.username)),
         );
         break;
       case 1:
@@ -54,13 +46,13 @@ class _ManageStaffScreenState extends State<ManageStaffScreen> {
       case 2:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => AdminListScreen()),
+          MaterialPageRoute(builder: (_) => AdminListScreen(username: widget.username)),
         );
         break;
       case 3:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const MySelfScreen()),
+          MaterialPageRoute(builder: (_) => MySelfScreen(username: widget.username)),
         );
         break;
     }
@@ -71,7 +63,7 @@ class _ManageStaffScreenState extends State<ManageStaffScreen> {
     return Scaffold(
       appBar: AppBar(
         iconTheme: const IconThemeData(color: Colors.white),
-        automaticallyImplyLeading: false, // remove drawer/hamburger
+        automaticallyImplyLeading: false,
         title: const Text('CHARMS ADMIN', style: TextStyle(color: Colors.white)),
         centerTitle: true,
         backgroundColor: Colors.blue,

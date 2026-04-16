@@ -20,7 +20,6 @@ class AdminDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Important: NO nested MaterialApp here
     return AdminDashboardScreen(username: username);
   }
 }
@@ -141,21 +140,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       case 0:
         return;
       case 1:
-        Navigator.push(
+        Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => ManageStaffScreen()),
+          MaterialPageRoute(builder: (_) => ManageStaffScreen(username: widget.username)),
         );
         break;
       case 2:
-        Navigator.push(
+        Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => AdminListScreen()),
+          MaterialPageRoute(builder: (_) => AdminListScreen(username: widget.username)),
         );
         break;
       case 3:
-        Navigator.push(
+        Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => MySelfScreen()),
+          MaterialPageRoute(builder: (_) => MySelfScreen(username: widget.username)),
         );
         break;
     }
@@ -167,7 +166,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       extendBody: true,
       appBar: AppBar(
         iconTheme: const IconThemeData(color: Colors.white),
-        automaticallyImplyLeading: false, // no drawer icon
+        automaticallyImplyLeading: false,
         title: const Text('CHARMS ADMIN', style: TextStyle(color: Colors.white)),
         centerTitle: true,
         backgroundColor: Colors.blue,

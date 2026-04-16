@@ -6,87 +6,91 @@ import 'package:charms/HRscreens/admin/manage_staff_screen.dart';
 import 'package:charms/HRscreens/admin/myself_screen.dart';
 import 'package:charms/HRscreens/admin/notification_screen.dart';
 import 'package:charms/HRwidgets/admin/bottom_nav_bar.dart';
-//import 'package:charms/HRwidgets/custom_drawer.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:charms/screens/dashboard_screen.dart';
 
 class AdminListScreen extends StatefulWidget {
-  const AdminListScreen({super.key});
+  final String username;
+  const AdminListScreen({super.key, required this.username});
 
   @override
   _AdminListScreenState createState() => _AdminListScreenState();
 }
 
 class _AdminListScreenState extends State<AdminListScreen> {
-  late String username;
   List<User> _adminUsers = [];
   bool _isLoading = true;
   String _searchQuery = '';
   bool _isAscending = true;
   int _selectedIndex = 2;
-  final String _selectedLanguage = 'English';
-  final List<String> _languages = ['English', 'Spanish', 'French', 'German'];
 
   @override
   void initState() {
     super.initState();
-    username = Provider.of<hr_auth.Auth>(context, listen: false).username;
     _loadAdminUsers();
   }
 
   Future<void> _loadAdminUsers() async {
-  if (!mounted) return;
-  setState(() => _isLoading = true);
-
-  try {
-    final usersProvider = context.read<Users>();
-    final authProvider = Provider.of<hr_auth.Auth>(context, listen: false);
-
-    await usersProvider
-        .fetchUsers(authProvider.hostname)
-        .timeout(const Duration(seconds: 12));
-
-    final admins = usersProvider.userlist.where((u) => u.usertype == 6).toList();
-
     if (!mounted) return;
-    setState(() {
-      _adminUsers = admins;
-      _isLoading = false;
-    });
-  } catch (error) {
-    debugPrint('AdminList load error: $error');
-    if (!mounted) return;
-    setState(() => _isLoading = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Failed to load admins. ${error.toString()}')),
-    );
+    setState(() => _isLoading = true);
+
+    try {
+      final usersProvider = context.read<Users>();
+      final authProvider = Provider.of<hr_auth.Auth>(context, listen: false);
+
+      await usersProvider
+          .fetchUsers(authProvider.hostname)
+          .timeout(const Duration(seconds: 12));
+
+      final admins = usersProvider.userlist.where((u) => u.usertype == 6).toList();
+
+      if (!mounted) return;
+      setState(() {
+        _adminUsers = admins;
+        _isLoading = false;
+      });
+    } catch (error) {
+      debugPrint('AdminList load error: $error');
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load admins. ${error.toString()}')),
+      );
+    }
   }
-}
 
   Future<void> _logout() async {
-  Navigator.of(context).pushNamedAndRemoveUntil(
-    DashboardScreen.routeName,
-    (route) => false,
-  );
-}
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      DashboardScreen.routeName,
+      (route) => false,
+    );
+  }
 
   void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+    if (index == _selectedIndex) return;
+    setState(() => _selectedIndex = index);
+
     switch (index) {
       case 0:
-        Navigator.push(context, MaterialPageRoute(builder: (context) => AdminDashboard(username: username)));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => AdminDashboard(username: widget.username)),
+        );
         break;
       case 1:
-        Navigator.push(context, MaterialPageRoute(builder: (context) => ManageStaffScreen()));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => ManageStaffScreen(username: widget.username)),
+        );
         break;
       case 2:
-        // Already on this screen
-        break;
+        break; // Already on this screen
       case 3:
-        Navigator.push(context, MaterialPageRoute(builder: (context) => MySelfScreen()));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => MySelfScreen(username: widget.username)),
+        );
         break;
     }
   }
@@ -94,43 +98,42 @@ class _AdminListScreenState extends State<AdminListScreen> {
   @override
   Widget build(BuildContext context) {
     List<User> filteredAdmins = _adminUsers
-        .where((admin) => 
+        .where((admin) =>
             '${admin.firstname} ${admin.lastname}'.toLowerCase().contains(_searchQuery.toLowerCase()))
         .toList();
 
     if (_isAscending) {
-      filteredAdmins.sort((a, b) => 
+      filteredAdmins.sort((a, b) =>
           '${a.firstname} ${a.lastname}'.compareTo('${b.firstname} ${b.lastname}'));
     } else {
-      filteredAdmins.sort((a, b) => 
+      filteredAdmins.sort((a, b) =>
           '${b.firstname} ${b.lastname}'.compareTo('${a.firstname} ${a.lastname}'));
     }
 
     return Scaffold(
       appBar: AppBar(
-          backgroundColor: Colors.blue,
-          iconTheme: const IconThemeData(color: Colors.white),
-          automaticallyImplyLeading: false, // ✅ remove drawer/hamburger
-          title: const Text('CHARMS ADMIN', style: TextStyle(color: Colors.white)),
-          centerTitle: true,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.notifications),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => NotificationScreen()),
-                );
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.logout), // ✅ like admin_dashboard
-              tooltip: 'Back to Dashboard',
-              onPressed: _logout,
-            ),
-          ],
-        ),
-      
+        backgroundColor: Colors.blue,
+        iconTheme: const IconThemeData(color: Colors.white),
+        automaticallyImplyLeading: false,
+        title: const Text('CHARMS ADMIN', style: TextStyle(color: Colors.white)),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => NotificationScreen()),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Back to Dashboard',
+            onPressed: _logout,
+          ),
+        ],
+      ),
       body: _isLoading
           ? Center(child: CircularProgressIndicator())
           : Column(
@@ -206,7 +209,8 @@ class StaffListTile extends StatelessWidget {
   final String occupation;
   final String status;
 
-  const StaffListTile({super.key, 
+  const StaffListTile({
+    super.key,
     required this.staffId,
     required this.name,
     required this.occupation,
