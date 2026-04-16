@@ -31,6 +31,12 @@ class _AdminListScreenState extends State<AdminListScreen> {
     _loadAdminUsers();
   }
 
+  // Helper: get display name (username if firstname is empty)
+  String _getDisplayName(User user) {
+    final fullName = '${user.firstname} ${user.lastname}'.trim();
+    return fullName.isNotEmpty ? fullName : user.username;
+  }
+
   Future<void> _loadAdminUsers() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
@@ -85,7 +91,7 @@ class _AdminListScreenState extends State<AdminListScreen> {
         );
         break;
       case 2:
-        break; // Already on this screen
+        break;
       case 3:
         Navigator.pushReplacement(
           context,
@@ -99,15 +105,17 @@ class _AdminListScreenState extends State<AdminListScreen> {
   Widget build(BuildContext context) {
     List<User> filteredAdmins = _adminUsers
         .where((admin) =>
-            '${admin.firstname} ${admin.lastname}'.toLowerCase().contains(_searchQuery.toLowerCase()))
+            '${admin.firstname} ${admin.lastname} ${admin.username}'
+                .toLowerCase()
+                .contains(_searchQuery.toLowerCase()))
         .toList();
 
     if (_isAscending) {
       filteredAdmins.sort((a, b) =>
-          '${a.firstname} ${a.lastname}'.compareTo('${b.firstname} ${b.lastname}'));
+          _getDisplayName(a).compareTo(_getDisplayName(b)));
     } else {
       filteredAdmins.sort((a, b) =>
-          '${b.firstname} ${b.lastname}'.compareTo('${a.firstname} ${a.lastname}'));
+          _getDisplayName(b).compareTo(_getDisplayName(a)));
     }
 
     return Scaffold(
@@ -135,7 +143,7 @@ class _AdminListScreenState extends State<AdminListScreen> {
         ],
       ),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
                 Padding(
@@ -144,7 +152,7 @@ class _AdminListScreenState extends State<AdminListScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('Total Admins: ${filteredAdmins.length}',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       IconButton(
                         icon: Icon(_isAscending ? Icons.sort_by_alpha : Icons.sort),
                         onPressed: () {
@@ -160,7 +168,7 @@ class _AdminListScreenState extends State<AdminListScreen> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8.0),
                   child: TextField(
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       labelText: 'Search by name',
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.search),
@@ -184,48 +192,50 @@ class _AdminListScreenState extends State<AdminListScreen> {
                           itemCount: filteredAdmins.length,
                           itemBuilder: (context, index) {
                             final admin = filteredAdmins[index];
-                            return StaffListTile(
-                              staffId: int.tryParse(admin.id) ?? 0,
-                              name: '${admin.firstname} ${admin.lastname}',
-                              occupation: admin.occupation,
-                              status: 'Active',
+                            return Card(
+                              child: ListTile(
+                                leading: const CircleAvatar(
+                                  backgroundColor: Colors.blue,
+                                  child: Icon(Icons.person, color: Colors.white),
+                                ),
+                                title: Text(
+                                  _getDisplayName(admin),
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                subtitle: Text('${admin.email} - Status: Active'),
+                                onTap: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (_) => AlertDialog(
+                                      title: Text(_getDisplayName(admin)),
+                                      content: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text('Username: ${admin.username}'),
+                                          Text('Email: ${admin.email}'),
+                                          Text('User Type: ${admin.usertype}'),
+                                        ],
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(context),
+                                          child: const Text('Close'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
                             );
                           },
                         ),
-                )
+                ),
               ],
             ),
       bottomNavigationBar: BottomNavBar(
         selectedIndex: _selectedIndex,
         onItemTapped: _onItemTapped,
-      ),
-    );
-  }
-}
-
-class StaffListTile extends StatelessWidget {
-  final int staffId;
-  final String name;
-  final String occupation;
-  final String status;
-
-  const StaffListTile({
-    super.key,
-    required this.staffId,
-    required this.name,
-    required this.occupation,
-    required this.status,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        title: Text(name, style: TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text("$occupation - Status: $status"),
-        onTap: () {
-          // Add navigation to details if needed
-        },
       ),
     );
   }
