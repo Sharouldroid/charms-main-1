@@ -3,9 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:charms/internshipproviders/schedule_provider.dart';
 import 'package:charms/internshipmodels/schedule.dart';
 import 'registrationForm.dart';
-import 'package:http/http.dart' as http; // Import the http package
-import 'dart:convert'; // Import for jsonDecode
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'package:charms/main.dart';
+
 class ScheduleCalendar extends StatefulWidget {
   final bool isAdmin;
   final int userId;
@@ -13,7 +14,7 @@ class ScheduleCalendar extends StatefulWidget {
   const ScheduleCalendar({
     super.key,
     required this.isAdmin,
-    required this.userId, // Add userId parameter
+    required this.userId,
   });
 
   @override
@@ -26,12 +27,34 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
   int? _duration;
 
   final TextEditingController _descriptionController = TextEditingController();
+  late TextEditingController _startDateController;
+  late TextEditingController _endDateController;
+
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   @override
   void initState() {
     super.initState();
+    _startDateController = TextEditingController();
+    _endDateController = TextEditingController();
     _loadSchedules();
+  }
+
+  @override
+  void dispose() {
+    _startDateController.dispose();
+    _endDateController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  void _updateDateControllers() {
+    _startDateController.text = _startDate == null
+        ? ''
+        : _startDate!.toLocal().toString().split(' ')[0];
+    _endDateController.text = _endDate == null
+        ? ''
+        : _endDate!.toLocal().toString().split(' ')[0];
   }
 
   Future<void> _loadSchedules() async {
@@ -51,7 +74,6 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
       ),
       body: Column(
         children: [
-          // Only show date selection and schedule creation for Admin
           if (widget.isAdmin) ...[
             Padding(
               padding: const EdgeInsets.all(16.0),
@@ -61,28 +83,20 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
                   children: [
                     TextFormField(
                       readOnly: true,
+                      controller: _startDateController,
                       decoration: const InputDecoration(
                         labelText: 'Start Date',
                         suffixIcon: Icon(Icons.calendar_today),
-                      ),
-                      controller: TextEditingController(
-                        text: _startDate == null
-                            ? ''
-                            : _startDate!.toLocal().toString().split(' ')[0],
                       ),
                       onTap: () => _selectDate(context, isStartDate: true),
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
                       readOnly: true,
+                      controller: _endDateController,
                       decoration: const InputDecoration(
                         labelText: 'End Date',
                         suffixIcon: Icon(Icons.calendar_today),
-                      ),
-                      controller: TextEditingController(
-                        text: _endDate == null
-                            ? ''
-                            : _endDate!.toLocal().toString().split(' ')[0],
                       ),
                       onTap: _startDate == null
                           ? null
@@ -376,12 +390,13 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
       setState(() {
         if (isStartDate) {
           _startDate = selectedDate;
-          _endDate = null; // Reset end date when start date is selected
-          _duration = null; // Reset duration when start date is selected
+          _endDate = null;
+          _duration = null;
         } else {
           _endDate = selectedDate;
           _duration = _endDate!.difference(_startDate!).inDays;
         }
+        _updateDateControllers();
       });
     }
   }
