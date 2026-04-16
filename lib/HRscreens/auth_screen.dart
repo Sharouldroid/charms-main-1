@@ -166,20 +166,29 @@ Future<void> _submit() async {
 
       // Redirect based on userType
       Widget destination;
-      if ([1, 2, 3, 4, 5].contains(userType)) {
-        destination = MainDashboard();
-      } else if (userType == 6) {
+      
+      // 1 = Super Admin, 6 = Staff/HR Admin
+      if (userType == 1 || userType == 6) {
         destination = AdminDashboard(username: username);
-      } else if ([7, 8, 9, 10].contains(userType)) {
+      } 
+      // 2, 3, 4, 5 = Volunteers, Researchers, Boat Owners, etc.
+      else if ([2, 3, 4, 5].contains(userType)) {
+        destination = MainDashboard();
+      } 
+      // 7, 8, 9, 10 = Standard Staff, Managers, Officers, Trainees
+      else if ([7, 8, 9, 10].contains(userType)) {
         destination = StaffDashboardScreen(username: username);
-      } else {
+      } 
+      else {
         throw Exception("Unknown user type: $userType");
       }
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => destination),
-      );
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => destination),
+        );
+      }
     } else {
       // Handle registration logic
       await Provider.of<Auth>(context, listen: false).register(_newuser);
@@ -188,9 +197,11 @@ Future<void> _submit() async {
   } catch (error) {
     _showErrorDialog(error.toString(), 1);
   } finally {
-    setState(() {
-      _isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 }
 
