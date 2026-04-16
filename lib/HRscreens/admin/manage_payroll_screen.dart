@@ -6,6 +6,7 @@ import 'package:charms/HRproviders/staffs.dart';
 import 'package:charms/HRproviders/payments.dart';
 import 'package:charms/HRscreens/staff/staff_payroll_details_screen.dart';
 import 'package:charms/HRmodels/payment.dart';
+import 'package:intl/intl.dart';
 import 'payroll_form_screen.dart';
 
 class ManagePayrollScreen extends StatefulWidget {
@@ -16,11 +17,8 @@ class ManagePayrollScreen extends StatefulWidget {
 class _ManagePayrollScreenState extends State<ManagePayrollScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  int selectedYear = 2024;
-  String selectedMonth = 'January';
-
-  final List<String> years =
-      List.generate(10, (index) => (2024 + index).toString());
+  late int selectedYear;
+  late String selectedMonth;
   final List<String> months = [
     'January',
     'February',
@@ -35,11 +33,22 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
     'November',
     'December'
   ];
+  late List<String> years;
 
   @override
   void initState() {
     super.initState();
+
+    // Initialize the current year and month
+    final currentDate = DateTime.now();
+    selectedYear = currentDate.year;
+    selectedMonth = DateFormat.MMMM().format(currentDate);
+    years = List.generate(10, (index) => (currentDate.year - 5 + index).toString());
+
+    // Initialize the TabController
     _tabController = TabController(length: 2, vsync: this);
+
+    // Load initial data
     _loadInitialData();
   }
 
@@ -47,8 +56,8 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
     final staffsProvider = Provider.of<Staffs>(context, listen: false);
     final paymentsProvider = Provider.of<Payments>(context, listen: false);
 
-    await staffsProvider.fetchStaff(); 
-
+    // Fetch staff and payments data
+    await staffsProvider.fetchStaff();
     await paymentsProvider.fetchPaymentsByMonth(
       selectedYear,
       months.indexOf(selectedMonth) + 1,
@@ -57,6 +66,7 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
 
   @override
   void dispose() {
+    // Dispose of the TabController
     _tabController.dispose();
     super.dispose();
   }
@@ -68,7 +78,7 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
         builder: (context) => PayrollFormScreen(
           staffId: staff.staffId.toString(),
           staffName: '${staff.firstname} ${staff.lastname}',
-          workingDays: '22', // You might want to calculate this
+          workingDays: '22', // Example value
           month: selectedMonth,
           year: selectedYear,
           onSubmit: (payrollData) async {
@@ -84,7 +94,7 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
                 totalSalary: payrollData['totalSalary'],
                 pdfPath: null,
                 createdAt: DateTime.now(),
-                status: 'published', // Set initial status
+                status: 'published',
               );
 
               await Provider.of<Payments>(context, listen: false)
@@ -102,11 +112,10 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
           },
         ),
       ),
-    );
+    ).then((_) => _loadInitialData()); // Auto-refresh after adding payroll
   }
 
-  void _viewPayroll(Payment payment) async {
-    // Get the staff details from the Staffs provider
+  void _viewPayroll(Payment payment) {
     final staffsProvider = Provider.of<Staffs>(context, listen: false);
     final staffList = staffsProvider.staffList;
     final staff = staffList.firstWhere((s) => s.staffId == payment.staffId);
@@ -130,47 +139,48 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
   }
 
   void _editPayroll(Payment payment) {
-  final staffsProvider = Provider.of<Staffs>(context, listen: false);
-  final staff = staffsProvider.staffList.firstWhere((s) => s.staffId == payment.staffId);
-  
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => EditPayrollScreen(
-        payment: payment,
-        staffName: '${staff.firstname} ${staff.lastname}',
-        onUpdate: (payrollData) async {
-          try {
-            final updatedPayment = Payment(
-              paymentId: payrollData['paymentId'],
-              staffId: payrollData['staffId'],
-              workDate: payrollData['workDate'],
-              basicPay: payrollData['basicPay'],
-              totalBonus: payrollData['totalBonus'],
-              totalDeduction: payrollData['totalDeduction'],
-              totalSalary: payrollData['totalSalary'],
-              pdfPath: payment.pdfPath,
-              createdAt: payment.createdAt,
-              status: 'published',
-            );
+    final staffsProvider = Provider.of<Staffs>(context, listen: false);
+    final staff =
+        staffsProvider.staffList.firstWhere((s) => s.staffId == payment.staffId);
 
-            await Provider.of<Payments>(context, listen: false)
-                .updatePayment(updatedPayment);
-            await _loadInitialData();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditPayrollScreen(
+          payment: payment,
+          staffName: '${staff.firstname} ${staff.lastname}',
+          onUpdate: (payrollData) async {
+            try {
+              final updatedPayment = Payment(
+                paymentId: payrollData['paymentId'],
+                staffId: payrollData['staffId'],
+                workDate: payrollData['workDate'],
+                basicPay: payrollData['basicPay'],
+                totalBonus: payrollData['totalBonus'],
+                totalDeduction: payrollData['totalDeduction'],
+                totalSalary: payrollData['totalSalary'],
+                pdfPath: payment.pdfPath,
+                createdAt: payment.createdAt,
+                status: 'published',
+              );
 
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Payroll updated successfully!')),
-            );
-          } catch (error) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Failed to update payroll: $error')),
-            );
-          }
-        },
+              await Provider.of<Payments>(context, listen: false)
+                  .updatePayment(updatedPayment);
+              await _loadInitialData();
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Payroll updated successfully!')),
+              );
+            } catch (error) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Failed to update payroll: $error')),
+              );
+            }
+          },
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Future<void> _deletePayroll(Payment payment) async {
     try {
@@ -186,41 +196,6 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
         SnackBar(content: Text('Failed to delete payroll: $error')),
       );
     }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        iconTheme: IconThemeData(color: Colors.white),
-        backgroundColor: Colors.blue,
-        title: Text('Manage Payroll', style: TextStyle(color: Colors.white)),
-        centerTitle: true,
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: [
-            Tab(child: Text('Pending', style: TextStyle(color: Colors.white))),
-            Tab(
-                child:
-                    Text('Published', style: TextStyle(color: Colors.white))),
-          ],
-        ),
-      ),
-      body: Column(
-        children: [
-          _buildFilterSection(),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildPendingTab(),
-                _buildPublishedTab(),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   Widget _buildFilterSection() {
@@ -266,23 +241,13 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
       builder: (ctx, staffsData, paymentsData, child) {
         final staffList = staffsData.staffList;
 
-        // Debug prints to verify data
-        print('Selected Month: $selectedMonth, Year: $selectedYear');
-        print(
-            'All Payments: ${paymentsData.payments.map((p) => 'StaffID: ${p.staffId}, Month: ${p.workDate.month}')}');
-
-        // Filter payments for current month and year
         final publishedPaymentsForMonth = paymentsData.payments
-            .where((payment) {
-              final isCurrentMonth =
-                  payment.workDate.month == (months.indexOf(selectedMonth) + 1);
-              final isCurrentYear = payment.workDate.year == selectedYear;
-              return isCurrentMonth && isCurrentYear;
-            })
+            .where((payment) =>
+                payment.workDate.month == (months.indexOf(selectedMonth) + 1) &&
+                payment.workDate.year == selectedYear)
             .map((payment) => payment.staffId)
             .toList();
 
-        // Filter out staff with published payrolls
         final pendingStaff = staffList
             .where(
                 (staff) => !publishedPaymentsForMonth.contains(staff.staffId))
@@ -318,10 +283,7 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
   Widget _buildPublishedTab() {
     return Consumer<Payments>(
       builder: (ctx, paymentsData, child) {
-        print('Total payments: ${paymentsData.payments.length}');
-
         final publishedPayments = paymentsData.payments;
-        print('Published payments: ${publishedPayments.length}');
 
         return publishedPayments.isEmpty
             ? Center(child: Text('No published payrolls yet'))
@@ -362,6 +324,46 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
                 },
               );
       },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        iconTheme: IconThemeData(color: Colors.white),
+        backgroundColor: Colors.blue,
+        title: Text('Manage Payroll', style: TextStyle(color: Colors.white)),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.refresh),
+            onPressed: () => _loadInitialData(), // Refresh button action
+          ),
+        ],
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: [
+            Tab(child: Text('Pending', style: TextStyle(color: Colors.white))),
+            Tab(
+                child: Text('Published', style: TextStyle(color: Colors.white))),
+          ],
+        ),
+      ),
+      body: Column(
+        children: [
+          _buildFilterSection(), // Filter Section
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildPendingTab(), // Pending Tab
+                _buildPublishedTab(), // Published Tab
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
