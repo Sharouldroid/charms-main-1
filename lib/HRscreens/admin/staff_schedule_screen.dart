@@ -33,6 +33,7 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
   Map<String, dynamic>? _userDetails;
   List<Schedule> _schedules = [];
   bool _isLoading = true;
+  final bool _isScheduleEditingEnabled = false;
 
   @override
   void initState() {
@@ -66,11 +67,9 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
     }
   }
 
-  Future<void> _handleDelete(
-      Schedule schedule, BuildContext dialogContext) async {
+  Future<void> _handleDelete(Schedule schedule, BuildContext dialogContext) async {
     try {
-      await Provider.of<Schedules>(context, listen: false)
-          .deleteSchedule(schedule.schedId);
+      await Provider.of<Schedules>(context, listen: false).deleteSchedule(schedule.schedId);
 
       Navigator.of(dialogContext).pop();
 
@@ -88,11 +87,11 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
     } catch (error) {
       Navigator.of(dialogContext).pop();
       if (mounted) {
-        await _loadSchedules(); // Ensure list is updated
+        await _loadSchedules();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Schedule deleted successfully'),
-            backgroundColor: Colors.green,
+            content: Text('Failed to delete schedule'),
+            backgroundColor: Colors.red,
             duration: Duration(seconds: 2),
           ),
         );
@@ -100,8 +99,7 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
     }
   }
 
-  Future<void> _handleEdit(
-      Schedule schedule, BuildContext dialogContext) async {
+  Future<void> handleEdit(Schedule schedule, BuildContext dialogContext) async {
     Navigator.of(dialogContext).pop(); // Close current dialog
     Navigator.push(
       context,
@@ -183,8 +181,7 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Text(
-                                        _userDetails!['staffId'] ??
-                                            'Unknown ID',
+                                        _userDetails!['staffId'] ?? 'Unknown ID',
                                         style: const TextStyle(fontSize: 15),
                                       ),
                                     ],
@@ -203,8 +200,7 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
                         Container(
                           height: MediaQuery.of(context).size.height * 0.6,
                           child: _schedules.isEmpty
-                              ? const Center(
-                                  child: Text('No schedules available'))
+                              ? const Center(child: Text('No schedules available'))
                               : ListView.builder(
                                   itemCount: _schedules.length,
                                   itemBuilder: (context, index) {
@@ -227,23 +223,16 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
                                     }
 
                                     return Padding(
-                                      padding:
-                                          const EdgeInsets.only(bottom: 10),
+                                      padding: const EdgeInsets.only(bottom: 10),
                                       child: ListTile(
                                         shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(10),
+                                          borderRadius: BorderRadius.circular(10),
                                         ),
                                         tileColor: Colors.grey[200],
-                                        leading:
-                                            const Icon(Icons.calendar_month),
-                                        title: Text(
-                                            'Date: ${_formatDate(schedule.workDate)}'),
-                                        subtitle: Text(
-                                          'Location: ${branch}',
-                                        ),
-                                        trailing:
-                                            const Icon(Icons.arrow_forward),
+                                        leading: const Icon(Icons.calendar_month),
+                                        title: Text('Date: ${_formatDate(schedule.workDate)}'),
+                                        subtitle: Text('Location: ${branch}'),
+                                        trailing: const Icon(Icons.arrow_forward),
                                         onTap: () {
                                           showDialog(
                                             context: context,
@@ -281,15 +270,17 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
                                                         color: Colors.red),
                                                   ),
                                                 ),
-                                                TextButton(
-                                                  onPressed: () => _handleEdit(
-                                                      schedule, context),
-                                                  child: const Text(
-                                                    'Edit',
-                                                    style: TextStyle(
-                                                        color: Colors.blue),
+                                                if (_isScheduleEditingEnabled)
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        handleEdit(
+                                                            schedule, context),
+                                                    child: const Text(
+                                                      'Edit',
+                                                      style: TextStyle(
+                                                          color: Colors.blue),
+                                                    ),
                                                   ),
-                                                ),
                                                 TextButton(
                                                   onPressed: () {
                                                     Navigator.pop(context);
