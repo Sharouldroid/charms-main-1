@@ -19,10 +19,10 @@ class ClaimDashboardScreen extends StatefulWidget {
   final int staffId;
 
   const ClaimDashboardScreen({
-    Key? key,
+    super.key,
     required this.username,
     required this.staffId,
-  }) : super(key: key);
+  });
 
   @override
   _ClaimDashboardScreenState createState() => _ClaimDashboardScreenState();

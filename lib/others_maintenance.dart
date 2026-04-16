@@ -70,7 +70,9 @@ class _OthersMaintenancePageState extends State<OthersMaintenancePage> {
   @override
   void dispose() {
     descriptionController.dispose();
-    for (var ctrl in issueDescControllers.values) ctrl.dispose();
+    for (var ctrl in issueDescControllers.values) {
+      ctrl.dispose();
+    }
     _scrollController.dispose(); // <-- added
     super.dispose();
   }
@@ -295,7 +297,7 @@ class _OthersMaintenancePageState extends State<OthersMaintenancePage> {
           } catch (e) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Error (HTTP ${response.statusCode}): ${respStr.length > 100 ? respStr.substring(0, 100) + "..." : respStr}'),
+                content: Text('Error (HTTP ${response.statusCode}): ${respStr.length > 100 ? "${respStr.substring(0, 100)}..." : respStr}'),
                 backgroundColor: Colors.red,
                 duration: const Duration(seconds: 5),
               ),
@@ -372,7 +374,7 @@ class _OthersMaintenancePageState extends State<OthersMaintenancePage> {
               ],
             ),
           );
-        }).toList(),
+        }),
       ],
     );
   }
@@ -407,7 +409,7 @@ class _OthersMaintenancePageState extends State<OthersMaintenancePage> {
                 )
             ],
           );
-        }).toList(),
+        }),
       ],
     );
   }

@@ -412,7 +412,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                                         .map(
                                           (item) => _buildIssueItem(item, fKey),
                                         )
-                                        .toList(),
+                                        ,
                                 ],
                               ),
                             );

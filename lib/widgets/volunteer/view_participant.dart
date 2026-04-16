@@ -708,7 +708,7 @@ class _ViewParticipantState extends State<ViewParticipant> {
                                                     ),
                                                   ),
                                                   const SizedBox(height: 10),
-                                                  Container(
+                                                  SizedBox(
                                                     height: 200,
                                                     width: double.infinity,
                                                     child: Image.network(
@@ -721,8 +721,9 @@ class _ViewParticipantState extends State<ViewParticipant> {
                                                         loadingProgress,
                                                       ) {
                                                         if (loadingProgress ==
-                                                            null)
+                                                            null) {
                                                           return child;
+                                                        }
                                                         return const Center(
                                                           child:
                                                               CircularProgressIndicator(),

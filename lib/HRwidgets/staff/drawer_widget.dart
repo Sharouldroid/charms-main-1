@@ -10,7 +10,7 @@ class DrawerWidget extends StatelessWidget {
   final String email;
   final String userRole;
 
-  const DrawerWidget({
+  const DrawerWidget({super.key, 
     required this.profileImage,
     required this.staffName,
     required this.email,

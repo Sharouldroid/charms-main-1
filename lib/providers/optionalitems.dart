@@ -33,7 +33,7 @@ class Optionalitems with ChangeNotifier {
       final List<Optionalitem> loadedItem = [];
 
       if (extactedData is List) {
-        extactedData.forEach((itemdata) {
+        for (var itemdata in extactedData) {
           loadedItem.add(Optionalitem(
             id: itemdata['id'],
             name: itemdata['name'],
@@ -42,7 +42,7 @@ class Optionalitems with ChangeNotifier {
             picture: itemdata['picture'] ?? '', // Fix: Handle null picture
             status: itemdata['status'],
           ));
-        });
+        }
       }
       _itemlist = loadedItem;
       notifyListeners();
@@ -67,7 +67,7 @@ class Optionalitems with ChangeNotifier {
       final List<Optionalitem> loadedItem = [];
 
       if (extactedData is List) {
-        extactedData.forEach((itemdata) {
+        for (var itemdata in extactedData) {
           loadedItem.add(Optionalitem(
             id: itemdata['id'],
             name: itemdata['name'],
@@ -76,7 +76,7 @@ class Optionalitems with ChangeNotifier {
             picture: itemdata['picture'] ?? '', // Fix: Handle null picture
             status: itemdata['status'],
           ));
-        });
+        }
       }
       _itemlist = loadedItem;
       notifyListeners();
@@ -187,14 +187,14 @@ class Optionalitems with ChangeNotifier {
       final List<PurchasedItem> loadedItem = [];
 
       if (extactedData is List) {
-        extactedData.forEach((itemdata) {
+        for (var itemdata in extactedData) {
           loadedItem.add(PurchasedItem(
             id: itemdata['id'],
             name: itemdata['name'],
             quantity: itemdata['quantity'],
             price: itemdata['price'],
           ));
-        });
+        }
       }
       _purchaseditem = loadedItem;
       notifyListeners();

@@ -34,7 +34,7 @@ class Facility {
 }
 
 class OtherFacilityPage extends StatefulWidget {
-  const OtherFacilityPage({Key? key}) : super(key: key);
+  const OtherFacilityPage({super.key});
 
   @override
   State<OtherFacilityPage> createState() => _OtherFacilityPageState();

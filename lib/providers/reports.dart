@@ -54,12 +54,12 @@ Future<void> fetchTotalPax(String hostname, int eventid) async {
       
       // Handle cases where the API returns a Map instead of a List
       if (extractedEvent is List) {
-        extractedEvent.forEach((reportdata) {
+        for (var reportdata in extractedEvent) {
           loadeddata.add(ReportPax(
             confirmedbooking: int.tryParse(reportdata['confirmedbooking'].toString()) ?? 0,
             cancelledbooking: int.tryParse(reportdata['cancelledbooking'].toString()) ?? 0,
           ));
-        });
+        }
       }
       
       _pax = loadeddata;
@@ -88,12 +88,12 @@ Future<void> fetchTotalPayment(String hostname, int eventid) async {
       final List<ReportPayment> loadeddata = [];
       
       if (extractedEvent is List) {
-        extractedEvent.forEach((reportdata) {
+        for (var reportdata in extractedEvent) {
           loadeddata.add(ReportPayment(
             totalamount: double.tryParse(reportdata['totalamount'].toString()) ?? 0.0,
             totalrefund: double.tryParse(reportdata['totalrefund'].toString()) ?? 0.0,
           ));
-        });
+        }
       }
       _payment = loadeddata;
       notifyListeners();
@@ -118,7 +118,7 @@ Future<void> fetchMonthlyReport(String hostname, String type) async {
         final List<ReportData> loadeddata = [];
         
         if (extractedEvent is List) {
-          extractedEvent.forEach((reportdata) {
+          for (var reportdata in extractedEvent) {
             loadeddata.add(ReportData(
               // Title is still int (Month 1, 2, 3...)
               title: int.tryParse(reportdata['month'].toString()) ?? 0,
@@ -129,7 +129,7 @@ Future<void> fetchMonthlyReport(String hostname, String type) async {
               // ✅ AMOUNT: Parse as double and KEEP it as double
               totalamount: double.tryParse(reportdata['totalamount'].toString()) ?? 0.0,
             ));
-          });
+          }
         }
         _datamonth = loadeddata;
         notifyListeners();
@@ -153,7 +153,7 @@ Future<void> fetchMonthlyReport(String hostname, String type) async {
         final List<ReportData> loadeddata = [];
 
         if (extractedEvent is List) {
-          extractedEvent.forEach((reportdata) {
+          for (var reportdata in extractedEvent) {
             loadeddata.add(ReportData(
               title: int.tryParse(reportdata['year'].toString()) ?? 0,
               sum: int.tryParse(reportdata['total'].toString()) ?? 0,
@@ -161,7 +161,7 @@ Future<void> fetchMonthlyReport(String hostname, String type) async {
               // ✅ AMOUNT: Parse as double and KEEP it as double
               totalamount: double.tryParse(reportdata['totalamount'].toString()) ?? 0.0,
             ));
-          });
+          }
         }
         _datayear = loadeddata;
         notifyListeners();

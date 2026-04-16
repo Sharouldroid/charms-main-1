@@ -11,10 +11,10 @@ class ScheduleListScreen extends StatefulWidget {
   final DateTime date;
 
   const ScheduleListScreen({
-    Key? key,
+    super.key,
     required this.location,
     required this.date,
-  }) : super(key: key);
+  });
 
   @override
   _ScheduleListScreenState createState() => _ScheduleListScreenState();

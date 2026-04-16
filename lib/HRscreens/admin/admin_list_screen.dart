@@ -13,6 +13,8 @@ import 'package:provider/provider.dart';
 import 'package:charms/screens/dashboard_screen.dart';
 
 class AdminListScreen extends StatefulWidget {
+  const AdminListScreen({super.key});
+
   @override
   _AdminListScreenState createState() => _AdminListScreenState();
 }
@@ -24,7 +26,7 @@ class _AdminListScreenState extends State<AdminListScreen> {
   String _searchQuery = '';
   bool _isAscending = true;
   int _selectedIndex = 2;
-  String _selectedLanguage = 'English';
+  final String _selectedLanguage = 'English';
   final List<String> _languages = ['English', 'Spanish', 'French', 'German'];
 
   @override
@@ -205,7 +207,7 @@ class StaffListTile extends StatelessWidget {
   final String occupation;
   final String status;
 
-  StaffListTile({
+  const StaffListTile({super.key, 
     required this.staffId,
     required this.name,
     required this.occupation,

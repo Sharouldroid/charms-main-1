@@ -8,10 +8,10 @@ class EditScheduleScreen extends StatefulWidget {
   final int staffType;
 
   const EditScheduleScreen({
-    Key? key,
+    super.key,
     required this.schedule,
     required this.staffType,
-  }) : super(key: key);
+  });
 
   @override
   _EditScheduleScreenState createState() => _EditScheduleScreenState();

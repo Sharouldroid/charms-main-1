@@ -11,12 +11,12 @@ class CustomDrawer extends StatelessWidget {
   final VoidCallback onLogOut;
 
   const CustomDrawer({
-    Key? key,
+    super.key,
     required this.selectedLanguage,
     required this.languages,
     required this.onLanguageChanged,
     required this.onLogOut,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

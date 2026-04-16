@@ -81,7 +81,7 @@ class Claims with ChangeNotifier {
       }
     } catch (error) {
       print('Error creating claim: $error');
-      throw error;
+      rethrow;
     }
   }
 

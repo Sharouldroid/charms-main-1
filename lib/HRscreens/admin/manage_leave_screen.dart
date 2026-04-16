@@ -7,6 +7,8 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 class ManageLeaveScreen extends StatefulWidget {
+  const ManageLeaveScreen({super.key});
+
   @override
   _ManageLeaveScreenState createState() => _ManageLeaveScreenState();
 }
@@ -103,14 +105,14 @@ class _ManageLeaveScreenState extends State<ManageLeaveScreen> with SingleTicker
                 children: [
                   ElevatedButton(
                     onPressed: () => _handleLeaveAction(leave, 'approve'),
-                    child: Text('Approve', style: TextStyle(color: Colors.white)),
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                    child: Text('Approve', style: TextStyle(color: Colors.white)),
                   ),
                   SizedBox(width: 10),
                   ElevatedButton(
                     onPressed: () => _handleLeaveAction(leave, 'reject'),
-                    child: Text('Reject', style: TextStyle(color: Colors.white)),
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                    child: Text('Reject', style: TextStyle(color: Colors.white)),
                   ),
                 ],
               ),

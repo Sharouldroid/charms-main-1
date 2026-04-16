@@ -11,9 +11,9 @@ class ApplyClaimScreen extends StatefulWidget {
   final int staffId;
 
   const ApplyClaimScreen({
-    Key? key,
+    super.key,
     required this.staffId,
-  }) : super(key: key);
+  });
 
   @override
   _ApplyClaimScreenState createState() => _ApplyClaimScreenState();

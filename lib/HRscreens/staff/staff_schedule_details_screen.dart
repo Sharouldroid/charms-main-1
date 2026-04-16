@@ -19,7 +19,7 @@ class StaffScheduleDetailsScreen extends StatefulWidget {
   final int scheduleId;
   final int staffId;
 
-  StaffScheduleDetailsScreen({
+  const StaffScheduleDetailsScreen({super.key, 
     required this.location,
     required this.workDate,
     required this.assignedStaff,
@@ -339,7 +339,7 @@ class DetailsRow extends StatelessWidget {
   final String value;
   final Color? valueColor;
 
-  DetailsRow({
+  const DetailsRow({super.key, 
     required this.label,
     required this.value,
     this.valueColor,

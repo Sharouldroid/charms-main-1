@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 class RecordAttendanceScreen extends StatefulWidget {
-  const RecordAttendanceScreen({Key? key}) : super(key: key);
+  const RecordAttendanceScreen({super.key});
 
   @override
   _RecordAttendanceScreenState createState() => _RecordAttendanceScreenState();

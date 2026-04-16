@@ -17,9 +17,9 @@ class PayrollDashboardScreen extends StatefulWidget {
   final String username;
 
   const PayrollDashboardScreen({
-    Key? key,
+    super.key,
     required this.username,
-  }) : super(key: key);
+  });
 
   @override
   _PayrollScreenState createState() => _PayrollScreenState();

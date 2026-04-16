@@ -21,10 +21,10 @@ class LeaveDashboardScreen extends StatefulWidget {
   final int staffId;
 
   const LeaveDashboardScreen({
-    Key? key,
+    super.key,
     required this.username,
     required this.staffId,
-  }) : super(key: key);
+  });
 
   @override
   _LeaveDashboardScreenState createState() => _LeaveDashboardScreenState();
@@ -33,10 +33,10 @@ class LeaveDashboardScreen extends StatefulWidget {
 class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  String _selectedLanguage = 'English';
+  final String _selectedLanguage = 'English';
   final List<String> _languages = ['English', 'Spanish', 'French', 'German'];
   int _selectedIndex = 1;
-  Map<String, Map<String, int>> _leaveBalance = {
+  final Map<String, Map<String, int>> _leaveBalance = {
     'Annual Leave': {'total': 20, 'taken': 0, 'remaining': 20},
     'Medical Leave': {'total': 22, 'taken': 0, 'remaining': 22},
   };
@@ -92,7 +92,7 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
 
   Widget _buildLeaveBalanceCard(String leaveType) {
     final balance = _leaveBalance[leaveType]!;
-    return Container(
+    return SizedBox(
       width: 180,
       child: Card(
         elevation: 3,
@@ -294,11 +294,11 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
           MaterialPageRoute(
               builder: (context) => LeaveFormScreen(staffId: widget.staffId)),
         ),
+        backgroundColor: Colors.blue,
         child: Icon(
           Icons.add,
           color: Colors.white,
         ),
-        backgroundColor: Colors.blue,
       ),
       bottomNavigationBar: BottomNavStaff(
         selectedIndex: _selectedIndex,

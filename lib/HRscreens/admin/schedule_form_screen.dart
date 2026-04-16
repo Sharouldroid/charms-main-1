@@ -11,8 +11,7 @@ class ScheduleFormScreen extends StatefulWidget {
   final int staffType;
 
   const ScheduleFormScreen(
-      {Key? key, required this.staffId, required this.staffType})
-      : super(key: key);
+      {super.key, required this.staffId, required this.staffType});
 
   @override
   _ScheduleFormScreenState createState() => _ScheduleFormScreenState();
@@ -22,7 +21,7 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
   final _formKey = GlobalKey<FormState>();
   late Future<void> _staffFuture;
   DateTime _focusedDay = DateTime.now();
-  Set<DateTime> _selectedDays = {};
+  final Set<DateTime> _selectedDays = {};
   String? _selectedBranch;
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;

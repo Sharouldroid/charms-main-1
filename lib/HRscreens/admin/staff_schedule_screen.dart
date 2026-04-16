@@ -14,12 +14,12 @@ class StaffScheduleScreen extends StatefulWidget {
   final int staffType;
 
   const StaffScheduleScreen({
-    Key? key,
+    super.key,
     required this.staffId,
     required this.firstName,
     required this.lastName,
     required this.staffType,
-  }) : super(key: key);
+  });
 
   @override
   _StaffScheduleScreenState createState() => _StaffScheduleScreenState();
@@ -197,7 +197,7 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
                           style: TextStyle(fontSize: 15),
                         ),
                         const SizedBox(height: 10),
-                        Container(
+                        SizedBox(
                           height: MediaQuery.of(context).size.height * 0.6,
                           child: _schedules.isEmpty
                               ? const Center(child: Text('No schedules available'))
@@ -231,7 +231,7 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
                                         tileColor: Colors.grey[200],
                                         leading: const Icon(Icons.calendar_month),
                                         title: Text('Date: ${_formatDate(schedule.workDate)}'),
-                                        subtitle: Text('Location: ${branch}'),
+                                        subtitle: Text('Location: $branch'),
                                         trailing: const Icon(Icons.arrow_forward),
                                         onTap: () {
                                           showDialog(
@@ -247,7 +247,7 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
                                                   ),
                                                   const SizedBox(height: 8),
                                                   Text(
-                                                    'Location: ${branch}',
+                                                    'Location: $branch',
                                                   ),
                                                   const SizedBox(height: 8),
                                                   Text(

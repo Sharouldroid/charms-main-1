@@ -5,6 +5,8 @@ import 'package:charms/HRproviders/claims.dart';
 import 'package:charms/HRmodels/claim.dart';
 
 class ManageClaimScreen extends StatefulWidget {
+  const ManageClaimScreen({super.key});
+
   @override
   _ManageClaimScreenState createState() => _ManageClaimScreenState();
 }

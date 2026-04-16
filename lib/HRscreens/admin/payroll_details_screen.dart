@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class PayrollDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> payrollRecord;
 
-  PayrollDetailsScreen({required this.payrollRecord});
+  const PayrollDetailsScreen({super.key, required this.payrollRecord});
 
   @override
   _PayrollDetailsScreenState createState() => _PayrollDetailsScreenState();

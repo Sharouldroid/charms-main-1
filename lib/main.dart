@@ -53,6 +53,7 @@ import 'package:charms/HRproviders/users.dart' as hr_users;
 import 'package:charms/HRscreens/admin/admin_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
 
+
 // 🌟 ADDED CHARMS MAINTENANCE PAGES
 import 'campsite_maintenance.dart';
 import 'maintenance_page.dart';
@@ -337,21 +338,27 @@ class MyApp extends StatelessWidget {
   }
 
   // 🌟 HELPER FUNCTION TO SELECT DASHBOARD
- Widget _getDashboardForUser(int userType, String? username, int? userId, String hostname) {
-  // HR Admin
-  if (userType == 6) {
-    return AdminDashboard(username: username ?? 'Admin');
+Widget _getDashboardForUser(int userType, String? username, int? userId, String hostname) {
+  Widget destination;
+
+  // HR Admin or General Admin (1 or 6)
+  if (userType == 1 || userType == 6) {
+    destination = AdminDashboardScreen(username: username ?? 'Admin');
+  } 
+  // Staff, Managers, Officers, or Trainees (usertypes 7, 8, 9, 10)
+  else if ([7, 8, 9, 10].contains(userType)) {
+    destination = StaffDashboardScreen(username: username ?? 'Staff');
+  } 
+  // All other types (including CHARMS roles 2-5)
+  else {
+    destination = DashboardScreen(
+      userid: userId ?? 0,
+      usertype: userType,
+      hostname: hostname,
+    );
   }
-  // HR Staff only (usertype 7) – assuming 7 is HR staff
-  else if (userType == 7) {
-    return StaffDashboardScreen(username: username ?? 'Staff');
-  }
-  // All other types (including 8,9,10, and CHARMS roles 1-5) go to CHARMS dashboard
-  return DashboardScreen(
-    userid: userId ?? 0,
-    usertype: userType,
-    hostname: hostname,
-  );
+
+  return destination;
 }
 }
 

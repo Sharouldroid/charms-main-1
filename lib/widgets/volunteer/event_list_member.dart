@@ -700,7 +700,7 @@ class _EventListMemberState extends State<EventListMember> {
                           },
                         ),
                       );
-                    }).toList(),
+                    }),
                     
                     // --- SECTION (F) UNCONDITIONAL GENERAL RELEASE ---
                     const Divider(thickness: 2),

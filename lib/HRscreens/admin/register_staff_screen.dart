@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:charms/HRproviders/auth.dart';
 
 class RegisterStaffScreen extends StatelessWidget {
-  const RegisterStaffScreen({Key? key}) : super(key: key);
+  const RegisterStaffScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +18,7 @@ class RegisterStaffScreen extends StatelessWidget {
 }
 
 class RegisterStaffForm extends StatefulWidget {
-  const RegisterStaffForm({Key? key}) : super(key: key);
+  const RegisterStaffForm({super.key});
 
   @override
   _RegisterStaffFormState createState() => _RegisterStaffFormState();

@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:charms/HRproviders/attendances.dart';
 
 class ImageTestScreen extends StatefulWidget {
-  const ImageTestScreen({Key? key}) : super(key: key);
+  const ImageTestScreen({super.key});
 
   @override
   _ImageTestScreenState createState() => _ImageTestScreenState();

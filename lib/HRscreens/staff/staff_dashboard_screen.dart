@@ -16,8 +16,7 @@ import 'package:charms/HRwidgets/staff/bottom_nav_staff.dart';
 class StaffDashboardScreen extends StatefulWidget {
   final String username;
 
-  const StaffDashboardScreen({Key? key, required this.username})
-      : super(key: key);
+  const StaffDashboardScreen({super.key, required this.username});
 
   @override
   State<StaffDashboardScreen> createState() => _StaffDashboardScreenState();

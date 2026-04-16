@@ -30,7 +30,7 @@ class Attendances with ChangeNotifier {
       request.files.add(http.MultipartFile.fromBytes(
         'clock_in_image', // Ensure this key matches your Laravel $request->file('clock_in_image')
         image,
-        filename: 'attendance_${staffId}.jpg',
+        filename: 'attendance_$staffId.jpg',
       ));
     }
 

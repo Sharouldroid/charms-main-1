@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 class ChangePassScreen extends StatefulWidget {
+  const ChangePassScreen({super.key});
+
   @override
   _ChangePassScreenState createState() => _ChangePassScreenState();
 }

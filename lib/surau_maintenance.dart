@@ -236,7 +236,7 @@ class _SurauPageState extends State<SurauPage> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(
-                '❌ Failed: ${response.statusCode}\n${responseBody.length > 100 ? responseBody.substring(0, 100) + "..." : responseBody}')));
+                '❌ Failed: ${response.statusCode}\n${responseBody.length > 100 ? "${responseBody.substring(0, 100)}..." : responseBody}')));
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(

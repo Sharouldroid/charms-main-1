@@ -262,7 +262,7 @@ class _OutdoorClassroomPageState extends State<OutdoorClassroomPage> {
         } catch (e) {
           _scaffoldMessengerKey.currentState?.showSnackBar(
             SnackBar(
-              content: Text('Error (HTTP ${response.statusCode}): ${respStr.length > 100 ? respStr.substring(0,100)+'...' : respStr}'),
+              content: Text('Error (HTTP ${response.statusCode}): ${respStr.length > 100 ? '${respStr.substring(0,100)}...' : respStr}'),
               backgroundColor: Colors.red,
             ),
           );
@@ -340,7 +340,7 @@ class _OutdoorClassroomPageState extends State<OutdoorClassroomPage> {
             dense: true,
             contentPadding: EdgeInsets.zero,
           );
-        }).toList(),
+        }),
       ],
     );
   }

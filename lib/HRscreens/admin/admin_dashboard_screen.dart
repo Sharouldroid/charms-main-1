@@ -16,7 +16,7 @@ import 'package:intl/intl.dart';
 
 class AdminDashboard extends StatelessWidget {
   final String username;
-  const AdminDashboard({Key? key, required this.username}) : super(key: key);
+  const AdminDashboard({super.key, required this.username});
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +27,7 @@ class AdminDashboard extends StatelessWidget {
 
 class AdminDashboardScreen extends StatefulWidget {
   final String username;
-  const AdminDashboardScreen({Key? key, required this.username}) : super(key: key);
+  const AdminDashboardScreen({super.key, required this.username});
 
   @override
   State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
@@ -322,7 +322,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 },
               ),
             );
-          }).toList(),
+          }),
         ],
       ),
     );

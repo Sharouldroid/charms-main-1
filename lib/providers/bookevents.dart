@@ -111,7 +111,7 @@ class BookEvents with ChangeNotifier {
       final List<BookGroup> loadedMembers = [];
       
       if (extractedEvent is List) {
-        extractedEvent.forEach((groupdata) {
+        for (var groupdata in extractedEvent) {
           loadedMembers.add(BookGroup(
             id: groupdata['id'],
             name: groupdata['name'],
@@ -120,7 +120,7 @@ class BookEvents with ChangeNotifier {
             confirmnum: groupdata['confirmationno'],
             shirtsize: groupdata['shirtsize'],
           ));
-        });
+        }
       }
       _groupMember = loadedMembers;
       notifyListeners();
@@ -141,7 +141,7 @@ class BookEvents with ChangeNotifier {
       final extractedEvent = jsonDecode(response.body);
       final List<BookGroup> loadedMembers = [];
       if (extractedEvent is List) {
-        extractedEvent.forEach((groupdata) {
+        for (var groupdata in extractedEvent) {
           loadedMembers.add(BookGroup(
             id: groupdata['id'],
             name: groupdata['name'],
@@ -149,7 +149,7 @@ class BookEvents with ChangeNotifier {
             email: groupdata['email'],
             confirmnum: groupdata['confirmationno'],
           ));
-        });
+        }
       }
       _researcherMember = loadedMembers;
       notifyListeners();

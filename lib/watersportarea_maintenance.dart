@@ -273,7 +273,7 @@ class _WaterSportAreaPageState extends State<WaterSportAreaPage> {
         } catch (e) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error (HTTP ${response.statusCode}): ${respStr.length > 100 ? respStr.substring(0,100)+'...' : respStr}'),
+              content: Text('Error (HTTP ${response.statusCode}): ${respStr.length > 100 ? '${respStr.substring(0,100)}...' : respStr}'),
               backgroundColor: Colors.red,
             ),
           );
@@ -386,7 +386,7 @@ class _WaterSportAreaPageState extends State<WaterSportAreaPage> {
             padding: padding,
             child: Column(
               children: [
-                ...equipmentData.keys.map((e) => buildEquipmentCard(e)).toList(),
+                ...equipmentData.keys.map((e) => buildEquipmentCard(e)),
                 const SizedBox(height: 12),
                 Card(
                   child: Padding(

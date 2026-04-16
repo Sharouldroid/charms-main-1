@@ -70,7 +70,7 @@ class Events with ChangeNotifier {
         final List<dynamic> extractedEvent = jsonDecode(response.body);
         final List<Event> loadedEvent = [];
         
-        extractedEvent.forEach((eventData) {
+        for (var eventData in extractedEvent) {
           loadedEvent.add(Event(
             id: eventData['id'].toString(), // Event.id is String, so this is correct
             title: eventData['title'],
@@ -81,7 +81,7 @@ class Events with ChangeNotifier {
                 ? int.tryParse(eventData['eventtype'].toString()) 
                 : null,
           ));
-        });
+        }
         _eventslist = loadedEvent;
         notifyListeners();
       }
@@ -101,7 +101,7 @@ class Events with ChangeNotifier {
         final List<dynamic> extractedEvent = jsonDecode(response.body);
         final List<Event2> calendarevent = [];
         
-        extractedEvent.forEach((eventData) {
+        for (var eventData in extractedEvent) {
           calendarevent.add(Event2(
               title: eventData['title'],
               startdate: DateTime.parse(eventData['startdate']),
@@ -109,7 +109,7 @@ class Events with ChangeNotifier {
               // ✅ FIX 2: Event2.id is int, so we must parse it
               id: int.parse(eventData['id'].toString()) 
           ));
-        });
+        }
         
         _kEventSource = {
           for (var item in calendarevent)

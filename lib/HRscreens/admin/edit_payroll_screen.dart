@@ -6,7 +6,7 @@ class EditPayrollScreen extends StatefulWidget {
   final String staffName;
   final Function(Map<String, dynamic>) onUpdate;
 
-  EditPayrollScreen({
+  const EditPayrollScreen({super.key, 
     required this.payment,
     required this.staffName,
     required this.onUpdate,
