@@ -8,12 +8,12 @@ class Base64ImageViewer extends StatefulWidget {
   final BoxFit fit;
 
   const Base64ImageViewer({
-    Key? key,
+    super.key,
     required this.base64String,
     this.height = 100,
     this.width = 100,
     this.fit = BoxFit.cover,
-  }) : super(key: key);
+  });
 
   @override
   _Base64ImageViewerState createState() => _Base64ImageViewerState();

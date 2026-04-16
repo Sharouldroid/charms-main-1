@@ -350,7 +350,7 @@ class _QuartersPageState extends State<QuartersPage> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                    'Error (HTTP ${response.statusCode}): ${responseBody.length > 100 ? responseBody.substring(0, 100) + "..." : responseBody}'),
+                    'Error (HTTP ${response.statusCode}): ${responseBody.length > 100 ? "${responseBody.substring(0, 100)}..." : responseBody}'),
                 backgroundColor: Colors.red,
                 duration: const Duration(seconds: 5),
               ),
@@ -460,7 +460,7 @@ class _QuartersPageState extends State<QuartersPage> {
             padding: const EdgeInsets.symmetric(vertical: 6.0),
             child: _buildYesNoDropdown(entry.key, items),
           );
-        }).toList(),
+        }),
       ],
     );
   }
@@ -500,7 +500,7 @@ class _QuartersPageState extends State<QuartersPage> {
                 ),
             ],
           );
-        }).toList(),
+        }),
       ],
     );
   }

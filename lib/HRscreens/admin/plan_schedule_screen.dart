@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import 'package:charms/HRproviders/staffs.dart';
 
 class PlanScheduleScreen extends StatefulWidget {
+  const PlanScheduleScreen({super.key});
+
   @override
   _PlanScheduleScreeState createState() => _PlanScheduleScreeState();
 }
@@ -158,7 +160,7 @@ class _PlanScheduleScreeState extends State<PlanScheduleScreen> {
 class StaffListTile extends StatelessWidget {
   final Staff staff;
 
-  StaffListTile({required this.staff});
+  const StaffListTile({super.key, required this.staff});
 
   @override
   Widget build(BuildContext context) {

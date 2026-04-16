@@ -6,7 +6,7 @@ class StaffProfileWidget extends StatelessWidget {
   final String staffId;
   final String position;
 
-  StaffProfileWidget({
+  const StaffProfileWidget({super.key, 
     required this.imagePath,
     required this.name,
     required this.staffId,

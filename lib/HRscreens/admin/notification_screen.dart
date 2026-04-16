@@ -9,6 +9,8 @@ import 'package:provider/provider.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class NotificationScreen extends StatefulWidget {
+  const NotificationScreen({super.key});
+
   @override
   _NotificationScreenState createState() => _NotificationScreenState();
 }
@@ -178,7 +180,7 @@ class NotificationItem extends StatelessWidget {
   final String subtitle;
   final VoidCallback onTap;
 
-  const NotificationItem({
+  const NotificationItem({super.key, 
     required this.title,
     required this.subtitle,
     required this.onTap,

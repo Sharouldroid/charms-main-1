@@ -386,7 +386,7 @@ class _BackpackingPageState extends State<BackpackingPage> {
         Text(sectionName,
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
-        ...items.map(_buildItemRow).toList(),
+        ...items.map(_buildItemRow),
         const SizedBox(height: 16),
       ],
     );
@@ -557,7 +557,7 @@ class _BackpackingPageState extends State<BackpackingPage> {
               children: [
                 ...itemsBySection.entries
                     .map((e) => _buildSection(e.key, e.value))
-                    .toList(),
+                    ,
 
                 const Divider(height: 30),
 

@@ -6,7 +6,6 @@ import 'package:charms/providers/auth.dart';
 import 'package:charms/services/connectivity_service.dart';
 import 'package:charms/services/version_service.dart';
 import 'package:charms/services/app_config.dart';
-import 'app_startup.dart';
 
 class AppStartup {
   static Future<void> initialize(Auth auth) async {

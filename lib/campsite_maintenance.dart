@@ -236,7 +236,7 @@ class _CampsitePageState extends State<CampsitePage> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                    'Error (HTTP ${response.statusCode}): ${respStr.length > 100 ? respStr.substring(0, 100) + "..." : respStr}'),
+                    'Error (HTTP ${response.statusCode}): ${respStr.length > 100 ? "${respStr.substring(0, 100)}..." : respStr}'),
                 backgroundColor: Colors.red,
                 duration: const Duration(seconds: 5),
               ),
@@ -503,7 +503,7 @@ class _CampsitePageState extends State<CampsitePage> {
               ),
             ),
           );
-        }).toList(),
+        }),
         const SizedBox(height: 16),
         _buildImagePicker(),
         const SizedBox(height: 16),

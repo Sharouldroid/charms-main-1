@@ -6,7 +6,7 @@ import 'package:charms/HRproviders/staffs.dart';
 class EditStaffScreen extends StatefulWidget {
   final Staff staff;
 
-  EditStaffScreen({required this.staff});
+  const EditStaffScreen({super.key, required this.staff});
 
   @override
   _EditStaffScreenState createState() => _EditStaffScreenState();

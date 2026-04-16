@@ -70,10 +70,13 @@ class _MySelfScreenState extends State<MySelfScreen> {
 
   Future<void> _loadUserOrStaffData() async {
     final authProvider = context.read<hr_auth.Auth>();
-    if (authProvider.usertype == 6) {
+    // Try loading from staff list first (works for both admin and staff)
+    // Falls back to user endpoint if not found in staff
+    await _loadStaffData();
+    
+    // If staff data didn't load, try user endpoint
+    if (_currentStaff == null) {
       await _loadUserData();
-    } else {
-      await _loadStaffData();
     }
   }
 
@@ -81,8 +84,9 @@ class _MySelfScreenState extends State<MySelfScreen> {
     try {
       final usersProvider = Provider.of<hr_users.Users>(context, listen: false);
       final authProvider = context.read<hr_auth.Auth>();
+      final token = authProvider.token;
 
-      await usersProvider.fetchUserByUsername(authProvider.username);
+      await usersProvider.fetchUserByUsername(authProvider.username, token: token);
       if (usersProvider.userlist.isNotEmpty) {
         _updateControllersWithUserData(usersProvider.userlist.first);
       } else {
@@ -105,68 +109,61 @@ class _MySelfScreenState extends State<MySelfScreen> {
       final authProvider = context.read<hr_auth.Auth>();
 
       final username = authProvider.username.trim().toLowerCase();
-      final usertype = authProvider.usertype.toString();
 
       await staffsProvider.fetchStaff();
       final staffList = staffsProvider.staffList;
 
-      // Safe matching to avoid "Bad state: No element"
+      // Match by username only (admin might have different usertype representation)
       final matches = staffList.where((s) {
         final sUser = s.username.trim().toLowerCase();
-        final sType = s.usertype.toString();
-        return sUser == username && sType == usertype;
+        return sUser == username;
       }).toList();
 
       if (matches.isEmpty) {
-        throw Exception('No matching staff found for username=$username, usertype=$usertype');
+        debugPrint('No matching staff found for username=$username');
+        return; // Don't throw, let it fall back to user endpoint
       }
 
       _currentStaff = matches.first;
       _updateControllersWithStaffData();
     } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load staff profile: $error')),
-        );
-      }
+      debugPrint('Error loading staff data: $error');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _updateControllersWithUserData(User userData) {
-    _firstNameController.text = userData.firstname;
-    _lastNameController.text = userData.lastname;
-    _dobController.text = userData.dob;
-    _emailController.text = userData.email;
-    _phoneController.text = userData.phone;
-    _genderController.text = userData.gender == 1 ? 'Male' : 'Female';
-    _addressController.text = userData.address1;
-    _address2Controller.text = userData.address2 ?? '';
-    _cityController.text = userData.city;
-    _stateController.text = userData.state;
-    _countryController.text = userData.country;
-    _postcodeController.text = userData.postcode.toString();
-    _occupationController.text = userData.occupation;
+  void _updateControllersWithUserData(User user) {
+    _firstNameController.text = user.firstname;
+    _lastNameController.text = user.lastname;
+    _emailController.text = user.email;
+    _phoneController.text = user.phone;
+    _dobController.text = user.dob;
+    _genderController.text = user.gender == 1 ? 'Male' : 'Female';
+    _addressController.text = user.address1;
+    _address2Controller.text = user.address2 ?? '';
+    _cityController.text = user.city;
+    _stateController.text = user.state;
+    _countryController.text = user.country;
+    _postcodeController.text = user.postcode.toString();
+    _occupationController.text = user.occupation;
   }
 
   void _updateControllersWithStaffData() {
-    final s = _currentStaff;
-    if (s == null) return;
-
-    _firstNameController.text = s.firstname;
-    _lastNameController.text = s.lastname;
-    _dobController.text = s.dob;
-    _emailController.text = s.email;
-    _phoneController.text = s.phone;
-    _genderController.text = s.emergencyGender == 1 ? 'Male' : 'Female';
-    _addressController.text = s.address1;
-    _address2Controller.text = s.address2;
-    _cityController.text = s.city;
-    _stateController.text = s.state;
-    _countryController.text = s.country;
-    _postcodeController.text = s.postcode.toString();
-    _occupationController.text = s.occupation;
+    if (_currentStaff == null) return;
+    _firstNameController.text = _currentStaff!.firstname;
+    _lastNameController.text = _currentStaff!.lastname;
+    _emailController.text = _currentStaff!.email;
+    _phoneController.text = _currentStaff!.phone;
+    _dobController.text = _currentStaff!.dob;
+    _genderController.text = _currentStaff!.emergencyGender == 1 ? 'Male' : 'Female';
+    _addressController.text = _currentStaff!.address1;
+    _address2Controller.text = _currentStaff!.address2;
+    _cityController.text = _currentStaff!.city;
+    _stateController.text = _currentStaff!.state;
+    _countryController.text = _currentStaff!.country;
+    _postcodeController.text = _currentStaff!.postcode.toString();
+    _occupationController.text = _currentStaff!.occupation;
   }
 
   Future<void> _updateStaffInfo() async {
@@ -176,9 +173,8 @@ class _MySelfScreenState extends State<MySelfScreen> {
       setState(() => _isLoading = true);
 
       final usersProvider = Provider.of<hr_users.Users>(context, listen: false);
-      if (usersProvider.userlist.isEmpty) {
-        throw Exception('No user data found to update');
-      }
+      final authProvider = context.read<hr_auth.Auth>();
+      final token = authProvider.token;
 
       final payload = {
         'firstname': _firstNameController.text,
@@ -196,7 +192,9 @@ class _MySelfScreenState extends State<MySelfScreen> {
         'gender': _genderController.text == 'Male' ? 1 : 2,
       };
 
-      await usersProvider.updateUser(usersProvider.userlist.first.id, payload);
+      if (usersProvider.userlist.isNotEmpty) {
+        await usersProvider.updateUser(usersProvider.userlist.first.id, payload, token: token);
+      }
       await _loadUserOrStaffData();
 
       if (mounted) {
@@ -236,11 +234,11 @@ class _MySelfScreenState extends State<MySelfScreen> {
 
     final username = context.read<hr_auth.Auth>().username;
     final routes = [
-      () => AdminDashboard(username: username),
-      () => ManageStaffScreen(),
-      () => AdminListScreen(),
-      () => const MySelfScreen(),
-    ];
+  () => AdminDashboard(username: username),
+  () => ManageStaffScreen(username: username),  
+  () => AdminListScreen(username: username),     
+  () => const MySelfScreen(),
+];
 
     Navigator.pushReplacement(
       context,

@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:charms/HRproviders/attendances.dart';
 
 class ManageAttendanceScreen extends StatefulWidget {
-  const ManageAttendanceScreen({Key? key}) : super(key: key);
+  const ManageAttendanceScreen({super.key});
 
   @override
   _ManageAttendanceScreenState createState() => _ManageAttendanceScreenState();
@@ -240,8 +240,8 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
                 DropdownButtonFormField<int>(
                   initialValue: status,
                   items: const [
-                    DropdownMenuItem(child: Text('Not Clocked In'), value: 1),
-                    DropdownMenuItem(child: Text('Clocked In'), value: 2),
+                    DropdownMenuItem(value: 1, child: Text('Not Clocked In')),
+                    DropdownMenuItem(value: 2, child: Text('Clocked In')),
                   ],
                   onChanged: (value) => status = value ?? 1,
                   decoration: const InputDecoration(labelText: 'Status'),

@@ -5,10 +5,10 @@ class BottomNavStaff extends StatelessWidget {
   final ValueChanged<int> onItemTapped;
 
   const BottomNavStaff({
-    Key? key,
+    super.key,
     required this.selectedIndex,
     required this.onItemTapped,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -11,8 +11,7 @@ class ScheduleFormScreen extends StatefulWidget {
   final int staffType;
 
   const ScheduleFormScreen(
-      {Key? key, required this.staffId, required this.staffType})
-      : super(key: key);
+      {super.key, required this.staffId, required this.staffType});
 
   @override
   _ScheduleFormScreenState createState() => _ScheduleFormScreenState();
@@ -22,16 +21,12 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
   final _formKey = GlobalKey<FormState>();
   late Future<void> _staffFuture;
   DateTime _focusedDay = DateTime.now();
-  Set<DateTime> _selectedDays = {};
+  final Set<DateTime> _selectedDays = {};
   String? _selectedBranch;
-  TimeOfDay? _startTime;
-  TimeOfDay? _endTime;
-  TimeOfDay? _startBreak;
-  TimeOfDay? _endBreak;
-  String? _selectedInternSlot;
+  String? _selectedSlot;
 
   final List<String> _branches = ['Chagar Hutang', 'Turtle Lab', 'UMT'];
-  final List<String> _internSlots = ['Slot 1', 'Slot 2', 'Slot 3', 'Slot 4'];
+  final List<String> _slots = ['Slot 1', 'Slot 2', 'Slot 3', 'Slot 4'];
 
   final Map<String, TimeSlot> _slotDetails = {
     'Slot 1': const TimeSlot(
@@ -59,55 +54,40 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
   @override
   void initState() {
     super.initState();
-    // Fixed: fetchStaff in staffs.dart does not take parameters
     _staffFuture = Provider.of<Staffs>(context, listen: false).fetchStaff();
   }
 
   void _onSubmit() async {
     if (_formKey.currentState!.validate() && _selectedDays.isNotEmpty) {
       final schedulesProvider = Provider.of<Schedules>(context, listen: false);
-      final isIntern = widget.staffType == 10;
+
+      if (_selectedSlot == null) {
+        _showMessage('Please select a slot.', isError: true);
+        return;
+      }
 
       try {
-        // Since your provider only has addSchedule (singular), we loop through selected dates
         for (var date in _selectedDays) {
-          String workStartTime;
-          String workEndTime;
-          String breakStartTime;
-          String breakEndTime;
-
-          if (isIntern && _selectedInternSlot != null) {
-            final timeSlot = _slotDetails[_selectedInternSlot!]!;
-            workStartTime = _convertToMySQLTime(timeSlot.startTime);
-            workEndTime = _convertToMySQLTime(timeSlot.endTime);
-            final breakTimes = timeSlot.breaks[0].split(' - ');
-            breakStartTime = _convertToMySQLTime(breakTimes[0]);
-            breakEndTime = _convertToMySQLTime(breakTimes[1]);
-          } else {
-            // Added null checks to prevent crashes if times aren't picked for permanent staff
-            if (_startTime == null || _endTime == null || _startBreak == null || _endBreak == null) {
-              _showMessage('Please select all work and break times.', isError: true);
-              return;
-            }
-            workStartTime = _formatTime(_startTime!);
-            workEndTime = _formatTime(_endTime!);
-            breakStartTime = _formatTime(_startBreak!);
-            breakEndTime = _formatTime(_endBreak!);
-          }
+          final timeSlot = _slotDetails[_selectedSlot!]!;
+          final workStartTime = _convertToMySQLTime(timeSlot.startTime);
+          final workEndTime = _convertToMySQLTime(timeSlot.endTime);
+          final breakTimes = timeSlot.breaks[0].split(' - ');
+          final breakStartTime = _convertToMySQLTime(breakTimes[0]);
+          final breakEndTime = _convertToMySQLTime(breakTimes[1]);
 
           final newSchedule = Schedule(
-              schedId: 0,
-              staffId: widget.staffId,
-              workDate: date,
-              workLocation: _getBranchId(_selectedBranch!),
-              staffType: widget.staffType,
-              internSlot: isIntern ? int.parse(_selectedInternSlot!.split(' ')[1]) : null,
-              workStartTime: workStartTime,
-              workEndTime: workEndTime,
-              breakStartTime: breakStartTime,
-              breakEndTime: breakEndTime);
+            schedId: 0,
+            staffId: widget.staffId,
+            workDate: date,
+            workLocation: _getBranchId(_selectedBranch!),
+            staffType: widget.staffType,
+            internSlot: int.parse(_selectedSlot!.split(' ')[1]),
+            workStartTime: workStartTime,
+            workEndTime: workEndTime,
+            breakStartTime: breakStartTime,
+            breakEndTime: breakEndTime,
+          );
 
-          // Calling the existing singular addSchedule method
           await schedulesProvider.addSchedule(newSchedule);
         }
 
@@ -144,12 +124,6 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
     );
   }
 
-  String _formatTime(TimeOfDay time) {
-    final hour = time.hour.toString().padLeft(2, '0');
-    final minute = time.minute.toString().padLeft(2, '0');
-    return '$hour:$minute:00';
-  }
-
   String _convertToMySQLTime(String time) {
     final parts = time.split(' ');
     final timeParts = parts[0].split(':');
@@ -165,15 +139,6 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
     return '${hours.toString().padLeft(2, '0')}:$minutes:00';
   }
 
-  Future<void> _pickTime(
-      BuildContext context, ValueChanged<TimeOfDay?> onTimePicked) async {
-    final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.now(),
-    );
-    if (time != null) onTimePicked(time);
-  }
-
   bool _isDateSelectable(DateTime day) {
     final now = DateTime.now();
     return day.isAfter(now.subtract(const Duration(days: 1)));
@@ -181,8 +146,6 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isIntern = widget.staffType == 10;
-
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -214,38 +177,18 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
                       setState(() => _selectedBranch = value);
                     }),
                     const SizedBox(height: 16),
-                    if (isIntern) ...[
-                      const Text(
-                        'Intern Slot Details:',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      _buildSlotExplanation(),
-                      const SizedBox(height: 16),
-                      _buildDropdown(
-                        'Select Slot',
-                        _internSlots,
-                        _selectedInternSlot,
-                        (value) => setState(() => _selectedInternSlot = value),
-                      ),
-                    ] else ...[
-                      _buildTimePickerRow(
-                        'Start Time',
-                        'End Time',
-                        _startTime,
-                        _endTime,
-                        (time) => setState(() => _startTime = time),
-                        (time) => setState(() => _endTime = time),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildTimePickerRow(
-                        'Start Break',
-                        'End Break',
-                        _startBreak,
-                        _endBreak,
-                        (time) => setState(() => _startBreak = time),
-                        (time) => setState(() => _endBreak = time),
-                      ),
-                    ],
+                    const Text(
+                      'Intern Slot Details:',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    _buildSlotExplanation(),
+                    const SizedBox(height: 16),
+                    _buildDropdown(
+                      'Select Slot',
+                      _slots,
+                      _selectedSlot,
+                      (value) => setState(() => _selectedSlot = value),
+                    ),
                     const SizedBox(height: 20),
                     _buildSubmitButton(),
                   ],
@@ -254,45 +197,6 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
             ),
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildTimePickerRow(
-    String label1,
-    String label2,
-    TimeOfDay? time1,
-    TimeOfDay? time2,
-    ValueChanged<TimeOfDay?> onTimePicked1,
-    ValueChanged<TimeOfDay?> onTimePicked2,
-  ) {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildTimePicker(label1, time1, onTimePicked1),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _buildTimePicker(label2, time2, onTimePicked2),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTimePicker(
-      String label, TimeOfDay? time, ValueChanged<TimeOfDay?> onTimePicked) {
-    return GestureDetector(
-      onTap: () => _pickTime(context, onTimePicked),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        decoration: BoxDecoration(
-          color: Colors.blue[300],
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          time != null ? _formatTime(time) : label,
-          style: const TextStyle(color: Colors.white),
-        ),
       ),
     );
   }
@@ -366,7 +270,6 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
         enabledDayPredicate: _isDateSelectable,
         onDaySelected: (selectedDay, focusedDay) {
           setState(() {
-            // Check if day exists in set using isSameDay for safety
             bool exists = _selectedDays.any((d) => isSameDay(d, selectedDay));
             if (exists) {
               _selectedDays.removeWhere((d) => isSameDay(d, selectedDay));

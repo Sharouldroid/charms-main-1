@@ -282,10 +282,14 @@ class _FirstAidPageState extends State<FirstAidPage> {
           // Reset form after dialog closed
           setState(() {
             for (var group in contentsByType.values) {
-              for (var item in group) item['qty'] = 3;
+              for (var item in group) {
+                item['qty'] = 3;
+              }
             }
             for (var group in medicalsByType.values) {
-              for (var item in group) item['qty'] = 3;
+              for (var item in group) {
+                item['qty'] = 3;
+              }
             }
             expiredItems.updateAll((key, value) => null);
             status = 'Fully Stocked';
@@ -441,7 +445,7 @@ class _FirstAidPageState extends State<FirstAidPage> {
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                   ),
-                  ...entry.value.map(_buildItemRow).toList(),
+                  ...entry.value.map(_buildItemRow),
                   const Divider(),
                 ]),
 
@@ -456,7 +460,7 @@ class _FirstAidPageState extends State<FirstAidPage> {
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                   ),
-                  ...entry.value.map(_buildItemRow).toList(),
+                  ...entry.value.map(_buildItemRow),
                   const Divider(),
                 ]),
 

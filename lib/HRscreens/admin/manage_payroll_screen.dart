@@ -10,6 +10,8 @@ import 'package:intl/intl.dart';
 import 'payroll_form_screen.dart';
 
 class ManagePayrollScreen extends StatefulWidget {
+  const ManagePayrollScreen({super.key});
+
   @override
   _ManagePayrollScreenState createState() => _ManagePayrollScreenState();
 }

@@ -14,7 +14,7 @@ class StaffPayrollDetailsScreen extends StatelessWidget {
   final double totalDeduction;
   final double totalSalary;
 
-  StaffPayrollDetailsScreen({
+  const StaffPayrollDetailsScreen({super.key, 
     required this.month,
     required this.year,
     required this.staffId,
@@ -172,7 +172,7 @@ class DetailRow extends StatelessWidget {
   final String value;
   final bool isTotal;
 
-  DetailRow({
+  const DetailRow({super.key, 
     required this.label,
     required this.value,
     this.isTotal = false,

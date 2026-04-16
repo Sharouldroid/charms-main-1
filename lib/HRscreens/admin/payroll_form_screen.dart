@@ -8,7 +8,7 @@ class PayrollFormScreen extends StatefulWidget {
   final int year;
   final Function(Map<String, dynamic>) onSubmit;
 
-  PayrollFormScreen({
+  const PayrollFormScreen({super.key, 
     required this.staffId,
     required this.staffName,
     required this.workingDays,

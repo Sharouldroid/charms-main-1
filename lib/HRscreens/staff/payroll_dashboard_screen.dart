@@ -1,6 +1,5 @@
 import 'package:charms/HRmodels/payment.dart';
 import 'package:charms/HRmodels/staff.dart';
-import 'package:charms/HRproviders/auth.dart' as hr_auth;
 import 'package:charms/HRproviders/payments.dart';
 import 'package:charms/HRproviders/staffs.dart';
 import 'package:charms/HRscreens/staff/claim_dashboard.dart';
@@ -17,9 +16,9 @@ class PayrollDashboardScreen extends StatefulWidget {
   final String username;
 
   const PayrollDashboardScreen({
-    Key? key,
+    super.key,
     required this.username,
-  }) : super(key: key);
+  });
 
   @override
   _PayrollScreenState createState() => _PayrollScreenState();

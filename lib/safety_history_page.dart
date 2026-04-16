@@ -376,7 +376,7 @@ class _SafetyHistoryPageState extends State<SafetyHistoryPage> {
                                   else
                                     ...pendingReports
                                         .map((item) => _buildReportItem(item))
-                                        .toList(),
+                                        ,
                                 ],
                               ),
                             );
@@ -391,7 +391,7 @@ class _SafetyHistoryPageState extends State<SafetyHistoryPage> {
   }
 
   Widget _buildReportItem(Map item) {
-    List<TextSpan> _parseDescription(String text) {
+    List<TextSpan> parseDescription(String text) {
       List<TextSpan> spans = [];
       final parts = text.split('**');
 
@@ -453,7 +453,7 @@ class _SafetyHistoryPageState extends State<SafetyHistoryPage> {
                   fontSize: 14,
                   height: 1.4,
                 ),
-                children: _parseDescription(item['description']),
+                children: parseDescription(item['description']),
               ),
             ),
 

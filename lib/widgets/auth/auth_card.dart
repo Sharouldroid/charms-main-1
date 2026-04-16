@@ -930,7 +930,7 @@ class AuthCardState extends State<AuthCard> {
                   ),
                 ),
               );
-            }).toList(),
+            }),
             // Add manager and marine biologist roles
             const DropdownMenuItem<int>(
               value: 5,

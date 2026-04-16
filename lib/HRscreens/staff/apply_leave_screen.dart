@@ -12,9 +12,9 @@ class LeaveFormScreen extends StatefulWidget {
   final int staffId;
 
   const LeaveFormScreen({
-    Key? key,
+    super.key,
     required this.staffId,
-  }) : super(key: key);
+  });
 
   @override
   _LeaveFormScreenState createState() => _LeaveFormScreenState();
@@ -26,7 +26,7 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
   String? _selectedProofType;
   DateTime? _startDate;
   DateTime? _endDate;
-  TextEditingController _reasonController = TextEditingController();
+  final TextEditingController _reasonController = TextEditingController();
   XFile? _attachedImage;
   XFile? _attachedFile;
 
@@ -324,13 +324,13 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: _submitLeave,
-                  child: Text(
-                    'Submit',
-                    style: TextStyle(color: Colors.white, fontSize: 18),
-                  ),
                   style: ElevatedButton.styleFrom(
                     padding: EdgeInsets.symmetric(vertical: 15),
                     backgroundColor: Colors.blue,
+                  ),
+                  child: Text(
+                    'Submit',
+                    style: TextStyle(color: Colors.white, fontSize: 18),
                   ),
                 ),
               ),

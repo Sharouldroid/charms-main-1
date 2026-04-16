@@ -16,18 +16,17 @@ import 'package:intl/intl.dart';
 
 class AdminDashboard extends StatelessWidget {
   final String username;
-  const AdminDashboard({Key? key, required this.username}) : super(key: key);
+  const AdminDashboard({super.key, required this.username});
 
   @override
   Widget build(BuildContext context) {
-    // Important: NO nested MaterialApp here
     return AdminDashboardScreen(username: username);
   }
 }
 
 class AdminDashboardScreen extends StatefulWidget {
   final String username;
-  const AdminDashboardScreen({Key? key, required this.username}) : super(key: key);
+  const AdminDashboardScreen({super.key, required this.username});
 
   @override
   State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
@@ -141,21 +140,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       case 0:
         return;
       case 1:
-        Navigator.push(
+        Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => ManageStaffScreen()),
+          MaterialPageRoute(builder: (_) => ManageStaffScreen(username: widget.username)),
         );
         break;
       case 2:
-        Navigator.push(
+        Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => AdminListScreen()),
+          MaterialPageRoute(builder: (_) => AdminListScreen(username: widget.username)),
         );
         break;
       case 3:
-        Navigator.push(
+        Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => MySelfScreen()),
+          MaterialPageRoute(builder: (_) => const MySelfScreen()),
         );
         break;
     }
@@ -167,7 +166,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       extendBody: true,
       appBar: AppBar(
         iconTheme: const IconThemeData(color: Colors.white),
-        automaticallyImplyLeading: false, // no drawer icon
+        automaticallyImplyLeading: false,
         title: const Text('CHARMS ADMIN', style: TextStyle(color: Colors.white)),
         centerTitle: true,
         backgroundColor: Colors.blue,
@@ -322,7 +321,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 },
               ),
             );
-          }).toList(),
+          }),
         ],
       ),
     );

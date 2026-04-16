@@ -7,7 +7,7 @@ import 'package:charms/HRscreens/admin/edit_staff_screen.dart';
 class StaffDetailsScreen extends StatelessWidget {
   final Staff staff;
 
-  StaffDetailsScreen({required this.staff});
+  const StaffDetailsScreen({super.key, required this.staff});
 
   @override
   Widget build(BuildContext context) {
@@ -158,7 +158,7 @@ class DetailsRow extends StatelessWidget {
   final String label;
   final String value;
 
-  DetailsRow({required this.label, required this.value});
+  const DetailsRow({super.key, required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {

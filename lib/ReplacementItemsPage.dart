@@ -166,12 +166,12 @@ class _ReplacementItemsPageState extends State<ReplacementItemsPage> {
                           checkedItems[facility]![item] = val!;
 
                           if (isNoReplacement && val == true) {
-                            facilityItems[facility]!.forEach((otherItem) {
+                            for (var otherItem in facilityItems[facility]!) {
                               if (otherItem != item) {
                                 checkedItems[facility]![otherItem] = false;
                                 descriptions[facility]![otherItem]!.clear();
                               }
-                            });
+                            }
                           }
                         });
                       },
@@ -197,7 +197,7 @@ class _ReplacementItemsPageState extends State<ReplacementItemsPage> {
                   ],
                 ),
               );
-            }).toList(),
+            }),
 
             const SizedBox(height: 8),
 
@@ -439,7 +439,7 @@ class _ReplacementItemsPageState extends State<ReplacementItemsPage> {
                     .asMap()
                     .entries
                     .map((entry) => buildFacilitySection(entry.key, entry.value))
-                    .toList(),
+                    ,
                 const SizedBox(height: 18),
                 SizedBox(
                   width: double.infinity,

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 class AttendanceSummaryScreen extends StatefulWidget {
+  const AttendanceSummaryScreen({super.key});
+
   @override
   _AttendanceSummaryScreenState createState() => _AttendanceSummaryScreenState();
 }

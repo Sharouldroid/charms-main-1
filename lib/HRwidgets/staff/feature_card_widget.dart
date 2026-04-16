@@ -5,7 +5,7 @@ class FeatureCardWidget extends StatelessWidget {
   final String text;
   final VoidCallback onTap;
 
-  FeatureCardWidget({
+  const FeatureCardWidget({super.key, 
     required this.icon,
     required this.text,
     required this.onTap,
