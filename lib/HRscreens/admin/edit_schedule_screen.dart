@@ -177,7 +177,7 @@ class _EditScheduleScreenState extends State<EditScheduleScreen> {
               children: [
                 // Branch dropdown
                 DropdownButtonFormField<String>(
-                  value: _selectedBranch,
+                  initialValue: _selectedBranch,
                   decoration: const InputDecoration(
                     labelText: 'Branch',
                     border: OutlineInputBorder(),
@@ -205,7 +205,7 @@ class _EditScheduleScreenState extends State<EditScheduleScreen> {
 
                 // Slot dropdown
                 DropdownButtonFormField<String>(
-                  value: _selectedSlot,
+                  initialValue: _selectedSlot,
                   decoration: const InputDecoration(
                     labelText: 'Select Slot',
                     border: OutlineInputBorder(),

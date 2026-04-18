@@ -26,8 +26,6 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:charms/admin_checklist_page.dart';
 import 'package:charms/notification_page.dart';
-import 'package:charms/HRscreens/admin/admin_dashboard_screen.dart';
-import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
 import 'package:charms/utils/logout_helper.dart';
 import 'package:charms/HRscreens/login_screen.dart';
 
