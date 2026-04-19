@@ -1,9 +1,10 @@
+import 'dart:typed_data';
+import 'package:charms/utils/pdf_download.dart';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'dart:io';
 
-class StaffPayrollDetailsScreen extends StatelessWidget {
+class StaffPayrollDetailsScreen extends StatefulWidget {
   final String month;
   final int year;
   final String staffId;
@@ -14,7 +15,8 @@ class StaffPayrollDetailsScreen extends StatelessWidget {
   final double totalDeduction;
   final double totalSalary;
 
-  const StaffPayrollDetailsScreen({super.key, 
+  const StaffPayrollDetailsScreen({
+    super.key,
     required this.month,
     required this.year,
     required this.staffId,
@@ -26,37 +28,74 @@ class StaffPayrollDetailsScreen extends StatelessWidget {
     required this.totalSalary,
   });
 
-  Future<void> _generateAndDownloadPDF() async {
+  @override
+  State<StaffPayrollDetailsScreen> createState() =>
+      _StaffPayrollDetailsScreenState();
+}
+
+class _StaffPayrollDetailsScreenState extends State<StaffPayrollDetailsScreen> {
+  bool _downloading = false;
+
+  String _rm(num value) => 'RM ${value.toStringAsFixed(2)}';
+
+  Future<Uint8List> _generatePayslipPdfBytes() async {
     final pdf = pw.Document();
 
     pdf.addPage(
       pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(24),
         build: (pw.Context context) {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Header(
-                level: 0,
-                child: pw.Text('SEATRU/CMS Payslip'),
+              pw.Center(
+                child: pw.Text(
+                  'SEATRU X CMS',
+                  style: pw.TextStyle(
+                    fontSize: 24,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Center(
+                child: pw.Text(
+                  'Payslip for ${widget.month} ${widget.year}',
+                  style: pw.TextStyle(
+                    fontSize: 18,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
               ),
               pw.SizedBox(height: 20),
-              pw.Text('Period: $month $year'),
-              pw.SizedBox(height: 10),
-              pw.Text('Staff ID: $staffId'),
-              pw.Text('Name: $staffName'),
-              pw.Text('Working Days: $workingDays'),
-              pw.Text('Basic Pay: RM $basicPay'),
-              pw.Text('Total Bonus: $totalBonus'),
-              pw.Text('Total Deduction: $totalDeduction'),
-              pw.SizedBox(height: 20),
-              pw.Text('Total Payment: RM $totalSalary'),
-              pw.SizedBox(height: 40),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text('Staff Signature'),
-                  pw.Text('Manager Signature'),
-                ],
+              pw.Divider(),
+              _pdfRow('Staff ID', widget.staffId),
+              _pdfRow('Name', widget.staffName),
+              _pdfRow('Working Days', widget.workingDays),
+              _pdfRow('Basic Pay', _rm(widget.basicPay)),
+              _pdfRow('Total Bonus', _rm(widget.totalBonus)),
+              _pdfRow('Total Deduction', _rm(widget.totalDeduction)),
+              pw.Divider(),
+              _pdfRow(
+                'Total Salary',
+                _rm(widget.totalSalary),
+                valueStyle: pw.TextStyle(
+                  fontWeight: pw.FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+              pw.Spacer(),
+              pw.Container(
+                padding: const pw.EdgeInsets.all(10),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: PdfColors.grey400),
+                  borderRadius: pw.BorderRadius.circular(4),
+                ),
+                child: pw.Text(
+                  'This is a computer generated Payslip. Signature is not required.',
+                  style: const pw.TextStyle(fontSize: 10),
+                ),
               ),
             ],
           );
@@ -64,142 +103,180 @@ class StaffPayrollDetailsScreen extends StatelessWidget {
       ),
     );
 
-    final directory = await getApplicationDocumentsDirectory();
-    final file = File('${directory.path}/payslip_${month.toLowerCase()}_$year.pdf');
-    await file.writeAsBytes(await pdf.save());
+    return pdf.save();
+  }
+
+  pw.Widget _pdfRow(
+    String label,
+    String value, {
+    pw.TextStyle? valueStyle,
+  }) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 6),
+      child: pw.Row(
+        children: [
+          pw.Expanded(
+            flex: 2,
+            child: pw.Text(label, style: const pw.TextStyle(fontSize: 12)),
+          ),
+          pw.Expanded(
+            flex: 3,
+            child: pw.Align(
+              alignment: pw.Alignment.centerRight,
+              child: pw.Text(
+                value,
+                style: valueStyle ?? const pw.TextStyle(fontSize: 12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _downloadPdf() async {
+    if (_downloading) return;
+
+    setState(() => _downloading = true);
+    try {
+      final bytes = await _generatePayslipPdfBytes();
+      final safeMonth = widget.month.replaceAll(' ', '_').replaceAll('/', '-');
+      final fileName = 'payslip_${widget.staffId}_${safeMonth}_${widget.year}.pdf';
+
+      await savePdf(
+        bytes: bytes,
+        fileName: fileName,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('PDF ready for download/print')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to download PDF: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _downloading = false);
+    }
+  }
+
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text(label, style: const TextStyle(fontSize: 18)),
+          ),
+          Expanded(
+            flex: 3,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text(value, style: const TextStyle(fontSize: 18)),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Payroll Details', style: TextStyle(color: Colors.white)),
+        title: const Text('Payroll Details', style: TextStyle(color: Colors.white)),
         centerTitle: true,
         backgroundColor: Colors.blue,
-        iconTheme: IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Card(
               elevation: 4,
+              color: Colors.grey.shade200,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               child: Padding(
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.all(22),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Center(
+                    const Center(
                       child: Text(
                         'SEATRU X CMS',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold),
                       ),
                     ),
-                    SizedBox(height: 20),
+                    const SizedBox(height: 20),
                     Center(
                       child: Text(
-                        'Payslip for $month $year',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        'Payslip for ${widget.month} ${widget.year}',
+                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                       ),
                     ),
-                    Divider(),
-                    DetailRow(label: 'Staff ID', value: staffId),
-                    DetailRow(label: 'Name', value: staffName),
-                    DetailRow(label: 'Working Days', value: workingDays),
-                    DetailRow(
-                      label: 'Basic Pay',
-                      value: 'RM ${basicPay.toStringAsFixed(2)}'
-                    ),DetailRow(
-                      label: 'Total Bonus',
-                      value: 'RM ${totalBonus.toStringAsFixed(2)}'
-                    ),
-                    DetailRow(
-                      label: 'Total Deduction',
-                      value: 'RM ${totalDeduction.toStringAsFixed(2)}'
-                    ),
-                    Divider(),
-                    DetailRow(
-                      label: 'Total Salary',
-                      value: 'RM ${totalSalary.toStringAsFixed(2)}'
-                    ),
+                    const SizedBox(height: 15),
+                    const Divider(thickness: 1.2),
+                    _detailRow('Staff ID', widget.staffId),
+                    _detailRow('Name', widget.staffName),
+                    _detailRow('Working Days', widget.workingDays),
+                    _detailRow('Basic Pay', _rm(widget.basicPay)),
+                    _detailRow('Total Bonus', _rm(widget.totalBonus)),
+                    _detailRow('Total Deduction', _rm(widget.totalDeduction)),
+                    const Divider(thickness: 1.2),
+                    _detailRow('Total Salary', _rm(widget.totalSalary)),
                   ],
                 ),
               ),
             ),
-            SizedBox(height: 20),
-            Card(
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      'This is a computer Generated PaySlip. Signature is not required',
-                    ),
-                  ],
-                ),
+            const SizedBox(height: 20),
+            Container(
+              width: MediaQuery.of(context).size.width * 0.6,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: const Text(
+                'This is a computer Generated PaySlip. Signature is not required',
+                style: TextStyle(fontSize: 16),
               ),
             ),
           ],
         ),
       ),
-      bottomNavigationBar: Padding(
-        padding: EdgeInsets.all(16),
-        child: ElevatedButton.icon(
-          onPressed: _generateAndDownloadPDF,
-          icon: Icon(Icons.download),
-          label: Text('Download PDF'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue,
-            foregroundColor: Colors.white,
-            padding: EdgeInsets.symmetric(vertical: 16),
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.all(16),
+        child: SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: _downloading ? null : _downloadPdf,
+            icon: _downloading
+                ? const SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.download, color: Colors.white),
+            label: Text(
+              _downloading ? 'Preparing PDF...' : 'Download PDF',
+              style: const TextStyle(color: Colors.white, fontSize: 18),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+            ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class DetailRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final bool isTotal;
-
-  const DetailRow({super.key, 
-    required this.label,
-    required this.value,
-    this.isTotal = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: isTotal ? 18 : 16,
-              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: isTotal ? 18 : 16,
-              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-        ],
       ),
     );
   }
