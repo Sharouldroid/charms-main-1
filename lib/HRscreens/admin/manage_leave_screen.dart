@@ -1,7 +1,6 @@
-import 'dart:typed_data';
-
 import 'package:charms/HRmodels/leave.dart';
 import 'package:charms/HRproviders/leaves.dart';
+import 'package:charms/HRwidgets/staff/proof_attachment.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -10,11 +9,13 @@ class ManageLeaveScreen extends StatefulWidget {
   const ManageLeaveScreen({super.key});
 
   @override
-  _ManageLeaveScreenState createState() => _ManageLeaveScreenState();
+  State<ManageLeaveScreen> createState() => _ManageLeaveScreenState();
 }
 
-class _ManageLeaveScreenState extends State<ManageLeaveScreen> with SingleTickerProviderStateMixin {
+class _ManageLeaveScreenState extends State<ManageLeaveScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  bool _processing = false;
 
   @override
   void initState() {
@@ -25,96 +26,125 @@ class _ManageLeaveScreenState extends State<ManageLeaveScreen> with SingleTicker
 
   Future<void> _fetchLeaves() async {
     await Provider.of<Leaves>(context, listen: false).fetchLeaves();
+    if (mounted) setState(() {});
   }
 
   Future<void> _handleLeaveAction(Leave leave, String action) async {
-    final updatedLeave = Leave(
-      leaveId: leave.leaveId,
-      staffId: leave.staffId,
-      leaveType: leave.leaveType,
-      startDate: leave.startDate,
-      endDate: leave.endDate,
-      reason: leave.reason,
-      proofFileName: leave.proofFileName,
-      proofFileType: leave.proofFileType,
-      proofFile: leave.proofFile,
-      status: action == 'approve' ? 'Approved' : 'Rejected',
-      createdAt: leave.createdAt,
-      updatedAt: DateTime.now(),
-    );
+    if (_processing) return;
+    setState(() => _processing = true);
 
-    await Provider.of<Leaves>(context, listen: false).updateLeave(updatedLeave);
-    _fetchLeaves();
+    try {
+      final updatedLeave = Leave(
+        leaveId: leave.leaveId,
+        staffId: leave.staffId,
+        leaveType: leave.leaveType,
+        startDate: leave.startDate,
+        endDate: leave.endDate,
+        reason: leave.reason,
+        proofFileName: leave.proofFileName,
+        proofFileType: leave.proofFileType,
+        proofFile: leave.proofFile,
+        proofFilePath: leave.proofFilePath,
+        proofFileUrl: leave.proofFileUrl,
+        status: action == 'approve' ? 'Approved' : 'Rejected',
+        createdAt: leave.createdAt,
+        updatedAt: DateTime.now(),
+      );
+
+      await Provider.of<Leaves>(context, listen: false).updateLeave(updatedLeave);
+      await _fetchLeaves();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            action == 'approve'
+                ? 'Leave approved successfully'
+                : 'Leave rejected successfully',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update leave: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _processing = false);
+    }
   }
 
   Widget _buildLeaveCard(Leave leave) {
+    final status = leave.status.trim().toLowerCase();
+    Color statusColor = Colors.orange;
+    if (status == 'approved') statusColor = Colors.green;
+    if (status == 'rejected') statusColor = Colors.red;
+
     return Card(
-      margin: EdgeInsets.symmetric(vertical: 5, horizontal: 15),
+      margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 15),
       child: Padding(
-        padding: EdgeInsets.all(10),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               "Staff ID: ${leave.staffId}",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
-            SizedBox(height: 5),
+            const SizedBox(height: 5),
             Text("Leave Type: ${leave.leaveType}"),
-            Text("Duration: ${DateFormat('dd/MM/yyyy').format(leave.startDate)} - ${DateFormat('dd/MM/yyyy').format(leave.endDate)}"),
+            Text(
+              "Duration: ${DateFormat('dd/MM/yyyy').format(leave.startDate)} - ${DateFormat('dd/MM/yyyy').format(leave.endDate)}",
+            ),
             Text("Reason: ${leave.reason}"),
-            if (leave.proofFile != null)
-              GestureDetector(
-                onTap: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => Dialog(
-                      child: InteractiveViewer(
-                        child: Image.memory(
-                          Uint8List.fromList(leave.proofFile!),
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              padding: EdgeInsets.all(8),
-                              child: Icon(Icons.image_not_supported),
-                            );
-                          },
-                        ),
+            Text(
+              "Status: ${leave.status}",
+              style: TextStyle(
+                color: statusColor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            // NEW: URL/path-based attachment viewer
+            ProofAttachmentViewer(
+              fileUrl: leave.proofFileUrl,
+              fileName: leave.proofFileName,
+              fileType: leave.proofFileType,
+            ),
+
+            if (status == 'pending')
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    ElevatedButton(
+                      onPressed: _processing
+                          ? null
+                          : () => _handleLeaveAction(leave, 'approve'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                      ),
+                      child: const Text(
+                        'Approve',
+                        style: TextStyle(color: Colors.white),
                       ),
                     ),
-                  );
-                },
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("Attachment: ${leave.proofFileName}"),
-                    Image.memory(
-                      Uint8List.fromList(leave.proofFile!),
-                      height: 80,
-                      width: 80,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Icon(Icons.image_not_supported);
-                      },
+                    const SizedBox(width: 10),
+                    ElevatedButton(
+                      onPressed: _processing
+                          ? null
+                          : () => _handleLeaveAction(leave, 'reject'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                      ),
+                      child: const Text(
+                        'Reject',
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
                   ],
                 ),
-              ),
-            if (leave.status == 'Pending')
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  ElevatedButton(
-                    onPressed: () => _handleLeaveAction(leave, 'approve'),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                    child: Text('Approve', style: TextStyle(color: Colors.white)),
-                  ),
-                  SizedBox(width: 10),
-                  ElevatedButton(
-                    onPressed: () => _handleLeaveAction(leave, 'reject'),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                    child: Text('Reject', style: TextStyle(color: Colors.white)),
-                  ),
-                ],
               ),
           ],
         ),
@@ -122,53 +152,75 @@ class _ManageLeaveScreenState extends State<ManageLeaveScreen> with SingleTicker
     );
   }
 
-  @override
-Widget build(BuildContext context) {
-  return Scaffold(
-    appBar: AppBar(
-      iconTheme: IconThemeData(color: Colors.white),
-      backgroundColor: Colors.blue,
-      title: Text("Manage Leave", style: TextStyle(color: Colors.white)),
-      centerTitle: true,
-      bottom: TabBar(
-        controller: _tabController,
-        tabs: [
-          Tab(child: Text("Pending", style: TextStyle(color: Colors.white))),
-          Tab(child: Text("Approved", style: TextStyle(color: Colors.white))),
-          Tab(child: Text("Rejected", style: TextStyle(color: Colors.white))),
-        ],
+  Widget _buildStatusList(List<Leave> leaves) {
+    if (leaves.isEmpty) {
+      return const Center(
+        child: Text(
+          'No leave records found',
+          style: TextStyle(color: Colors.grey),
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _fetchLeaves,
+      child: ListView.builder(
+        itemCount: leaves.length,
+        itemBuilder: (context, index) => _buildLeaveCard(leaves[index]),
       ),
-    ),
-    body: Consumer<Leaves>(
-      builder: (context, leavesData, child) {
-        return TabBarView(
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: Colors.blue,
+        title: const Text("Manage Leave", style: TextStyle(color: Colors.white)),
+        centerTitle: true,
+        bottom: TabBar(
           controller: _tabController,
-          children: [
-            // Pending Tab
-            ListView(
-              children: leavesData.leaves
-                  .where((leave) => leave.status == 'Pending')
-                  .map((leave) => _buildLeaveCard(leave))
-                  .toList(),
-            ),
-            // Approved Tab
-            ListView(
-              children: leavesData.leaves
-                  .where((leave) => leave.status == 'Approved')
-                  .map((leave) => _buildLeaveCard(leave))
-                  .toList(),
-            ),
-            // Rejected Tab
-            ListView(
-              children: leavesData.leaves
-                  .where((leave) => leave.status == 'Rejected')
-                  .map((leave) => _buildLeaveCard(leave))
-                  .toList(),
-            ),
+          tabs: const [
+            Tab(child: Text("Pending", style: TextStyle(color: Colors.white))),
+            Tab(child: Text("Approved", style: TextStyle(color: Colors.white))),
+            Tab(child: Text("Rejected", style: TextStyle(color: Colors.white))),
           ],
-        );
-      },
-    ),
-  );
-}
+        ),
+      ),
+      body: Consumer<Leaves>(
+        builder: (context, leavesData, child) {
+          final pending = leavesData.leaves
+              .where((l) => l.status.trim().toLowerCase() == 'pending')
+              .toList();
+
+          final approved = leavesData.leaves
+              .where((l) => l.status.trim().toLowerCase() == 'approved')
+              .toList();
+
+          final rejected = leavesData.leaves
+              .where((l) => l.status.trim().toLowerCase() == 'rejected')
+              .toList();
+
+          return Stack(
+            children: [
+              TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildStatusList(pending),
+                  _buildStatusList(approved),
+                  _buildStatusList(rejected),
+                ],
+              ),
+              if (_processing)
+                Container(
+                  color: Colors.black12,
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
 }
