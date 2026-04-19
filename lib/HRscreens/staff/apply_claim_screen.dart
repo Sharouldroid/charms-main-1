@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
@@ -16,7 +15,7 @@ class ApplyClaimScreen extends StatefulWidget {
   });
 
   @override
-  _ApplyClaimScreenState createState() => _ApplyClaimScreenState();
+  State<ApplyClaimScreen> createState() => _ApplyClaimScreenState();
 }
 
 class _ApplyClaimScreenState extends State<ApplyClaimScreen> {
@@ -45,17 +44,27 @@ class _ApplyClaimScreenState extends State<ApplyClaimScreen> {
     super.dispose();
   }
 
+  String _detectProofType(String fileName) {
+    final lower = fileName.toLowerCase();
+    if (lower.endsWith('.pdf')) return 'PDF';
+    if (lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.png') ||
+        lower.endsWith('.webp')) {
+      return 'Image';
+    }
+    return 'PDF';
+  }
+
   Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
+    final picked = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
       firstDate: DateTime(2020),
       lastDate: DateTime(2101),
     );
     if (picked != null) {
-      setState(() {
-        _claimDate = picked;
-      });
+      setState(() => _claimDate = picked);
     }
   }
 
@@ -68,24 +77,24 @@ class _ApplyClaimScreenState extends State<ApplyClaimScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: Icon(Icons.camera_alt),
-                title: Text('Take Photo'),
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Take Photo'),
                 onTap: () {
                   Navigator.pop(context);
                   _pickImage(ImageSource.camera);
                 },
               ),
               ListTile(
-                leading: Icon(Icons.photo_library),
-                title: Text('Choose from Gallery'),
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Choose from Gallery'),
                 onTap: () {
                   Navigator.pop(context);
                   _pickImage(ImageSource.gallery);
                 },
               ),
               ListTile(
-                leading: Icon(Icons.attach_file),
-                title: Text('Choose File'),
+                leading: const Icon(Icons.attach_file),
+                title: const Text('Choose File'),
                 onTap: () {
                   Navigator.pop(context);
                   _pickFile();
@@ -99,11 +108,12 @@ class _ApplyClaimScreenState extends State<ApplyClaimScreen> {
   }
 
   Future<void> _pickImage(ImageSource source) async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: source);
+    final picker = ImagePicker();
+    final image = await picker.pickImage(source: source);
     if (image != null) {
       setState(() {
         _attachedFile = image;
+        _selectedProofType = 'Image'; // auto set
       });
     }
   }
@@ -111,20 +121,27 @@ class _ApplyClaimScreenState extends State<ApplyClaimScreen> {
   Future<void> _pickFile() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['pdf', 'doc', 'docx'],
+      allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
+      withData: false,
     );
-    if (result != null) {
+
+    if (result != null && result.files.single.path != null) {
+      final picked = XFile(result.files.single.path!);
       setState(() {
-        _attachedFile = XFile(result.files.single.path!);
+        _attachedFile = picked;
+        _selectedProofType = _detectProofType(picked.name); // auto set
       });
     }
   }
 
   Future<void> _submitClaim() async {
-  if (_formKey.currentState!.validate() && _selectedProofType != null) {
+    if (!_formKey.currentState!.validate()) return;
+
     try {
       final claimsProvider = Provider.of<Claims>(context, listen: false);
-      
+
+      final bytes = _attachedFile != null ? await _attachedFile!.readAsBytes() : null;
+
       final newClaim = Claim(
         claimId: 0,
         staffId: widget.staffId,
@@ -133,151 +150,115 @@ class _ApplyClaimScreenState extends State<ApplyClaimScreen> {
         claimDate: _claimDate!,
         description: _descriptionController.text,
         proofFileName: _attachedFile?.name,
-        proofFileType: _selectedProofType,
-        proofFile: _attachedFile != null ? await _attachedFile!.readAsBytes() : null,
+        proofFileType: _selectedProofType, // Image / PDF
+        proofFile: bytes,
         status: 'Pending',
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
 
       await claimsProvider.createClaim(newClaim);
-      
+
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Claim submitted successfully')),
+        const SnackBar(content: Text('Claim submitted successfully')),
       );
       Navigator.pop(context, true);
     } catch (error) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to submit claim. Please try again.')),
+        SnackBar(content: Text('Failed to submit claim: $error')),
       );
     }
   }
-}
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Apply Claim', style: TextStyle(color: Colors.white)),
+        title: const Text('Apply Claim', style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.blue,
         centerTitle: true,
-        iconTheme: IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               DropdownButtonFormField<String>(
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Claim Type',
                   border: OutlineInputBorder(),
                 ),
-                initialValue: _selectedClaimType,
-                items: _claimTypes.map((type) {
-                  return DropdownMenuItem(value: type, child: Text(type));
-                }).toList(),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please select a claim type';
-                  }
-                  return null;
-                },
-                onChanged: (value) {
-                  setState(() {
-                    _selectedClaimType = value;
-                  });
-                },
+                value: _selectedClaimType,
+                items: _claimTypes
+                    .map((type) => DropdownMenuItem(value: type, child: Text(type)))
+                    .toList(),
+                validator: (value) =>
+                    (value == null || value.isEmpty) ? 'Please select a claim type' : null,
+                onChanged: (value) => setState(() => _selectedClaimType = value),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               GestureDetector(
                 onTap: () => _selectDate(context),
                 child: AbsorbPointer(
                   child: TextFormField(
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       labelText: 'Claim Date',
                       border: OutlineInputBorder(),
                       suffixIcon: Icon(Icons.calendar_today),
                     ),
                     controller: TextEditingController(
-                      text: _claimDate == null
-                          ? ''
-                          : DateFormat('dd/MM/yyyy').format(_claimDate!),
+                      text: _claimDate == null ? '' : DateFormat('dd/MM/yyyy').format(_claimDate!),
                     ),
-                    validator: (value) {
-                      if (_claimDate == null) {
-                        return 'Please select a date';
-                      }
-                      return null;
-                    },
+                    validator: (_) => _claimDate == null ? 'Please select a date' : null,
                   ),
                 ),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _amountController,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Amount (RM)',
                   border: OutlineInputBorder(),
                   prefixText: 'RM ',
                 ),
-                keyboardType: TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter an amount';
-                  }
-                  if (double.tryParse(value) == null) {
-                    return 'Please enter a valid amount';
-                  }
+                  if (value == null || value.isEmpty) return 'Please enter an amount';
+                  if (double.tryParse(value) == null) return 'Please enter a valid amount';
                   return null;
                 },
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _descriptionController,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Description',
                   border: OutlineInputBorder(),
                 ),
                 maxLines: 3,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a description';
-                  }
-                  return null;
-                },
+                validator: (value) =>
+                    (value == null || value.isEmpty) ? 'Please enter a description' : null,
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Proof Type',
                   border: OutlineInputBorder(),
                 ),
-                initialValue: _selectedProofType,
-                onChanged: (String? proofValue) {
-                  setState(() {
-                    _selectedProofType = proofValue;
-                  });
-                },
-                items: <String>[
-                  'Image',
-                  'PDF',
-                ].map<DropdownMenuItem<String>>((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  );
-                }).toList(),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please select a proof type';
-                  }
-                  return null;
-                },
+                value: _selectedProofType,
+                onChanged: (proofValue) => setState(() => _selectedProofType = proofValue),
+                items: const ['Image', 'PDF']
+                    .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+                    .toList(),
+                validator: (value) =>
+                    (value == null || value.isEmpty) ? 'Please select a proof type' : null,
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Row(
                 children: [
                   Expanded(
@@ -285,24 +266,24 @@ class _ApplyClaimScreenState extends State<ApplyClaimScreen> {
                       _attachedFile != null
                           ? "Attached: ${_attachedFile!.name}"
                           : 'Attach Document (Optional)',
-                      style: TextStyle(fontSize: 16),
+                      style: const TextStyle(fontSize: 16),
                     ),
                   ),
                   TextButton.icon(
-                    icon: Icon(Icons.attach_file),
-                    label: Text("Attach"),
+                    icon: const Icon(Icons.attach_file),
+                    label: const Text("Attach"),
                     onPressed: _showAttachmentOptions,
                   ),
                 ],
               ),
-              SizedBox(height: 24),
+              const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: _submitClaim,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,
-                  padding: EdgeInsets.symmetric(vertical: 16),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                child: Text(
+                child: const Text(
                   'Submit Claim',
                   style: TextStyle(fontSize: 16, color: Colors.white),
                 ),

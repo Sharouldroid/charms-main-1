@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:charms/HRmodels/claim.dart';
 import 'package:charms/HRproviders/claims.dart';
 import 'package:charms/HRscreens/staff/apply_claim_screen.dart';
@@ -8,6 +6,7 @@ import 'package:charms/HRscreens/staff/payroll_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/staff_myself_screen.dart';
 import 'package:charms/HRwidgets/staff/bottom_nav_staff.dart';
+import 'package:charms/HRwidgets/staff/proof_attachment.dart';
 import 'package:charms/screens/dashboard_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -23,7 +22,7 @@ class ClaimDashboardScreen extends StatefulWidget {
   });
 
   @override
-  _ClaimDashboardScreenState createState() => _ClaimDashboardScreenState();
+  State<ClaimDashboardScreen> createState() => _ClaimDashboardScreenState();
 }
 
 class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
@@ -88,7 +87,7 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
         );
         break;
       case 3:
-        return; // current
+        return;
       case 4:
         Navigator.pushReplacement(
           context,
@@ -98,7 +97,16 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
     }
   }
 
+  bool _hasProof(Claim claim) {
+    return (claim.proofFileUrl?.trim().isNotEmpty ?? false) ||
+        (claim.proofFilePath?.trim().isNotEmpty ?? false) ||
+        (claim.proofFile?.isNotEmpty ?? false) ||
+        (claim.proofFileName?.trim().isNotEmpty ?? false);
+  }
+
   void _showClaimDetails(Claim claim) {
+    final hasProof = _hasProof(claim);
+
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -114,15 +122,31 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
               Text('Date: ${claim.claimDate.toString().split(' ')[0]}'),
               Text('Description: ${claim.description}'),
               Text('Status: ${claim.status}'),
-              if (claim.proofFile != null) ...[
+              const SizedBox(height: 10),
+              if (hasProof) ...[
+                Text(
+                  'Attachment: ${claim.proofFileName ?? 'Proof File'}',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
                 const SizedBox(height: 8),
-                Text('Attachment: ${claim.proofFileName}'),
-              ],
+                ProofAttachmentViewer(
+                  fileUrl: claim.proofFileUrl,
+                  fileName: claim.proofFileName,
+                  fileType: claim.proofFileType,
+                ),
+              ] else
+                const Text(
+                  'No proof attached for this claim.',
+                  style: TextStyle(color: Colors.grey),
+                ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
         ],
       ),
     );
@@ -142,52 +166,44 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
       }
     }
 
+    final hasProof = _hasProof(claim);
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-      child: Column(
-        children: [
-          ListTile(
-            onTap: () => _showClaimDetails(claim),
-            title: Text('${claim.claimId} - ${claim.claimType}'),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('RM ${claim.amount.toStringAsFixed(2)}'),
-                Text('Date: ${claim.claimDate.toString().split(' ')[0]}'),
-              ],
+      child: ListTile(
+        onTap: () => _showClaimDetails(claim),
+        title: Text('${claim.claimId} - ${claim.claimType}'),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('RM ${claim.amount.toStringAsFixed(2)}'),
+            Text('Date: ${claim.claimDate.toString().split(' ')[0]}'),
+            const SizedBox(height: 4),
+            TextButton.icon(
+              onPressed: () => _showClaimDetails(claim),
+              icon: const Icon(Icons.visibility, size: 18),
+              label: Text(hasProof ? 'View Proof' : 'View Details'),
             ),
-            trailing: Chip(
-              label: Text(claim.status),
-              backgroundColor: statusColor(),
-            ),
-          ),
-          if (claim.proofFile != null)
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Container(
-                height: 100,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.memory(
-                    Uint8List.fromList(claim.proofFile!),
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) =>
-                        const Center(child: Icon(Icons.image_not_supported, color: Colors.grey)),
-                  ),
-                ),
-              ),
-            ),
-        ],
+          ],
+        ),
+        trailing: Chip(
+          label: Text(claim.status),
+          backgroundColor: statusColor(),
+        ),
       ),
     );
   }
 
   Widget _buildClaimList(List<Claim> claims) {
+    if (claims.isEmpty) {
+      return const Center(
+        child: Text(
+          'No claims found',
+          style: TextStyle(color: Colors.grey),
+        ),
+      );
+    }
+
     return ListView.builder(
       itemCount: claims.length,
       itemBuilder: (_, i) => _buildClaimCard(claims[i]),
@@ -199,7 +215,7 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
     return Scaffold(
       appBar: AppBar(
         iconTheme: const IconThemeData(color: Colors.white),
-        automaticallyImplyLeading: false, // remove drawer/hamburger
+        automaticallyImplyLeading: false,
         title: const Text("CHARMS STAFF", style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.blue,
         centerTitle: true,
@@ -230,13 +246,16 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
                   Padding(
                     padding: const EdgeInsets.all(16),
                     child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
+                      onPressed: () async {
+                        final submitted = await Navigator.push<bool>(
                           context,
                           MaterialPageRoute(
                             builder: (_) => ApplyClaimScreen(staffId: widget.staffId),
                           ),
                         );
+                        if (submitted == true) {
+                          await _fetchClaimData();
+                        }
                       },
                       icon: const Icon(Icons.add),
                       label: const Text('Apply New Claim'),

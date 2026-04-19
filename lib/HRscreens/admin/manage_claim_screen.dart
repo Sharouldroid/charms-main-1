@@ -1,17 +1,18 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:charms/HRproviders/claims.dart';
 import 'package:charms/HRmodels/claim.dart';
+import 'package:charms/HRwidgets/staff/proof_attachment.dart';
 
 class ManageClaimScreen extends StatefulWidget {
   const ManageClaimScreen({super.key});
 
   @override
-  _ManageClaimScreenState createState() => _ManageClaimScreenState();
+  State<ManageClaimScreen> createState() => _ManageClaimScreenState();
 }
 
-class _ManageClaimScreenState extends State<ManageClaimScreen> with SingleTickerProviderStateMixin {
+class _ManageClaimScreenState extends State<ManageClaimScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   List<int> selectedClaims = [];
 
@@ -28,66 +29,109 @@ class _ManageClaimScreenState extends State<ManageClaimScreen> with SingleTicker
   }
 
   Future<void> _approveClaim(Claim claim) async {
-  try {
-    final claimsProvider = Provider.of<Claims>(context, listen: false);
-    await claimsProvider.updateClaim(claim.claimId, 'Approved');
-    await _fetchClaims();
-    setState(() {
-      selectedClaims.clear();
-    });
-  } catch (error) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Failed to approve claim: $error'))
-    );
+    try {
+      final claimsProvider = Provider.of<Claims>(context, listen: false);
+      await claimsProvider.updateClaim(claim.claimId, 'Approved');
+      await _fetchClaims();
+      if (mounted) {
+        setState(() {
+          selectedClaims.clear();
+        });
+      }
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to approve claim: $error')),
+      );
+    }
   }
-}
 
-Future<void> _rejectClaim(Claim claim) async {
-  try {
-    final claimsProvider = Provider.of<Claims>(context, listen: false);
-    await claimsProvider.updateClaim(claim.claimId, 'Rejected');
-    await _fetchClaims();
-    setState(() {
-      selectedClaims.clear();
-    });
-  } catch (error) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Failed to reject claim: $error'))
-    );
+  Future<void> _rejectClaim(Claim claim) async {
+    try {
+      final claimsProvider = Provider.of<Claims>(context, listen: false);
+      await claimsProvider.updateClaim(claim.claimId, 'Rejected');
+      await _fetchClaims();
+      if (mounted) {
+        setState(() {
+          selectedClaims.clear();
+        });
+      }
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to reject claim: $error')),
+      );
+    }
   }
-}
 
-void _showRejectDialog(List<Claim> claims) {
-  showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: Text('Reject Claims'),
-      content: Text('Are you sure you want to reject the selected claims?'),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text('Cancel'),
-        ),
-        TextButton(
-          onPressed: () {
-            Navigator.pop(context);
-            for (var claimId in selectedClaims) {
-              final claim = claims.firstWhere((c) => c.claimId == claimId);
-              _rejectClaim(claim);
-            }
-          },
-          child: Text('Reject'),
-        ),
-      ],
-    ),
-  );
-}
-
-  void _showClaimDetails(Claim claim) {
+  void _showRejectDialog(List<Claim> claims) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Claim Details'),
+        title: const Text('Reject Claims'),
+        content: const Text('Are you sure you want to reject the selected claims?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+
+              for (var claimId in selectedClaims) {
+                final claim = claims.firstWhere((c) => c.claimId == claimId);
+                await _rejectClaim(claim);
+              }
+            },
+            child: const Text('Reject'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showApproveDialog(List<Claim> claims) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Approve Claims'),
+        content: const Text('Are you sure you want to approve the selected claims?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+
+              for (var claimId in selectedClaims) {
+                final claim = claims.firstWhere((c) => c.claimId == claimId);
+                await _approveClaim(claim);
+              }
+            },
+            child: const Text('Approve'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool _hasProof(Claim claim) {
+    return (claim.proofFileUrl?.trim().isNotEmpty ?? false) ||
+        (claim.proofFilePath?.trim().isNotEmpty ?? false) ||
+        (claim.proofFile?.isNotEmpty ?? false) ||
+        (claim.proofFileName?.trim().isNotEmpty ?? false);
+  }
+
+  void _showClaimDetails(Claim claim) {
+    final hasProof = _hasProof(claim);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Claim Details'),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -99,65 +143,30 @@ void _showRejectDialog(List<Claim> claims) {
               Text('Amount: RM ${claim.amount.toStringAsFixed(2)}'),
               Text('Date: ${claim.claimDate.toString().split(' ')[0]}'),
               Text('Description: ${claim.description}'),
-              if (claim.proofFile != null) ...[
-                SizedBox(height: 8),
-                Text('Attachment: ${claim.proofFileName}'),
-                SizedBox(height: 8),
-                GestureDetector(
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => Dialog(
-                          child: InteractiveViewer(
-                            child: Image.memory(
-                              Uint8List.fromList(claim.proofFile!),
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
-                                  padding: EdgeInsets.all(16),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.image_not_supported, size: 48, color: Colors.grey),
-                                      Text('Image preview not available')
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                  child: Container(
-                    height: 150,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.memory(
-                        Uint8List.fromList(claim.proofFile!),
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Center(
-                            child: Icon(Icons.image_not_supported, color: Colors.grey),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
+              const SizedBox(height: 10),
+              if (hasProof) ...[
+                Text(
+                  'Attachment: ${claim.proofFileName ?? 'Proof File'}',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
-              ],
+                const SizedBox(height: 8),
+                ProofAttachmentViewer(
+                  fileUrl: claim.proofFileUrl,
+                  fileName: claim.proofFileName,
+                  fileType: claim.proofFileType,
+                ),
+              ] else
+                const Text(
+                  'No proof attached for this claim.',
+                  style: TextStyle(color: Colors.grey),
+                ),
             ],
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Close'),
+            child: const Text('Close'),
           ),
         ],
       ),
@@ -165,77 +174,113 @@ void _showRejectDialog(List<Claim> claims) {
   }
 
   Widget _buildClaimCard(Claim claim) {
+    final hasProof = _hasProof(claim);
+
+    // Debug data (remove later)
+    debugPrint(
+      'Claim ${claim.claimId} | url=${claim.proofFileUrl} | path=${claim.proofFilePath} | '
+      'name=${claim.proofFileName} | bytes=${claim.proofFile?.length}',
+    );
+
     return Card(
-      margin: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-      child: Column(
-        children: [
-          ListTile(
-            onTap: () => _showClaimDetails(claim),
-            title: Text('${claim.claimId} - ${claim.claimType}'),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('RM ${claim.amount.toStringAsFixed(2)}'),
-                Text('Date: ${claim.claimDate.toString().split(' ')[0]}'),
-              ],
+      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+      child: ListTile(
+        onTap: () => _showClaimDetails(claim),
+        title: Text('${claim.claimId} - ${claim.claimType}'),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('RM ${claim.amount.toStringAsFixed(2)}'),
+            Text('Date: ${claim.claimDate.toString().split(' ')[0]}'),
+            const SizedBox(height: 4),
+
+            // Always visible for UX consistency
+            TextButton.icon(
+              onPressed: () => _showClaimDetails(claim),
+              icon: const Icon(Icons.visibility, size: 18),
+              label: Text(hasProof ? 'View Proof' : 'View Details'),
             ),
-            trailing: Checkbox(
-              value: selectedClaims.contains(claim.claimId),
-              onChanged: (bool? value) {
-                setState(() {
-                  if (value == true) {
-                    selectedClaims.add(claim.claimId);
-                  } else {
-                    selectedClaims.remove(claim.claimId);
-                  }
-                });
-              },
-            ),
-          ),
-          if (claim.proofFile != null)
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: GestureDetector(
-                onTap: () => _showClaimDetails(claim),
-                child: Container(
-                  height: 100,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.memory(
-                      Uint8List.fromList(claim.proofFile!),
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Center(
-                          child: Icon(Icons.image_not_supported, color: Colors.grey),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
+          ],
+        ),
+        trailing: Checkbox(
+          value: selectedClaims.contains(claim.claimId),
+          onChanged: (bool? value) {
+            setState(() {
+              if (value == true) {
+                selectedClaims.add(claim.claimId);
+              } else {
+                selectedClaims.remove(claim.claimId);
+              }
+            });
+          },
+        ),
       ),
     );
+  }
+
+  Widget _buildClaimsList(List<Claim> claims, {bool showActions = false}) {
+    if (claims.isEmpty) {
+      return const Center(
+        child: Text(
+          'No claims found',
+          style: TextStyle(color: Colors.grey),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        Expanded(
+          child: ListView.builder(
+            itemCount: claims.length,
+            itemBuilder: (context, index) => _buildClaimCard(claims[index]),
+          ),
+        ),
+        if (showActions && selectedClaims.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                    onPressed: () => _showRejectDialog(claims),
+                    child: const Text('Reject', style: TextStyle(color: Colors.white)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                    onPressed: () => _showApproveDialog(claims),
+                    child: const Text('Approve', style: TextStyle(color: Colors.white)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Manage Claim', style: TextStyle(color: Colors.white)),
+        title: const Text('Manage Claim', style: TextStyle(color: Colors.white)),
         centerTitle: true,
-        iconTheme: IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.white),
         backgroundColor: Colors.blue,
         bottom: TabBar(
           controller: _tabController,
-          tabs: [
-            Tab(child: Text( 'Pending', style: TextStyle(color: Colors.white))),
+          tabs: const [
+            Tab(child: Text('Pending', style: TextStyle(color: Colors.white))),
             Tab(child: Text('Approved', style: TextStyle(color: Colors.white))),
             Tab(child: Text('Rejected', style: TextStyle(color: Colors.white))),
           ],
@@ -259,68 +304,6 @@ void _showRejectDialog(List<Claim> claims) {
             ],
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildClaimsList(List<Claim> claims, {bool showActions = false}) {
-    return Column(
-      children: [
-        Expanded(
-          child: ListView.builder(
-            itemCount: claims.length,
-            itemBuilder: (context, index) => _buildClaimCard(claims[index]),
-          ),
-        ),
-        if (showActions && selectedClaims.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                    onPressed: () => _showRejectDialog(claims),
-                    child: Text('Reject', style: TextStyle(color: Colors.white)),
-                  ),
-                ),
-                SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                    onPressed: () => _showApproveDialog(claims),
-                    child: Text('Approve', style: TextStyle(color: Colors.white)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-
-  void _showApproveDialog(List<Claim> claims) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Approve Claims'),
-        content: Text('Are you sure you want to approve the selected claims?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              for (var claimId in selectedClaims) {
-                final claim = claims.firstWhere((c) => c.claimId == claimId);
-                _approveClaim(claim);
-              }
-            },
-            child: Text('Approve'),
-          ),
-        ],
       ),
     );
   }
