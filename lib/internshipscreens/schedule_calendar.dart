@@ -448,7 +448,7 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
                   startDate: _startDate!, // Pass startDate
                   endDate: _endDate!, // Pass endDate
                   description: _descriptionController.text,
-                  duration: duration,
+                  duration: duration.toString(), // Convert duration to String for backend compatibility
                 ));
                 _descriptionController.clear();
                 Navigator.pop(context); // Close the dialog

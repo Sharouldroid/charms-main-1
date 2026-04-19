@@ -17,14 +17,14 @@ class ScheduleProvider with ChangeNotifier {
 
   Future<void> addSchedule(Schedule schedule) async {
     await _scheduleService.addSchedule(schedule);
-    await loadSchedules(); // safer than local append
+    await loadSchedules(); // reload from backend for consistency
   }
 
   Future<void> updateSchedule(Schedule updatedSchedule) async {
     await _scheduleService.updateSchedule(
       updatedSchedule.id,
       updatedSchedule.description,
-      (updatedSchedule.duration ?? '').toString(), // fixed type
+      updatedSchedule.duration, // keep duration as String to match backend
     );
 
     final index = _schedules.indexWhere((s) => s.id == updatedSchedule.id);
