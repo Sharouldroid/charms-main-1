@@ -1,6 +1,6 @@
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:charms/HRproviders/attendances.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
@@ -19,7 +19,8 @@ class StaffScheduleDetailsScreen extends StatefulWidget {
   final int scheduleId;
   final int staffId;
 
-  const StaffScheduleDetailsScreen({super.key, 
+  const StaffScheduleDetailsScreen({
+    super.key,
     required this.location,
     required this.workDate,
     required this.assignedStaff,
@@ -33,7 +34,8 @@ class StaffScheduleDetailsScreen extends StatefulWidget {
   });
 
   @override
-  _StaffScheduleDetailsScreenState createState() => _StaffScheduleDetailsScreenState();
+  _StaffScheduleDetailsScreenState createState() =>
+      _StaffScheduleDetailsScreenState();
 }
 
 class _StaffScheduleDetailsScreenState extends State<StaffScheduleDetailsScreen> {
@@ -60,7 +62,7 @@ class _StaffScheduleDetailsScreenState extends State<StaffScheduleDetailsScreen>
           _isCheckingAttendance = false;
         });
       }
-    } catch (error) {
+    } catch (_) {
       if (mounted) {
         setState(() => _isCheckingAttendance = false);
       }
@@ -72,83 +74,98 @@ class _StaffScheduleDetailsScreenState extends State<StaffScheduleDetailsScreen>
     await _checkExistingAttendance();
   }
 
-  // Optimized to return bytes for MultipartRequest
-  Future<Uint8List> _compressImage(File imageFile) async {
+  // Web/mobile safe compression from raw bytes
+  Future<Uint8List> _compressImageBytes(Uint8List rawBytes) async {
     try {
-      final List<int> imageBytes = await imageFile.readAsBytes();
-      final img.Image? originalImage = img.decodeImage(Uint8List.fromList(imageBytes));
-      
-      if (originalImage == null) throw Exception('Failed to decode image');
-      
-      final int targetWidth = 800;
-      final double aspectRatio = originalImage.width / originalImage.height;
-      final int targetHeight = (targetWidth / aspectRatio).round();
-      
-      final img.Image resizedImage = img.copyResize(
-        originalImage,
-        width: targetWidth,
-        height: targetHeight,
-      );
-      
-      return Uint8List.fromList(img.encodeJpg(resizedImage, quality: 70));
+      final img.Image? originalImage = img.decodeImage(rawBytes);
+      if (originalImage == null) {
+        throw Exception('Failed to decode image bytes');
+      }
+
+      // Resize only if too wide
+      const int maxWidth = 800;
+      img.Image finalImage = originalImage;
+
+      if (originalImage.width > maxWidth) {
+        final int targetHeight =
+            (originalImage.height * (maxWidth / originalImage.width)).round();
+        finalImage = img.copyResize(
+          originalImage,
+          width: maxWidth,
+          height: targetHeight,
+        );
+      }
+
+      return Uint8List.fromList(img.encodeJpg(finalImage, quality: 70));
     } catch (e) {
-      print('Error compressing image: $e');
-      return await imageFile.readAsBytes();
+      debugPrint('Error compressing image bytes: $e');
+      return rawBytes; // fallback to original bytes
     }
   }
 
   Future<void> _handleClockIn() async {
     setState(() => _isLoading = true);
+
     try {
       final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(
-        source: ImageSource.camera,
+
+      final XFile? picked = await picker.pickImage(
+        source: kIsWeb ? ImageSource.gallery : ImageSource.camera,
         preferredCameraDevice: CameraDevice.front,
         imageQuality: 85,
       );
 
-      if (image != null) {
-        final File imageFile = File(image.path);
-        
+      if (picked == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Processing biometric data...'), duration: Duration(seconds: 1)),
+            const SnackBar(content: Text('Please capture/select an image to clock in')),
           );
         }
-        
-        final imageBytes = await _compressImage(imageFile);
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Uploading...'), duration: Duration(seconds: 1)),
-          );
-        }
+        return;
+      }
 
-        final attendanceProvider = Provider.of<Attendances>(context, listen: false);
-        
-        // Use imageBytes instead of Base64 string for the API call
-        final success = await attendanceProvider.recordAttendance(
-  staffId: widget.staffId,
-  scheduleId: widget.scheduleId,
-  image: imageBytes, // This now matches the name and type in your provider
-  clockInTime: DateTime.now().toIso8601String(),
-);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Processing biometric data...'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
 
-        if (success && mounted) {
-          setState(() => isClockIn = true);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Successfully clocked in!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Please capture an image to clock in')),
-          );
-        }
+      final Uint8List rawBytes = await picked.readAsBytes();
+      final Uint8List imageBytes = await _compressImageBytes(rawBytes);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Uploading...'), duration: Duration(seconds: 1)),
+        );
+      }
+
+      final attendanceProvider = Provider.of<Attendances>(context, listen: false);
+
+      final success = await attendanceProvider.recordAttendance(
+        staffId: widget.staffId,
+        scheduleId: widget.scheduleId,
+        image: imageBytes,
+        clockInTime: DateTime.now().toIso8601String(),
+      );
+
+      if (success && mounted) {
+        setState(() => isClockIn = true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Successfully clocked in!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Clock in failed. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (error) {
       if (mounted) {
@@ -162,6 +179,57 @@ class _StaffScheduleDetailsScreenState extends State<StaffScheduleDetailsScreen>
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _showAttendanceDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Clock In'),
+          content: SizedBox(
+            height: 300,
+            width: 300,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Container(
+                  color: Colors.grey[300],
+                  child: Center(
+                    child: _isLoading
+                        ? const CircularProgressIndicator()
+                        : Text(kIsWeb
+                            ? 'Web: choose image from gallery'
+                            : 'Camera Preview'),
+                  ),
+                ),
+                CustomPaint(
+                  painter: FaceOverlayPainter(),
+                  child: Container(),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: _isLoading
+                  ? null
+                  : () {
+                      Navigator.pop(context);
+                      _handleClockIn();
+                    },
+              child: _isLoading
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text('Clock In'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -215,8 +283,11 @@ class _StaffScheduleDetailsScreenState extends State<StaffScheduleDetailsScreen>
                       DetailsRow(
                         label: 'Status',
                         value: isClockIn ? 'Clocked In' : widget.status,
-                        valueColor: isClockIn ? Colors.green : 
-                          widget.status.toLowerCase() == 'active' ? Colors.green : Colors.red,
+                        valueColor: isClockIn
+                            ? Colors.green
+                            : widget.status.toLowerCase() == 'active'
+                                ? Colors.green
+                                : Colors.red,
                       ),
                     ],
                   ),
@@ -247,7 +318,9 @@ class _StaffScheduleDetailsScreenState extends State<StaffScheduleDetailsScreen>
                               leading: CircleAvatar(
                                 backgroundColor: Colors.blue,
                                 child: Text(
-                                  widget.assignedStaff[index][0],
+                                  widget.assignedStaff[index].isNotEmpty
+                                      ? widget.assignedStaff[index][0]
+                                      : '?',
                                   style: const TextStyle(color: Colors.white),
                                 ),
                               ),
@@ -285,53 +358,6 @@ class _StaffScheduleDetailsScreenState extends State<StaffScheduleDetailsScreen>
       ),
     );
   }
-
-  void _showAttendanceDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Clock In'),
-          content: SizedBox(
-            height: 300,
-            width: 300,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Container(
-                  color: Colors.grey[300],
-                  child: Center(
-                    child: _isLoading 
-                      ? const CircularProgressIndicator() 
-                      : const Text('Camera Preview'),
-                  ),
-                ),
-                CustomPaint(
-                  painter: FaceOverlayPainter(),
-                  child: Container(),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: _isLoading ? null : () {
-                Navigator.pop(context);
-                _handleClockIn();
-              },
-              child: _isLoading 
-                ? const CircularProgressIndicator(color: Colors.white)
-                : const Text('Clock In'),
-            ),
-          ],
-        );
-      },
-    );
-  }
 }
 
 class DetailsRow extends StatelessWidget {
@@ -339,7 +365,8 @@ class DetailsRow extends StatelessWidget {
   final String value;
   final Color? valueColor;
 
-  const DetailsRow({super.key, 
+  const DetailsRow({
+    super.key,
     required this.label,
     required this.value,
     this.valueColor,
