@@ -35,6 +35,7 @@ class Payment {
       totalSalary: double.parse(json['total_salary'].toString()),
       pdfPath: json['pdf_path'],
       createdAt: DateTime.parse(json['created_at']),
+      status: json['status'] ?? 'pending',
     );
   }
 
@@ -48,6 +49,7 @@ class Payment {
       'total_deduction': totalDeduction,
       'total_salary': totalSalary,
       'pdf_path': pdfPath,
+      'status': status,
     };
   }
 }

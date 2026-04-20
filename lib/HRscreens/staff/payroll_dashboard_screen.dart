@@ -32,8 +32,18 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
   int _selectedIndex = 2;
 
   final List<String> months = const [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December'
   ];
 
   @override
@@ -70,14 +80,27 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
   Future<void> _fetchPaymentsForYear() async {
     final paymentsProvider = context.read<Payments>();
     try {
-      await paymentsProvider.fetchPaymentsByMonth(selectedYear, 1);
+      final List<Payment> allYearPayments = [];
+
+      // Load all months for selected year (1..12)
+      for (int month = 1; month <= 12; month++) {
+        await paymentsProvider.fetchPaymentsByMonth(selectedYear, month);
+        allYearPayments.addAll(paymentsProvider.payments);
+      }
+
+      // De-duplicate by paymentId in case provider returns overlaps
+      final Map<int, Payment> uniqueById = {};
+      for (final payment in allYearPayments) {
+        uniqueById[payment.paymentId] = payment;
+      }
 
       if (mounted) {
         setState(() {
-          _monthlyPayments = paymentsProvider.payments
+          _monthlyPayments = uniqueById.values
               .where((payment) =>
                   payment.staffId == _currentStaff?.staffId &&
-                  payment.workDate.year == selectedYear)
+                  payment.workDate.year == selectedYear&&
+                  payment.status == 'published')
               .toList();
         });
       }
@@ -168,7 +191,7 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
         backgroundColor: Colors.blue,
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
-        automaticallyImplyLeading: false, // remove drawer/hamburger
+        automaticallyImplyLeading: false,
         actions: [
           IconButton(icon: const Icon(Icons.notifications), onPressed: () {}),
           IconButton(
@@ -230,7 +253,9 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
                       final monthName = months[index];
                       final monthIndex = index + 1;
                       final hasPayslip = _monthlyPayments.any(
-                        (p) => p.workDate.month == monthIndex && p.workDate.year == selectedYear,
+                        (p) =>
+                            p.workDate.month == monthIndex &&
+                            p.workDate.year == selectedYear,
                       );
 
                       return Card(
