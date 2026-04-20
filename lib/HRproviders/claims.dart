@@ -49,42 +49,54 @@ class Claims with ChangeNotifier {
   /// - Supports image/pdf upload
   /// - Works for Flutter Web/PWA and mobile
   Future<void> createClaim(Claim claim) async {
-    try {
-      final uri = Uri.parse('$_hostname/claim/create');
-      final request = http.MultipartRequest('POST', uri);
+  try {
+    final uri = Uri.parse('$_hostname/claim/create');
+    final request = http.MultipartRequest('POST', uri);
 
-      request.fields['staff_id'] = claim.staffId.toString();
-      request.fields['claim_type'] = claim.claimType;
-      request.fields['amount'] = claim.amount.toString();
-      request.fields['description'] = claim.description;
-      request.fields['claim_date'] = claim.claimDate.toIso8601String();
-      request.fields['status'] = claim.status;
-      request.fields['proof_file_name'] = claim.proofFileName ?? '';
-      request.fields['proof_file_type'] = claim.proofFileType ?? '';
+    // Required text fields
+    request.fields['staff_id'] = claim.staffId.toString();
+    request.fields['claim_type'] = claim.claimType;
+    request.fields['amount'] = claim.amount.toString();
+    request.fields['description'] = claim.description;
+    request.fields['claim_date'] = claim.claimDate.toIso8601String();
+    request.fields['status'] = claim.status;
 
-      if (claim.proofFile != null && claim.proofFile!.isNotEmpty) {
-        request.files.add(
-          http.MultipartFile.fromBytes(
-            'proof_file',
-            claim.proofFile!,
-            filename: claim.proofFileName ?? 'proof_file',
-          ),
-        );
-      }
-
-      final streamed = await request.send();
-      final response = await http.Response.fromStream(streamed);
-
-      if (response.statusCode == 201) {
-        // Refresh list from server (gets correct claim_id + proof_file_url)
-        await getClaimByStaffId(claim.staffId);
-      } else {
-        throw Exception('Failed to create claim: ${response.body}');
-      }
-    } catch (error) {
-      throw Exception('Error creating claim: $error');
+    // Optional metadata
+    if (claim.proofFileName != null && claim.proofFileName!.isNotEmpty) {
+      request.fields['proof_file_name'] = claim.proofFileName!;
     }
+    if (claim.proofFileType != null && claim.proofFileType!.isNotEmpty) {
+      request.fields['proof_file_type'] = claim.proofFileType!;
+    }
+
+    // Actual file upload (IMPORTANT)
+    if (claim.proofFile != null && claim.proofFile!.isNotEmpty) {
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'proof_file', // must match Laravel input name
+          claim.proofFile!,
+          filename: claim.proofFileName ?? 'proof_file',
+        ),
+      );
+    }
+
+    final streamed = await request.send();
+    final response = await http.Response.fromStream(streamed);
+
+    // Debug log (remove later)
+    print('createClaim status: ${response.statusCode}');
+    print('createClaim body: ${response.body}');
+
+    if (response.statusCode == 201) {
+      // refresh list to get saved proof_file/proof_file_url
+      await getClaimByStaffId(claim.staffId);
+    } else {
+      throw Exception('Failed to create claim: ${response.body}');
+    }
+  } catch (error) {
+    throw Exception('Error creating claim: $error');
   }
+}
 
   /// 4) UPDATE CLAIM STATUS (JSON)
   /// If only status update is needed, keep this.

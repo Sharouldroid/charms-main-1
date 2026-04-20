@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
@@ -23,11 +25,14 @@ class _ApplyClaimScreenState extends State<ApplyClaimScreen> {
   String? _selectedClaimType;
   String? _selectedProofType;
   DateTime? _claimDate;
+
   final _amountController = TextEditingController();
   final _descriptionController = TextEditingController();
-  XFile? _attachedFile;
 
-  final List<String> _claimTypes = [
+  Uint8List? _attachedBytes;
+  String? _attachedFileName;
+
+  final List<String> _claimTypes = const [
     'Travel',
     'Medical',
     'Food',
@@ -94,7 +99,7 @@ class _ApplyClaimScreenState extends State<ApplyClaimScreen> {
               ),
               ListTile(
                 leading: const Icon(Icons.attach_file),
-                title: const Text('Choose File'),
+                title: const Text('Choose File (PDF/Image)'),
                 onTap: () {
                   Navigator.pop(context);
                   _pickFile();
@@ -111,9 +116,11 @@ class _ApplyClaimScreenState extends State<ApplyClaimScreen> {
     final picker = ImagePicker();
     final image = await picker.pickImage(source: source);
     if (image != null) {
+      final bytes = await image.readAsBytes();
       setState(() {
-        _attachedFile = image;
-        _selectedProofType = 'Image'; // auto set
+        _attachedBytes = bytes;
+        _attachedFileName = image.name;
+        _selectedProofType = 'Image';
       });
     }
   }
@@ -121,26 +128,46 @@ class _ApplyClaimScreenState extends State<ApplyClaimScreen> {
   Future<void> _pickFile() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
-      withData: false,
+      allowedExtensions: ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
+      withData: true, // IMPORTANT for web/PWA
     );
 
-    if (result != null && result.files.single.path != null) {
-      final picked = XFile(result.files.single.path!);
-      setState(() {
-        _attachedFile = picked;
-        _selectedProofType = _detectProofType(picked.name); // auto set
-      });
+    if (result != null && result.files.isNotEmpty) {
+      final file = result.files.single;
+
+      // For web: bytes is used
+      // For mobile/desktop: bytes may be null unless withData=true (we enabled it)
+      final bytes = file.bytes;
+      final name = file.name;
+
+      if (bytes != null) {
+        setState(() {
+          _attachedBytes = bytes;
+          _attachedFileName = name;
+          _selectedProofType = _detectProofType(name);
+        });
+      } else {
+        // fallback (rare)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unable to read file bytes. Please try again.')),
+        );
+      }
     }
   }
 
   Future<void> _submitClaim() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // Optional: require attachment
+    // if (_attachedBytes == null || _attachedFileName == null) {
+    //   ScaffoldMessenger.of(context).showSnackBar(
+    //     const SnackBar(content: Text('Please attach a proof file.')),
+    //   );
+    //   return;
+    // }
+
     try {
       final claimsProvider = Provider.of<Claims>(context, listen: false);
-
-      final bytes = _attachedFile != null ? await _attachedFile!.readAsBytes() : null;
 
       final newClaim = Claim(
         claimId: 0,
@@ -149,9 +176,9 @@ class _ApplyClaimScreenState extends State<ApplyClaimScreen> {
         amount: double.parse(_amountController.text),
         claimDate: _claimDate!,
         description: _descriptionController.text,
-        proofFileName: _attachedFile?.name,
-        proofFileType: _selectedProofType, // Image / PDF
-        proofFile: bytes,
+        proofFileName: _attachedFileName,
+        proofFileType: _selectedProofType,
+        proofFile: _attachedBytes,
         status: 'Pending',
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
@@ -174,6 +201,10 @@ class _ApplyClaimScreenState extends State<ApplyClaimScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final attachedLabel = (_attachedFileName != null && _attachedFileName!.isNotEmpty)
+        ? 'Attached: $_attachedFileName'
+        : 'Attach Document (Optional)';
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Apply Claim', style: TextStyle(color: Colors.white)),
@@ -212,7 +243,9 @@ class _ApplyClaimScreenState extends State<ApplyClaimScreen> {
                       suffixIcon: Icon(Icons.calendar_today),
                     ),
                     controller: TextEditingController(
-                      text: _claimDate == null ? '' : DateFormat('dd/MM/yyyy').format(_claimDate!),
+                      text: _claimDate == null
+                          ? ''
+                          : DateFormat('dd/MM/yyyy').format(_claimDate!),
                     ),
                     validator: (_) => _claimDate == null ? 'Please select a date' : null,
                   ),
@@ -263,9 +296,7 @@ class _ApplyClaimScreenState extends State<ApplyClaimScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      _attachedFile != null
-                          ? "Attached: ${_attachedFile!.name}"
-                          : 'Attach Document (Optional)',
+                      attachedLabel,
                       style: const TextStyle(fontSize: 16),
                     ),
                   ),

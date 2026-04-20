@@ -227,7 +227,7 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
                   labelText: 'Leave Type',
                   border: OutlineInputBorder(),
                 ),
-                value: _selectedLeaveType,
+                initialValue: _selectedLeaveType,
                 onChanged: (value) {
                   setState(() {
                     _selectedLeaveType = value;
@@ -313,7 +313,7 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
                   labelText: proofLabel,
                   border: const OutlineInputBorder(),
                 ),
-                value: _selectedProofType,
+                initialValue: _selectedProofType,
                 onChanged: (value) => setState(() => _selectedProofType = value),
                 items: const [
                   DropdownMenuItem(value: 'Image', child: Text('Image')),
