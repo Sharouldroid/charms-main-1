@@ -68,23 +68,24 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
   }
 
   Future<void> _fetchPaymentsForYear() async {
-    final paymentsProvider = context.read<Payments>();
-    try {
-      await paymentsProvider.fetchPaymentsByMonth(selectedYear, 1);
+  final paymentsProvider = context.read<Payments>();
+  try {
+    await paymentsProvider.fetchPaymentsByYear(selectedYear); // ← use new method
 
-      if (mounted) {
-        setState(() {
-          _monthlyPayments = paymentsProvider.payments
-              .where((payment) =>
-                  payment.staffId == _currentStaff?.staffId &&
-                  payment.workDate.year == selectedYear)
-              .toList();
-        });
-      }
-    } catch (error) {
-      debugPrint('Error fetching payments: $error');
+    if (mounted) {
+      setState(() {
+        _monthlyPayments = paymentsProvider.payments
+            .where((payment) =>
+                payment.staffId == _currentStaff?.staffId &&
+                payment.workDate.year == selectedYear &&
+                payment.status == 'published') // ← filter published only
+            .toList();
+      });
     }
+  } catch (error) {
+    debugPrint('Error fetching payments: $error');
   }
+}
 
   void _viewPayslip(String monthName) {
     try {

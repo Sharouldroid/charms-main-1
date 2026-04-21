@@ -8,7 +8,7 @@ class Payment {
   final double totalSalary;
   final String? pdfPath;
   final DateTime createdAt;
-  final String status; // 'pending' or 'published'
+  final String status; // 'draft' or 'published'
 
 
   Payment({
@@ -21,7 +21,7 @@ class Payment {
     required this.totalSalary,
     this.pdfPath,
     required this.createdAt,
-    this.status = 'pending',
+    this.status = 'draft',
   });
 
   factory Payment.fromJson(Map<String, dynamic> json) {
@@ -30,11 +30,12 @@ class Payment {
       staffId: json['staff_id'],
       workDate: DateTime.parse(json['work_date']),
       basicPay: double.parse(json['basic_pay'].toString()),
-      totalBonus: double.parse(json['total_bonus'].toString()),
-      totalDeduction: double.parse(json['total_deduction'].toString()),
-      totalSalary: double.parse(json['total_salary'].toString()),
+      totalBonus: double.parse(json['total_bonus']??0.toString()),
+      totalDeduction: double.parse(json['total_deduction']??0.toString()),
+      totalSalary: double.parse(json['total_salary']??0.toString()),
       pdfPath: json['pdf_path'],
       createdAt: DateTime.parse(json['created_at']),
+      status: json['status'] ?? 'draft',
     );
   }
 
@@ -48,6 +49,7 @@ class Payment {
       'total_deduction': totalDeduction,
       'total_salary': totalSalary,
       'pdf_path': pdfPath,
+      'status': status,
     };
   }
 }

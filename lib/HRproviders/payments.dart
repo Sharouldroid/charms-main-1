@@ -26,25 +26,46 @@ class Payments with ChangeNotifier {
     }
   }
 
-  Future<void> fetchPaymentsByMonth(int year, int month) async {
-    try {
-      // Aligned with Route::get('/by-month', [HRPaymentController::class, 'getPaymentsByMonth'])
-      // Sends year and month as query parameters
+Future<void> fetchPaymentsByMonth(int year, int month) async {
+  try {
+    final url = Uri.parse('$_hostname/payment/by-month?year=$year&month=$month');
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final List<dynamic> paymentData = json.decode(response.body);
+      _payments = paymentData.map((data) => Payment.fromJson(data)).toList();
+      notifyListeners();
+    } else {
+      throw Exception('Failed to fetch monthly payments: ${response.statusCode}');
+    }
+  } catch (error) {
+    throw Exception('Failed to fetch payments: $error');
+  }
+}
+
+  // Add this new method for fetching the full year
+Future<void> fetchPaymentsByYear(int year) async {
+  try {
+    List<Payment> allPayments = [];
+
+    for (int month = 1; month <= 12; month++) {
       final url = Uri.parse('$_hostname/payment/by-month?year=$year&month=$month');
       final response = await http.get(url);
-      
+
       if (response.statusCode == 200) {
         final List<dynamic> paymentData = json.decode(response.body);
-        _payments = paymentData.map((data) => Payment.fromJson(data)).toList();
-        notifyListeners();
-      } else {
-        throw Exception('Failed to fetch monthly payments: ${response.statusCode}');
+        allPayments.addAll(
+          paymentData.map((data) => Payment.fromJson(data)).toList(),
+        );
       }
-    } catch (error) {
-      print('Error in fetchPaymentsByMonth: $error');
-      throw Exception('Failed to fetch payments: $error');
     }
+
+    _payments = allPayments; // set once after all months loaded
+    notifyListeners();
+  } catch (error) {
+    throw Exception('Failed to fetch yearly payments: $error');
   }
+}
 
   Future<Payment> getPaymentById(int paymentId) async {
     try {
