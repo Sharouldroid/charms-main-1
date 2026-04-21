@@ -73,7 +73,7 @@ import 'ReplacementItemsPage.dart';
 import 'landscape_page.dart';
 import 'others_maintenance.dart';
 import 'water_quality_page.dart';
-import 'package:charms/list_bahan_page.dart'; // Add this
+import 'package:charms/list_bahan_page.dart';
 
 // 🌟 NEW IMPORT
 import 'app_startup.dart'; 

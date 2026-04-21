@@ -30,7 +30,7 @@ class Staff {
 }
 
 class ApiService {
-  static final String baseUrl = 'http://10.0.2.2:5002/cms/api/v1'; // Update for your API URL
+  static final String baseUrl = 'https://devcms.com.my/charmsAPI/api'; // Update for your API URL
   static const _timeoutDuration = Duration(seconds: 10);
 
   // Generic GET method
