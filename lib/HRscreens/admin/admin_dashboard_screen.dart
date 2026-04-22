@@ -3,7 +3,7 @@ import 'package:charms/HRproviders/leaves.dart';
 import 'package:charms/HRproviders/attendances.dart';
 import 'package:charms/HRproviders/payments.dart';
 import 'package:charms/HRproviders/schedules.dart';
-import 'package:charms/HRproviders/claims.dart'; // ✅ Added Claims provider import
+import 'package:charms/HRproviders/claims.dart'; 
 import 'package:charms/HRscreens/admin/admin_list_screen.dart';
 import 'package:charms/HRscreens/admin/manage_staff_screen.dart';
 import 'package:charms/HRscreens/admin/notification_screen.dart';

@@ -11,6 +11,11 @@ import 'package:charms/HRscreens/admin/staff_list_screen.dart';
 import 'package:charms/HRwidgets/admin/bottom_nav_bar.dart';
 import 'package:charms/screens/dashboard_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:charms/HRproviders/claims.dart';
+import 'package:charms/HRproviders/schedules.dart';
+import 'package:charms/HRproviders/leaves.dart';
+import 'package:charms/HRproviders/payments.dart';
 
 class ManageStaffScreen extends StatefulWidget {
   final String username;
@@ -68,12 +73,29 @@ class _ManageStaffScreenState extends State<ManageStaffScreen> {
         centerTitle: true,
         backgroundColor: Colors.blue,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => NotificationScreen()),
+          // ✅ Admin Notification Badge
+          Consumer3<Leaves, Payments, Claims>(
+            builder: (context, leaves, payments, claims, child) {
+              int pendingLeaves = leaves.leaves.where((l) => l.status == 'Pending').length;
+              int pendingPayrolls = payments.payments.where((p) => p.status == 'Pending').length;
+              int pendingClaims = claims.claims.where((c) => c.status == 'Pending').length;
+
+              int totalPending = pendingLeaves + pendingPayrolls + pendingClaims;
+
+              return IconButton(
+                icon: totalPending > 0
+                    ? Badge(
+                        label: Text(totalPending.toString()),
+                        backgroundColor: Colors.red,
+                        child: const Icon(Icons.notifications),
+                      )
+                    : const Icon(Icons.notifications),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const NotificationScreen()),
+                  );
+                },
               );
             },
           ),

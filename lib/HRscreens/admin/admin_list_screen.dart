@@ -1,6 +1,9 @@
-import 'package:charms/HRmodels/staff.dart'; // ✅ Changed to Staff model
+import 'package:charms/HRmodels/staff.dart'; 
 import 'package:charms/HRproviders/auth.dart' as hr_auth;
-import 'package:charms/HRproviders/staffs.dart'; // ✅ Changed to Staffs provider
+import 'package:charms/HRproviders/staffs.dart'; 
+import 'package:charms/HRproviders/claims.dart'; // ✅ Added
+import 'package:charms/HRproviders/leaves.dart'; // ✅ Added
+import 'package:charms/HRproviders/payments.dart'; // ✅ Added
 import 'package:charms/HRscreens/admin/admin_dashboard_screen.dart';
 import 'package:charms/HRscreens/admin/manage_staff_screen.dart';
 import 'package:charms/HRscreens/admin/myself_screen.dart';
@@ -19,7 +22,7 @@ class AdminListScreen extends StatefulWidget {
 }
 
 class _AdminListScreenState extends State<AdminListScreen> {
-  List<Staff> _adminUsers = []; // ✅ Changed to List<Staff>
+  List<Staff> _adminUsers = []; 
   bool _isLoading = true;
   String _searchQuery = '';
   bool _isAscending = true;
@@ -32,7 +35,7 @@ class _AdminListScreenState extends State<AdminListScreen> {
   }
 
   // Helper: get display name (username if firstname is empty)
-  String _getDisplayName(Staff staff) { // ✅ Changed parameter to Staff
+  String _getDisplayName(Staff staff) { 
     final fullName = '${staff.firstname} ${staff.lastname}'.trim();
     return fullName.isNotEmpty ? fullName : staff.username;
   }
@@ -42,7 +45,7 @@ class _AdminListScreenState extends State<AdminListScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final staffsProvider = context.read<Staffs>(); // ✅ Load via Staffs provider
+      final staffsProvider = context.read<Staffs>(); 
 
       await staffsProvider.fetchStaff().timeout(const Duration(seconds: 12));
 
@@ -101,7 +104,7 @@ class _AdminListScreenState extends State<AdminListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    List<Staff> filteredAdmins = _adminUsers // ✅ Changed to List<Staff>
+    List<Staff> filteredAdmins = _adminUsers 
         .where((admin) =>
             '${admin.firstname} ${admin.lastname} ${admin.username}'
                 .toLowerCase()
@@ -124,12 +127,29 @@ class _AdminListScreenState extends State<AdminListScreen> {
         title: const Text('CHARMS ADMIN', style: TextStyle(color: Colors.white)),
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => NotificationScreen()),
+          // ✅ Admin Notification Badge
+          Consumer3<Leaves, Payments, Claims>(
+            builder: (context, leaves, payments, claims, child) {
+              int pendingLeaves = leaves.leaves.where((l) => l.status == 'Pending').length;
+              int pendingPayrolls = payments.payments.where((p) => p.status == 'Pending').length;
+              int pendingClaims = claims.claims.where((c) => c.status == 'Pending').length;
+
+              int totalPending = pendingLeaves + pendingPayrolls + pendingClaims;
+
+              return IconButton(
+                icon: totalPending > 0
+                    ? Badge(
+                        label: Text(totalPending.toString()),
+                        backgroundColor: Colors.red,
+                        child: const Icon(Icons.notifications),
+                      )
+                    : const Icon(Icons.notifications),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const NotificationScreen()),
+                  );
+                },
               );
             },
           ),
@@ -194,7 +214,6 @@ class _AdminListScreenState extends State<AdminListScreen> {
                               child: ListTile(
                                 leading: CircleAvatar(
                                   backgroundColor: Colors.blue,
-                                  // ✅ Now admin is a Staff model, so filepath exists!
                                   backgroundImage: (admin.filepath != null && admin.filepath!.isNotEmpty)
                                       ? NetworkImage('https://devcms.com.my/charmsAPI/public/storage/${admin.filepath}')
                                       : null,
