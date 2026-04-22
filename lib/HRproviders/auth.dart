@@ -9,8 +9,8 @@ import '../HRmodels/user.dart';
 
 class Auth with ChangeNotifier {
   DateTime? lastLoginTime;
-  String? _token;        // Sanctum Bearer token
-  String? _userId;       // User's login ID
+  String? _token;
+  String? _userId;
   DateTime _expiryDate = DateTime.now();
   int _usertype = 2;
   Timer _authTimer = Timer(const Duration(hours: 0), () {});
@@ -45,12 +45,12 @@ class Auth with ChangeNotifier {
     if (response.statusCode == 200 && responseData['success'] == true) {
       final data = responseData['data'];
 
-      // Save the Sanctum Bearer token
       _token = responseData['token'] ?? '';
       _userId = (data['id'] ?? data['userid']).toString();
       _username = data['username'] ?? username;
-      _usertype =
-          data['usertype'] != null ? int.parse(data['usertype'].toString()) : 2;
+      _usertype = data['usertype'] != null
+          ? int.parse(data['usertype'].toString())
+          : 2;
 
       _expiryDate = DateTime.now().add(const Duration(hours: 3));
       lastLoginTime = DateTime.now();
@@ -113,8 +113,8 @@ class Auth with ChangeNotifier {
     notifyListeners();
   }
 
-  // Register staff (3-step)
-  Future<void> registerStaff(Map<String, String> staffData) async {
+  // ✅ Register staff (3-step) — now returns staffId (HR_staff.id)
+  Future<int> registerStaff(Map<String, String> staffData) async {
     const staffDataUrl = '${_hostname}staff/create';
     const userUrl = '${_hostname}user/create';
     const staffProfileUrl = '${_hostname}staff/profile/create';
@@ -159,21 +159,22 @@ class Auth with ChangeNotifier {
       }
 
       final staffJson = jsonDecode(staffRes.body);
-      final dynamic rawStaffId = staffJson['data']?['id'] ?? staffJson['id'];
+      final dynamic rawUserdataId = staffJson['data']?['id'] ?? staffJson['id'];
+      final int? createdUserdataId = rawUserdataId is int
+          ? rawUserdataId
+          : int.tryParse(rawUserdataId?.toString() ?? '');
 
-      final int? createdStaffId = rawStaffId is int
-          ? rawStaffId
-          : int.tryParse(rawStaffId?.toString() ?? '');
-
-      if (createdStaffId == null) {
-        throw Exception('Staff data created but id not returned: ${staffRes.body}');
+      if (createdUserdataId == null) {
+        throw Exception(
+            'Staff data created but id not returned: ${staffRes.body}');
       }
 
       // STEP 2: create HR_userlogin
-      final cleanPass = (staffData['passkey'] ?? staffData['password'] ?? '').trim();
+      final cleanPass =
+          (staffData['passkey'] ?? staffData['password'] ?? '').trim();
 
       final userPayload = {
-        'userid': createdStaffId,
+        'userid': createdUserdataId,
         'username': staffData['username'],
         'email': staffData['email'],
         'usertype': staffData['usertype'],
@@ -200,16 +201,9 @@ class Auth with ChangeNotifier {
         throw Exception('User creation failed: ${userRes.body}');
       }
 
-      final userJson = jsonDecode(userRes.body);
-      final dynamic rawLoginId = userJson['data']?['id'] ?? userJson['id'];
-      final int? createdLoginId = rawLoginId is int
-          ? rawLoginId
-          : int.tryParse(rawLoginId?.toString() ?? '');
-      debugPrint('USER LOGIN ID (not used for HR_staff FK): $createdLoginId');
-
       // STEP 3: create HR_staff profile
       final staffProfilePayload = {
-        'user_id': createdStaffId,
+        'user_id': createdUserdataId,
         'category': staffData['category'],
         'nationality': staffData['nationality'],
         'religion': staffData['religion'],
@@ -223,7 +217,8 @@ class Auth with ChangeNotifier {
       };
 
       debugPrint('STAFF PROFILE CREATE URL: $staffProfileUrl');
-      debugPrint('STAFF PROFILE CREATE PAYLOAD: ${jsonEncode(staffProfilePayload)}');
+      debugPrint(
+          'STAFF PROFILE CREATE PAYLOAD: ${jsonEncode(staffProfilePayload)}');
 
       final staffProfileRes = await http.post(
         Uri.parse(staffProfileUrl),
@@ -237,11 +232,27 @@ class Auth with ChangeNotifier {
       debugPrint('STAFF PROFILE CREATE STATUS: ${staffProfileRes.statusCode}');
       debugPrint('STAFF PROFILE CREATE RESPONSE: ${staffProfileRes.body}');
 
-      if (staffProfileRes.statusCode != 200 && staffProfileRes.statusCode != 201) {
-        throw Exception('Staff profile creation failed: ${staffProfileRes.body}');
+      if (staffProfileRes.statusCode != 200 &&
+          staffProfileRes.statusCode != 201) {
+        throw Exception(
+            'Staff profile creation failed: ${staffProfileRes.body}');
+      }
+
+      // ✅ Get the HR_staff.id from step 3 response — this is what uploadStaffPhoto needs
+      final staffProfileJson = jsonDecode(staffProfileRes.body);
+      final dynamic rawStaffId =
+          staffProfileJson['data']?['id'] ?? staffProfileJson['id'];
+      final int? createdStaffId = rawStaffId is int
+          ? rawStaffId
+          : int.tryParse(rawStaffId?.toString() ?? '');
+
+      if (createdStaffId == null) {
+        throw Exception(
+            'Staff profile created but staff id not returned: ${staffProfileRes.body}');
       }
 
       notifyListeners();
+      return createdStaffId; // ✅ return HR_staff.id for photo upload
     } catch (error) {
       debugPrint('Error during registerStaff: $error');
       rethrow;
@@ -255,7 +266,8 @@ class Auth with ChangeNotifier {
     final extractedData =
         json.decode(prefs.getString('userData')!) as Map<String, Object>;
 
-    final expiryDate = DateTime.parse(extractedData['expiryDate'].toString());
+    final expiryDate =
+        DateTime.parse(extractedData['expiryDate'].toString());
     if (expiryDate.isBefore(DateTime.now())) return false;
 
     _token = extractedData['token'].toString();

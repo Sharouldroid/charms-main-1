@@ -1,5 +1,9 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb; // ✅ Added for web check
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+
 import 'package:charms/HRproviders/auth.dart' as hr_auth;
 import 'package:charms/HRproviders/staffs.dart';
 import 'package:charms/HRmodels/staff.dart';
@@ -23,6 +27,9 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
   Staff? _currentStaff;
   bool _isLoading = true;
   bool _isEditing = false;
+
+  XFile? _profileImage; // ✅ Changed to XFile
+  final ImagePicker _picker = ImagePicker();
 
   final _formKey = GlobalKey<FormState>();
 
@@ -138,6 +145,24 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
     _emergencyPhoneController.text = _currentStaff!.emergencyPhone;
   }
 
+  Future<void> _pickImage() async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+      if (pickedFile != null) {
+        setState(() {
+          _profileImage = pickedFile; // ✅ Assign XFile directly
+        });
+      }
+    } catch (e) {
+      debugPrint("Error picking image: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to pick image: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _updateStaffInfo() async {
     if (!_formKey.currentState!.validate() || _currentStaff == null) return;
 
@@ -172,9 +197,15 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
         postcode: int.tryParse(_postcodeController.text) ?? 0,
         state: _stateController.text,
         country: _countryController.text,
+        filepath: _currentStaff!.filepath,
       );
 
       await context.read<Staffs>().updateStaffDetails(_currentStaff!.staffId, updatedStaff);
+
+      // ✅ Upload photo if changed (Pass XFile directly)
+      if (_profileImage != null && _currentStaff != null) {
+        await context.read<Staffs>().uploadStaffPhoto(_currentStaff!.staffId, _profileImage!);
+      }
 
       setState(() {
         _isEditing = false;
@@ -200,10 +231,7 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
   }
 
   Future<void> _logout() async {
-    Navigator.of(context).pushNamedAndRemoveUntil(
-      DashboardScreen.routeName,
-      (route) => false,
-    );
+    Navigator.of(context).pushNamedAndRemoveUntil(DashboardScreen.routeName, (route) => false);
   }
 
   void _onItemTapped(int index) {
@@ -216,19 +244,13 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
         nextScreen = StaffDashboardScreen(username: _currentStaff?.username ?? '');
         break;
       case 1:
-        nextScreen = LeaveDashboardScreen(
-          username: _currentStaff?.username ?? '',
-          staffId: _currentStaff?.staffId ?? 0,
-        );
+        nextScreen = LeaveDashboardScreen(username: _currentStaff?.username ?? '', staffId: _currentStaff?.staffId ?? 0);
         break;
       case 2:
         nextScreen = PayrollDashboardScreen(username: _currentStaff?.username ?? '');
         break;
       case 3:
-        nextScreen = ClaimDashboardScreen(
-          username: _currentStaff?.username ?? '',
-          staffId: _currentStaff?.staffId ?? 0,
-        );
+        nextScreen = ClaimDashboardScreen(username: _currentStaff?.username ?? '', staffId: _currentStaff?.staffId ?? 0);
         break;
       case 4:
         return;
@@ -236,10 +258,7 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
         return;
     }
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => nextScreen),
-    );
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => nextScreen));
   }
 
   Widget _buildInfoField(String label, TextEditingController controller, {bool enabled = false}) {
@@ -264,7 +283,7 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
     return Scaffold(
       appBar: AppBar(
         iconTheme: const IconThemeData(color: Colors.white),
-        automaticallyImplyLeading: false, // remove drawer/hamburger
+        automaticallyImplyLeading: false,
         title: const Text('CHARMS STAFF', style: TextStyle(color: Colors.white)),
         centerTitle: true,
         backgroundColor: Colors.blue,
@@ -298,10 +317,41 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
                     Center(
                       child: Column(
                         children: [
-                          const CircleAvatar(
-                            radius: 50,
-                            backgroundColor: Colors.blue,
-                            child: Icon(Icons.person, size: 50, color: Colors.white),
+                          GestureDetector(
+                            onTap: _isEditing ? _pickImage : null,
+                            child: Stack(
+                              children: [
+                                CircleAvatar(
+                                  radius: 50,
+                                  backgroundColor: Colors.blue,
+                                  // ✅ Web-safe background image logic
+                                  backgroundImage: _profileImage != null
+                                      ? (kIsWeb
+                                          ? NetworkImage(_profileImage!.path) as ImageProvider
+                                          : FileImage(File(_profileImage!.path)))
+                                      : (_currentStaff?.filepath != null && _currentStaff!.filepath!.isNotEmpty)
+                                          ? NetworkImage('https://devcms.com.my/charmsAPI/public/storage/${_currentStaff!.filepath}')
+                                          : null,
+                                  child: (_profileImage == null &&
+                                          (_currentStaff?.filepath == null || _currentStaff!.filepath!.isEmpty))
+                                      ? const Icon(Icons.person, size: 50, color: Colors.white)
+                                      : null,
+                                ),
+                                if (_isEditing)
+                                  Positioned(
+                                    bottom: 0,
+                                    right: 0,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.white,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.camera_alt, size: 18, color: Colors.blue),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
                           const SizedBox(height: 20),
                           Text(
