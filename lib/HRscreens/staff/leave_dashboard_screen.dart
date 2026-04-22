@@ -1,10 +1,13 @@
 import 'package:charms/HRmodels/leave.dart';
 import 'package:charms/HRproviders/leaves.dart';
+import 'package:charms/HRproviders/claims.dart';
+import 'package:charms/HRproviders/schedules.dart';
 import 'package:charms/HRscreens/staff/apply_leave_screen.dart';
 import 'package:charms/HRscreens/staff/claim_dashboard.dart';
 import 'package:charms/HRscreens/staff/payroll_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/staff_myself_screen.dart';
+import 'package:charms/HRscreens/staff/staff_notification_screen.dart';
 import 'package:charms/HRwidgets/staff/bottom_nav_staff.dart';
 import 'package:charms/HRwidgets/staff/proof_attachment.dart';
 import 'package:charms/screens/dashboard_screen.dart';
@@ -45,7 +48,13 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
 
   Future<void> _fetchLeaveData() async {
     final leavesProvider = Provider.of<Leaves>(context, listen: false);
-    await leavesProvider.getLeaveByStaffId(staffId: widget.staffId);
+    final claimsProvider = Provider.of<Claims>(context, listen: false);
+
+    await Future.wait([
+      leavesProvider.getLeaveByStaffId(staffId: widget.staffId),
+      claimsProvider.fetchClaims(), // ✅ needed for notification badge
+    ]);
+
     _calculateLeaveBalance();
     if (mounted) setState(() {});
   }
@@ -95,7 +104,8 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
             children: [
               Text(
                 leaveType,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 14),
               ),
               const SizedBox(height: 6),
               Text('Total: ${balance['total']} days'),
@@ -130,7 +140,8 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
           children: [
             Text(
               "Staff ID: ${leave.staffId}",
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 5),
             Text("Leave Type: ${leave.leaveType}"),
@@ -190,7 +201,8 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => StaffDashboardScreen(username: widget.username),
+            builder: (context) =>
+                StaffDashboardScreen(username: widget.username),
           ),
         );
         break;
@@ -209,7 +221,8 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => PayrollDashboardScreen(username: widget.username),
+            builder: (context) =>
+                PayrollDashboardScreen(username: widget.username),
           ),
         );
         break;
@@ -240,11 +253,54 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
       appBar: AppBar(
         iconTheme: const IconThemeData(color: Colors.white),
         automaticallyImplyLeading: false,
-        title: const Text("CHARMS STAFF", style: TextStyle(color: Colors.white)),
+        title: const Text("CHARMS STAFF",
+            style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.blue,
         centerTitle: true,
         actions: [
-          IconButton(icon: const Icon(Icons.notifications), onPressed: () {}),
+          // ✅ Notification badge — same as dashboard
+          Consumer3<Leaves, Claims, Schedules>(
+            builder: (context, leaves, claims, schedules, child) {
+              int resolvedLeaves = leaves.leaves
+                  .where((l) =>
+                      l.staffId == widget.staffId &&
+                      l.status != 'Pending')
+                  .length;
+
+              int resolvedClaims = claims.claims
+                  .where((c) =>
+                      c.staffId == widget.staffId &&
+                      c.status != 'Pending')
+                  .length;
+
+              int assignedSchedules = schedules.schedules
+                  .where((s) => s.staffId == widget.staffId)
+                  .length;
+
+              int totalNotifications =
+                  resolvedLeaves + resolvedClaims + assignedSchedules;
+
+              return IconButton(
+                icon: totalNotifications > 0
+                    ? Badge(
+                        label: Text(totalNotifications.toString()),
+                        backgroundColor: Colors.red,
+                        child: const Icon(Icons.notifications),
+                      )
+                    : const Icon(Icons.notifications),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => StaffNotificationScreen(
+                        staffId: widget.staffId,
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Back to Dashboard',
@@ -254,16 +310,23 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(child: Text("Pending", style: TextStyle(color: Colors.white))),
-            Tab(child: Text("Approved", style: TextStyle(color: Colors.white))),
-            Tab(child: Text("Rejected", style: TextStyle(color: Colors.white))),
+            Tab(
+                child: Text("Pending",
+                    style: TextStyle(color: Colors.white))),
+            Tab(
+                child: Text("Approved",
+                    style: TextStyle(color: Colors.white))),
+            Tab(
+                child: Text("Rejected",
+                    style: TextStyle(color: Colors.white))),
           ],
         ),
       ),
       body: Consumer<Leaves>(
         builder: (context, leavesData, child) {
-          final allLeaves =
-              leavesData.leaves.where((l) => l.staffId == widget.staffId).toList();
+          final allLeaves = leavesData.leaves
+              .where((l) => l.staffId == widget.staffId)
+              .toList();
 
           final pending = allLeaves
               .where((l) => l.status.trim().toLowerCase() == 'pending')
@@ -309,7 +372,8 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
           final created = await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => LeaveFormScreen(staffId: widget.staffId),
+              builder: (context) =>
+                  LeaveFormScreen(staffId: widget.staffId),
             ),
           );
 

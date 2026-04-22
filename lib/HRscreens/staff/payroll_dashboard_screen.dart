@@ -1,11 +1,15 @@
 import 'package:charms/HRmodels/payment.dart';
 import 'package:charms/HRmodels/staff.dart';
+import 'package:charms/HRproviders/claims.dart';
+import 'package:charms/HRproviders/leaves.dart';
 import 'package:charms/HRproviders/payments.dart';
+import 'package:charms/HRproviders/schedules.dart';
 import 'package:charms/HRproviders/staffs.dart';
 import 'package:charms/HRscreens/staff/claim_dashboard.dart';
 import 'package:charms/HRscreens/staff/leave_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/staff_myself_screen.dart';
+import 'package:charms/HRscreens/staff/staff_notification_screen.dart';
 import 'package:charms/HRscreens/staff/staff_payroll_details_screen.dart';
 import 'package:charms/HRwidgets/staff/bottom_nav_staff.dart';
 import 'package:charms/screens/dashboard_screen.dart';
@@ -45,7 +49,15 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
   Future<void> _loadPayrollData() async {
     try {
       final staffsProvider = context.read<Staffs>();
-      await staffsProvider.fetchStaff();
+      final leavesProvider = context.read<Leaves>();
+      final claimsProvider = context.read<Claims>();
+
+      // ✅ Fetch all data in parallel including leaves/claims for badge
+      await Future.wait([
+        staffsProvider.fetchStaff(),
+        leavesProvider.fetchLeaves(),
+        claimsProvider.fetchClaims(),
+      ]);
 
       final staffList = staffsProvider.staffList;
       if (staffList.isNotEmpty) {
@@ -68,24 +80,24 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
   }
 
   Future<void> _fetchPaymentsForYear() async {
-  final paymentsProvider = context.read<Payments>();
-  try {
-    await paymentsProvider.fetchPaymentsByYear(selectedYear); // ← use new method
+    final paymentsProvider = context.read<Payments>();
+    try {
+      await paymentsProvider.fetchPaymentsByYear(selectedYear);
 
-    if (mounted) {
-      setState(() {
-        _monthlyPayments = paymentsProvider.payments
-            .where((payment) =>
-                payment.staffId == _currentStaff?.staffId &&
-                payment.workDate.year == selectedYear &&
-                payment.status == 'published') // ← filter published only
-            .toList();
-      });
+      if (mounted) {
+        setState(() {
+          _monthlyPayments = paymentsProvider.payments
+              .where((payment) =>
+                  payment.staffId == _currentStaff?.staffId &&
+                  payment.workDate.year == selectedYear &&
+                  payment.status == 'published')
+              .toList();
+        });
+      }
+    } catch (error) {
+      debugPrint('Error fetching payments: $error');
     }
-  } catch (error) {
-    debugPrint('Error fetching payments: $error');
   }
-}
 
   void _viewPayslip(String monthName) {
     try {
@@ -102,7 +114,8 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
             month: monthName,
             year: selectedYear,
             staffId: _currentStaff?.staffId.toString() ?? '',
-            staffName: '${_currentStaff?.firstname} ${_currentStaff?.lastname}',
+            staffName:
+                '${_currentStaff?.firstname} ${_currentStaff?.lastname}',
             workingDays: '22',
             basicPay: payment.basicPay,
             totalBonus: payment.totalBonus,
@@ -165,13 +178,56 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('CHARMS STAFF', style: TextStyle(color: Colors.white)),
+        title: const Text('CHARMS STAFF',
+            style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.blue,
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
-        automaticallyImplyLeading: false, // remove drawer/hamburger
+        automaticallyImplyLeading: false,
         actions: [
-          IconButton(icon: const Icon(Icons.notifications), onPressed: () {}),
+          // ✅ Notification badge — same as dashboard
+          Consumer3<Leaves, Claims, Schedules>(
+            builder: (context, leaves, claims, schedules, child) {
+              int staffId = _currentStaff?.staffId ?? 0;
+
+              int resolvedLeaves = leaves.leaves
+                  .where((l) =>
+                      l.staffId == staffId && l.status != 'Pending')
+                  .length;
+
+              int resolvedClaims = claims.claims
+                  .where((c) =>
+                      c.staffId == staffId && c.status != 'Pending')
+                  .length;
+
+              int assignedSchedules = schedules.schedules
+                  .where((s) => s.staffId == staffId)
+                  .length;
+
+              int totalNotifications =
+                  resolvedLeaves + resolvedClaims + assignedSchedules;
+
+              return IconButton(
+                icon: totalNotifications > 0
+                    ? Badge(
+                        label: Text(totalNotifications.toString()),
+                        backgroundColor: Colors.red,
+                        child: const Icon(Icons.notifications),
+                      )
+                    : const Icon(Icons.notifications),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => StaffNotificationScreen(
+                        staffId: staffId,
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Back to Dashboard',
@@ -190,14 +246,17 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
                     children: [
                       const Text(
                         'Payroll',
-                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            fontSize: 24, fontWeight: FontWeight.bold),
                       ),
                       Row(
                         children: [
-                          const Text('Year: ', style: TextStyle(fontSize: 16)),
+                          const Text('Year: ',
+                              style: TextStyle(fontSize: 16)),
                           DropdownButton<int>(
                             value: selectedYear,
-                            items: List.generate(5, (i) => DateTime.now().year - i)
+                            items: List.generate(
+                                    5, (i) => DateTime.now().year - i)
                                 .map((year) => DropdownMenuItem(
                                       value: year,
                                       child: Text(year.toString()),
@@ -209,7 +268,9 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
                                 _isLoading = true;
                               });
                               await _fetchPaymentsForYear();
-                              if (mounted) setState(() => _isLoading = false);
+                              if (mounted) {
+                                setState(() => _isLoading = false);
+                              }
                             },
                           ),
                         ],
@@ -220,7 +281,8 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
                 Expanded(
                   child: GridView.builder(
                     padding: const EdgeInsets.all(16),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
                       childAspectRatio: 1.5,
                       crossAxisSpacing: 12,
@@ -231,13 +293,17 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
                       final monthName = months[index];
                       final monthIndex = index + 1;
                       final hasPayslip = _monthlyPayments.any(
-                        (p) => p.workDate.month == monthIndex && p.workDate.year == selectedYear,
+                        (p) =>
+                            p.workDate.month == monthIndex &&
+                            p.workDate.year == selectedYear,
                       );
 
                       return Card(
                         elevation: 3,
                         child: InkWell(
-                          onTap: hasPayslip ? () => _viewPayslip(monthName) : null,
+                          onTap: hasPayslip
+                              ? () => _viewPayslip(monthName)
+                              : null,
                           child: Padding(
                             padding: const EdgeInsets.all(8),
                             child: Column(
@@ -252,15 +318,23 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  hasPayslip ? 'View Payslip' : 'No Payslip',
+                                  hasPayslip
+                                      ? 'View Payslip'
+                                      : 'No Payslip',
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: hasPayslip ? Colors.blue : Colors.grey,
+                                    color: hasPayslip
+                                        ? Colors.blue
+                                        : Colors.grey,
                                   ),
                                 ),
                                 Icon(
-                                  hasPayslip ? Icons.description : Icons.block,
-                                  color: hasPayslip ? Colors.blue : Colors.grey,
+                                  hasPayslip
+                                      ? Icons.description
+                                      : Icons.block,
+                                  color: hasPayslip
+                                      ? Colors.blue
+                                      : Colors.grey,
                                   size: 20,
                                 ),
                               ],

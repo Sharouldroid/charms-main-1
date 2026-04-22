@@ -10,6 +10,9 @@ import 'package:charms/HRwidgets/staff/proof_attachment.dart';
 import 'package:charms/screens/dashboard_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:charms/HRscreens/staff/staff_notification_screen.dart';
+import 'package:charms/HRproviders/leaves.dart';
+import 'package:charms/HRproviders/schedules.dart';
 
 class ClaimDashboardScreen extends StatefulWidget {
   final String username;
@@ -220,7 +223,43 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
         backgroundColor: Colors.blue,
         centerTitle: true,
         actions: [
-          IconButton(icon: const Icon(Icons.notifications), onPressed: () {}),
+          Consumer3<Leaves, Claims, Schedules>(
+            builder: (context, leaves, claims, schedules, child) {
+              int resolvedLeaves = leaves.leaves
+                  .where((l) => l.staffId == widget.staffId && l.status != 'Pending')
+                  .length;
+
+              int resolvedClaims = claims.claims
+                  .where((c) => c.staffId == widget.staffId && c.status != 'Pending')
+                  .length;
+
+              int assignedSchedules = schedules.schedules
+                  .where((s) => s.staffId == widget.staffId)
+                  .length;
+
+              int totalNotifications = resolvedLeaves + resolvedClaims + assignedSchedules;
+
+              return IconButton(
+                icon: totalNotifications > 0
+                    ? Badge(
+                        label: Text(totalNotifications.toString()),
+                        backgroundColor: Colors.red,
+                        child: const Icon(Icons.notifications),
+                      )
+                    : const Icon(Icons.notifications),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => StaffNotificationScreen(
+                        staffId: widget.staffId,
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Back to Dashboard',

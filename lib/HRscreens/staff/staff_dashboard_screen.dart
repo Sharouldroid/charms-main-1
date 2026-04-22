@@ -1,6 +1,6 @@
 import 'package:charms/HRproviders/attendances.dart';
-import 'package:charms/HRproviders/leaves.dart'; // ✅ Added Leaves provider
-import 'package:charms/HRproviders/claims.dart'; // ✅ Added Claims provider
+import 'package:charms/HRproviders/leaves.dart'; 
+import 'package:charms/HRproviders/claims.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:charms/HRproviders/staffs.dart';
@@ -14,6 +14,7 @@ import 'package:charms/HRscreens/staff/claim_dashboard.dart';
 import 'package:charms/HRscreens/staff/staff_myself_screen.dart';
 import 'package:charms/HRscreens/staff/staff_schedule_details_screen.dart';
 import 'package:charms/HRwidgets/staff/bottom_nav_staff.dart';
+import 'package:charms/HRscreens/staff/staff_notification_screen.dart';
 
 class StaffDashboardScreen extends StatefulWidget {
   final String username;
@@ -211,9 +212,13 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                       )
                     : const Icon(Icons.notifications),
                 onPressed: () {
-                  // TODO: Navigate to Staff Notification Screen when you create one
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Staff Notifications coming soon!')),
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => StaffNotificationScreen(
+                        staffId: _currentStaff?.staffId ?? 0,
+                      ),
+                    ),
                   );
                 },
               );
