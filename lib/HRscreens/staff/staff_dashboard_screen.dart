@@ -15,6 +15,7 @@ import 'package:charms/HRscreens/staff/staff_myself_screen.dart';
 import 'package:charms/HRscreens/staff/staff_schedule_details_screen.dart';
 import 'package:charms/HRwidgets/staff/bottom_nav_staff.dart';
 import 'package:charms/HRscreens/staff/staff_notification_screen.dart';
+import 'package:charms/HRscreens/admin/admin_dashboard_screen.dart'; 
 
 class StaffDashboardScreen extends StatefulWidget {
   final String username;
@@ -179,7 +180,21 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
         centerTitle: true,
         backgroundColor: Colors.blue,
         actions: [
-          // ✅ Staff Notification Badge (Counts resolved items & schedules)
+          // NEW: Switch to Admin Mode Button (ONLY FOR ADMINS)
+          if (_currentStaff != null && _currentStaff!.usertype == 6)
+            IconButton(
+              icon: const Icon(Icons.swap_horiz),
+              tooltip: 'Switch to Admin Mode',
+              onPressed: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AdminDashboardScreen(username: widget.username),
+                  ),
+                );
+              },
+            ),
+          // Staff Notification Badge (Counts resolved items & schedules)
           Consumer3<Leaves, Claims, Schedules>(
             builder: (context, leaves, claims, schedules, child) {
               int staffId = _currentStaff?.staffId ?? 0;

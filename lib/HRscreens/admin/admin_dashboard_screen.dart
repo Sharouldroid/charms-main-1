@@ -14,6 +14,7 @@ import 'package:charms/screens/dashboard_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
 
 class AdminDashboard extends StatelessWidget {
   final String username;
@@ -174,7 +175,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         centerTitle: true,
         backgroundColor: Colors.blue,
         actions: [
-          // ✅ Wrapped in Consumer3 to calculate total pending items
+          // ✅ NEW: Switch to Staff Mode Button
+          IconButton(
+            icon: const Icon(Icons.swap_horiz),
+            tooltip: 'Switch to Staff Mode',
+            onPressed: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => StaffDashboardScreen(username: widget.username),
+                ),
+              );
+            },
+          ),
+          
+          //Wrapped in Consumer3 to calculate total pending items
           Consumer3<Leaves, Payments, Claims>(
             builder: (context, leaves, payments, claims, child) {
               int pendingLeaves = leaves.leaves.where((l) => l.status == 'Pending').length;
