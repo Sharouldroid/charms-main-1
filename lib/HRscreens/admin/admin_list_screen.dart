@@ -1,6 +1,6 @@
-import 'package:charms/HRmodels/user.dart';
+import 'package:charms/HRmodels/staff.dart'; // ✅ Changed to Staff model
 import 'package:charms/HRproviders/auth.dart' as hr_auth;
-import 'package:charms/HRproviders/users.dart';
+import 'package:charms/HRproviders/staffs.dart'; // ✅ Changed to Staffs provider
 import 'package:charms/HRscreens/admin/admin_dashboard_screen.dart';
 import 'package:charms/HRscreens/admin/manage_staff_screen.dart';
 import 'package:charms/HRscreens/admin/myself_screen.dart';
@@ -19,7 +19,7 @@ class AdminListScreen extends StatefulWidget {
 }
 
 class _AdminListScreenState extends State<AdminListScreen> {
-  List<User> _adminUsers = [];
+  List<Staff> _adminUsers = []; // ✅ Changed to List<Staff>
   bool _isLoading = true;
   String _searchQuery = '';
   bool _isAscending = true;
@@ -32,9 +32,9 @@ class _AdminListScreenState extends State<AdminListScreen> {
   }
 
   // Helper: get display name (username if firstname is empty)
-  String _getDisplayName(User user) {
-    final fullName = '${user.firstname} ${user.lastname}'.trim();
-    return fullName.isNotEmpty ? fullName : user.username;
+  String _getDisplayName(Staff staff) { // ✅ Changed parameter to Staff
+    final fullName = '${staff.firstname} ${staff.lastname}'.trim();
+    return fullName.isNotEmpty ? fullName : staff.username;
   }
 
   Future<void> _loadAdminUsers() async {
@@ -42,14 +42,12 @@ class _AdminListScreenState extends State<AdminListScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final usersProvider = context.read<Users>();
-      final authProvider = Provider.of<hr_auth.Auth>(context, listen: false);
+      final staffsProvider = context.read<Staffs>(); // ✅ Load via Staffs provider
 
-      await usersProvider
-          .fetchUsers(authProvider.hostname, token: authProvider.token)
-          .timeout(const Duration(seconds: 12));
+      await staffsProvider.fetchStaff().timeout(const Duration(seconds: 12));
 
-      final admins = usersProvider.userlist.where((u) => u.usertype == 6).toList();
+      // Filter to only show users where usertype == 6 (Admin)
+      final admins = staffsProvider.staffList.where((s) => s.usertype == 6).toList();
 
       if (!mounted) return;
       setState(() {
@@ -103,7 +101,7 @@ class _AdminListScreenState extends State<AdminListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    List<User> filteredAdmins = _adminUsers
+    List<Staff> filteredAdmins = _adminUsers // ✅ Changed to List<Staff>
         .where((admin) =>
             '${admin.firstname} ${admin.lastname} ${admin.username}'
                 .toLowerCase()
@@ -194,9 +192,15 @@ class _AdminListScreenState extends State<AdminListScreen> {
                             final admin = filteredAdmins[index];
                             return Card(
                               child: ListTile(
-                                leading: const CircleAvatar(
+                                leading: CircleAvatar(
                                   backgroundColor: Colors.blue,
-                                  child: Icon(Icons.person, color: Colors.white),
+                                  // ✅ Now admin is a Staff model, so filepath exists!
+                                  backgroundImage: (admin.filepath != null && admin.filepath!.isNotEmpty)
+                                      ? NetworkImage('https://devcms.com.my/charmsAPI/public/storage/${admin.filepath}')
+                                      : null,
+                                  child: (admin.filepath == null || admin.filepath!.isEmpty)
+                                      ? const Icon(Icons.person, color: Colors.white)
+                                      : null,
                                 ),
                                 title: Text(
                                   _getDisplayName(admin),

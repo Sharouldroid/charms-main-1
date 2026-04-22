@@ -184,35 +184,76 @@ class _MySelfScreenState extends State<MySelfScreen> {
     try {
       setState(() => _isLoading = true);
 
-      final usersProvider = Provider.of<hr_users.Users>(context, listen: false);
       final authProvider = context.read<hr_auth.Auth>();
       final token = authProvider.token;
 
-      final payload = {
-        'firstname': _firstNameController.text,
-        'lastname': _lastNameController.text,
-        'email': _emailController.text,
-        'phone': _phoneController.text,
-        'dob': _dobController.text,
-        'address1': _addressController.text,
-        'address2': _address2Controller.text,
-        'city': _cityController.text,
-        'postcode': int.tryParse(_postcodeController.text) ?? 0,
-        'state': _stateController.text,
-        'country': _countryController.text,
-        'occupation': _occupationController.text,
-        'gender': _genderController.text == 'Male' ? 1 : 2,
-      };
+      // 1. If we have a Staff record, update the complete Staff profile
+      if (_currentStaff != null) {
+        final updatedStaff = Staff(
+          staffId: _currentStaff!.staffId,
+          userId: _currentStaff!.userId,
+          username: _currentStaff!.username,
+          email: _emailController.text,
+          usertype: _currentStaff!.usertype,
+          firstname: _firstNameController.text,
+          lastname: _lastNameController.text,
+          occupation: _occupationController.text,
+          phone: _phoneController.text,
+          category: _currentStaff!.category,
+          nationality: _currentStaff!.nationality,
+          religion: _currentStaff!.religion,
+          maritalStatus: _currentStaff!.maritalStatus,
+          officePhone: _currentStaff!.officePhone,
+          emergencyName: _currentStaff!.emergencyName,
+          emergencyIc: _currentStaff!.emergencyIc,
+          emergencyRelation: _currentStaff!.emergencyRelation,
+          emergencyGender: _genderController.text == 'Male' ? 1 : 2, 
+          emergencyPhone: _currentStaff!.emergencyPhone,
+          idNum: _currentStaff!.idNum,
+          dob: _dobController.text,
+          address1: _addressController.text,
+          address2: _address2Controller.text,
+          city: _cityController.text,
+          postcode: int.tryParse(_postcodeController.text) ?? 0,
+          state: _stateController.text,
+          country: _countryController.text,
+          filepath: _currentStaff!.filepath,
+          filename: _currentStaff!.filename,
+        );
 
-      if (usersProvider.userlist.isNotEmpty) {
-        await usersProvider.updateUser(usersProvider.userlist.first.id, payload, token: token);
+        // ✅ Updates full staff & user tables via backend
+        await context.read<Staffs>().updateStaffDetails(_currentStaff!.staffId, updatedStaff);
+
+        // ✅ Upload photo if changed (Pass XFile directly)
+        if (_profileImage != null) {
+          await context.read<Staffs>().uploadStaffPhoto(_currentStaff!.staffId, _profileImage!);
+        }
+      } 
+      // 2. Fallback: If no staff record exists, just update the basic user record
+      else {
+        final usersProvider = Provider.of<hr_users.Users>(context, listen: false);
+        final payload = {
+          'firstname': _firstNameController.text,
+          'lastname': _lastNameController.text,
+          'email': _emailController.text,
+          'phone': _phoneController.text,
+          'dob': _dobController.text,
+          'address1': _addressController.text,
+          'address2': _address2Controller.text,
+          'city': _cityController.text,
+          'postcode': int.tryParse(_postcodeController.text) ?? 0,
+          'state': _stateController.text,
+          'country': _countryController.text,
+          'occupation': _occupationController.text,
+          'gender': _genderController.text == 'Male' ? 1 : 2,
+        };
+
+        if (usersProvider.userlist.isNotEmpty) {
+          await usersProvider.updateUser(usersProvider.userlist.first.id, payload, token: token);
+        }
       }
 
-      // ✅ Upload photo if changed (Pass XFile directly, NO dart:io File)
-      if (_profileImage != null && _currentStaff != null) {
-        await context.read<Staffs>().uploadStaffPhoto(_currentStaff!.staffId, _profileImage!);
-      }
-
+      // 3. Reload data to refresh the UI
       await _loadUserOrStaffData();
 
       if (mounted) {
