@@ -86,14 +86,14 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ListTile(
-                leading: const Icon(Icons.camera_alt),
-                title: const Text('Take Photo'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickImage(ImageSource.camera);
-                },
-              ),
+              // ListTile(
+              //   leading: const Icon(Icons.camera_alt),
+              //   title: const Text('Take Photo'),
+              //   onTap: () {
+              //     Navigator.pop(context);
+              //     _pickImage(ImageSource.camera);
+              //   },
+              // ),
               ListTile(
                 leading: const Icon(Icons.photo_library),
                 title: const Text('Choose from Gallery'),
@@ -102,14 +102,14 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
                   _pickImage(ImageSource.gallery);
                 },
               ),
-              ListTile(
-                leading: const Icon(Icons.attach_file),
-                title: const Text('Choose File'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickFile();
-                },
-              ),
+              // ListTile(
+              //   leading: const Icon(Icons.attach_file),
+              //   title: const Text('Choose File'),
+              //   onTap: () {
+              //     Navigator.pop(context);
+              //     _pickFile();
+              //   },
+              // ),
             ],
           ),
         );
@@ -317,7 +317,7 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
                 onChanged: (value) => setState(() => _selectedProofType = value),
                 items: const [
                   DropdownMenuItem(value: 'Image', child: Text('Image')),
-                  DropdownMenuItem(value: 'PDF', child: Text('PDF')),
+                  // DropdownMenuItem(value: 'PDF', child: Text('PDF')),
                 ],
                 validator: (value) {
                   if (_isProofRequired && (value == null || value.isEmpty)) {
