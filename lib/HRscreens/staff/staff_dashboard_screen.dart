@@ -1,4 +1,6 @@
 import 'package:charms/HRproviders/attendances.dart';
+import 'package:charms/HRproviders/leaves.dart'; // ✅ Added Leaves provider
+import 'package:charms/HRproviders/claims.dart'; // ✅ Added Claims provider
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:charms/HRproviders/staffs.dart';
@@ -59,8 +61,15 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
     try {
       final staffsProvider = Provider.of<Staffs>(context, listen: false);
       final schedulesProvider = Provider.of<Schedules>(context, listen: false);
+      final leavesProvider = Provider.of<Leaves>(context, listen: false); // ✅
+      final claimsProvider = Provider.of<Claims>(context, listen: false); // ✅
 
-      await staffsProvider.fetchStaff();
+      // Fetch data so the notification badge can calculate immediately
+      await Future.wait([
+        staffsProvider.fetchStaff(),
+        leavesProvider.fetchLeaves(),
+        claimsProvider.fetchClaims(),
+      ]);
 
       if (!_mounted) return;
 
@@ -124,7 +133,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
         );
         break;
       case 4:
-        nextScreen = StaffMySelfScreen();
+        nextScreen = const StaffMySelfScreen();
         break;
       default:
         return;
@@ -169,9 +178,46 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
         centerTitle: true,
         backgroundColor: Colors.blue,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications),
-            onPressed: () {},
+          // ✅ Staff Notification Badge (Counts resolved items & schedules)
+          Consumer3<Leaves, Claims, Schedules>(
+            builder: (context, leaves, claims, schedules, child) {
+              int staffId = _currentStaff?.staffId ?? 0;
+
+              if (staffId == 0) return const Icon(Icons.notifications);
+
+              // Count Leaves that are Approved/Rejected for this specific staff
+              int resolvedLeaves = leaves.leaves
+                  .where((l) => l.staffId == staffId && l.status != 'Pending')
+                  .length;
+
+              // Count Claims that are Approved/Rejected for this specific staff
+              int resolvedClaims = claims.claims
+                  .where((c) => c.staffId == staffId && c.status != 'Pending')
+                  .length;
+
+              // Count total schedules assigned to this staff
+              int assignedSchedules = schedules.schedules
+                  .where((s) => s.staffId == staffId)
+                  .length;
+
+              int totalNotifications = resolvedLeaves + resolvedClaims + assignedSchedules;
+
+              return IconButton(
+                icon: totalNotifications > 0
+                    ? Badge(
+                        label: Text(totalNotifications.toString()),
+                        backgroundColor: Colors.red,
+                        child: const Icon(Icons.notifications),
+                      )
+                    : const Icon(Icons.notifications),
+                onPressed: () {
+                  // TODO: Navigate to Staff Notification Screen when you create one
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Staff Notifications coming soon!')),
+                  );
+                },
+              );
+            },
           ),
           IconButton(
             icon: const Icon(Icons.logout),

@@ -3,6 +3,7 @@ import 'package:charms/HRproviders/leaves.dart';
 import 'package:charms/HRproviders/attendances.dart';
 import 'package:charms/HRproviders/payments.dart';
 import 'package:charms/HRproviders/schedules.dart';
+import 'package:charms/HRproviders/claims.dart'; // ✅ Added Claims provider import
 import 'package:charms/HRscreens/admin/admin_list_screen.dart';
 import 'package:charms/HRscreens/admin/manage_staff_screen.dart';
 import 'package:charms/HRscreens/admin/notification_screen.dart';
@@ -66,11 +67,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final attendancesProvider = Provider.of<Attendances>(context, listen: false);
       final paymentsProvider = Provider.of<Payments>(context, listen: false);
       final schedulesProvider = Provider.of<Schedules>(context, listen: false);
+      final claimsProvider = Provider.of<Claims>(context, listen: false); // ✅ Initialize claims
 
       await Future.wait([
         staffsProvider.fetchStaff(),
         leavesProvider.fetchLeaves(),
         schedulesProvider.fetchSchedules(),
+        claimsProvider.fetchClaims(), // ✅ Fetch claims so the badge updates immediately
       ]);
 
       final currentDate = DateTime.now();
@@ -171,12 +174,29 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         centerTitle: true,
         backgroundColor: Colors.blue,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => NotificationScreen()),
+          // ✅ Wrapped in Consumer3 to calculate total pending items
+          Consumer3<Leaves, Payments, Claims>(
+            builder: (context, leaves, payments, claims, child) {
+              int pendingLeaves = leaves.leaves.where((l) => l.status == 'Pending').length;
+              int pendingPayrolls = payments.payments.where((p) => p.status == 'Pending').length;
+              int pendingClaims = claims.claims.where((c) => c.status == 'Pending').length;
+
+              int totalPending = pendingLeaves + pendingPayrolls + pendingClaims;
+
+              return IconButton(
+                icon: totalPending > 0
+                    ? Badge(
+                        label: Text(totalPending.toString()),
+                        backgroundColor: Colors.red,
+                        child: const Icon(Icons.notifications),
+                      )
+                    : const Icon(Icons.notifications),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const NotificationScreen()),
+                  );
+                },
               );
             },
           ),
