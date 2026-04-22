@@ -34,7 +34,7 @@ class StaffDetailsScreen extends StatelessWidget {
                 backgroundImage: (staff.filepath != null &&
                         staff.filepath!.isNotEmpty)
                     ? NetworkImage(
-                        'https://devcms.com.my/charmsAPI/storage/${staff.filepath}',
+                        'https://devcms.com.my/charmsAPI/public/storage/${staff.filepath}',
                       )
                     : null,
                 child: (staff.filepath == null || staff.filepath!.isEmpty)
