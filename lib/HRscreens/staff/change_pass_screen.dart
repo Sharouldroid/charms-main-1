@@ -1,4 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
+import 'package:charms/HRproviders/auth.dart' as hr_auth;
 
 class ChangePassScreen extends StatefulWidget {
   const ChangePassScreen({super.key});
@@ -9,51 +13,113 @@ class ChangePassScreen extends StatefulWidget {
 
 class _ChangePassScreenState extends State<ChangePassScreen> {
   final _formKey = GlobalKey<FormState>();
-  String _oldPassword = '';
-  String _newPassword = '';
-  String _confirmPassword = '';
+  final _oldPasswordController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+
   bool _isLoading = false;
+  bool _showOld = false;
+  bool _showNew = false;
+  bool _showConfirm = false;
 
-  // Function to save the form and validate inputs
-  void _submit() {
-    if (!_formKey.currentState!.validate()) {
-      // Invalid!
-      return;
-    }
-    _formKey.currentState!.save();
-    
-    if (_newPassword != _confirmPassword) {
-      _showErrorDialog("Passwords do not match");
-      return;
-    }
-    
-    setState(() {
-      _isLoading = true;
-    });
+  static const _hostname = 'https://devcms.com.my/charmsAPI/api';
 
-    // Here you can add your password change logic.
-    // After successful password change, you can show a success message or navigate to another screen.
-    
-    setState(() {
-      _isLoading = false;
-    });
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final authProvider = context.read<hr_auth.Auth>();
+    final username = authProvider.username;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final response = await http.post(
+        Uri.parse('$_hostname/user/change-password'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({
+          'username': username,
+          'old_password': _oldPasswordController.text,
+          'new_password': _newPasswordController.text,
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200 && data['success'] == true) {
+        // ✅ Success
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Password changed successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context);
+      } else {
+        // ❌ Backend error (e.g. wrong old password)
+        _showErrorDialog(data['message'] ?? 'Failed to change password');
+      }
+    } catch (error) {
+      if (mounted) {
+        _showErrorDialog('An error occurred: $error');
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
-  // Function to show error dialogs
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Error'),
+        title: const Text('Error'),
         content: Text(message),
         actions: [
           TextButton(
-            child: Text('Okay'),
-            onPressed: () {
-              Navigator.of(ctx).pop();
-            },
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('OK'),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPasswordField(
+    String label,
+    TextEditingController controller,
+    bool show,
+    VoidCallback onToggle, {
+    String? Function(String?)? extraValidator,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: TextFormField(
+        controller: controller,
+        obscureText: !show,
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+          suffixIcon: IconButton(
+            icon: Icon(show ? Icons.visibility_off : Icons.visibility),
+            onPressed: onToggle,
+          ),
+        ),
+        validator: (value) {
+          if (value == null || value.isEmpty) {
+            return 'Please enter $label';
+          }
+          if (value.length < 8) {
+            return '$label must be at least 8 characters';
+          }
+          if (extraValidator != null) {
+            return extraValidator(value);
+          }
+          return null;
+        },
       ),
     );
   }
@@ -62,36 +128,60 @@ class _ChangePassScreenState extends State<ChangePassScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Change Password'),
+        title: const Text('Change Password',
+            style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.blue,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: _isLoading
-            ? Center(child: CircularProgressIndicator())
+            ? const Center(child: CircularProgressIndicator())
             : Form(
                 key: _formKey,
-                child: ListView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildPasswordField('Old Password', (value) {
-                      _oldPassword = value!;
-                    }),
-                    SizedBox(height: 20),
-                    _buildPasswordField('New Password', (value) {
-                      _newPassword = value!;
-                    }),
-                    SizedBox(height: 20),
-                    _buildPasswordField('Confirm New Password', (value) {
-                      _confirmPassword = value!;
-                    }),
-                    SizedBox(height: 40),
-                    ElevatedButton(
-                      onPressed: _submit,
-                      style: ElevatedButton.styleFrom(
-                        padding: EdgeInsets.symmetric(vertical: 15), backgroundColor: Colors.blue,
-                        textStyle: TextStyle(fontSize: 18),
+                    const SizedBox(height: 16),
+                    _buildPasswordField(
+                      'Old Password',
+                      _oldPasswordController,
+                      _showOld,
+                      () => setState(() => _showOld = !_showOld),
+                    ),
+                    _buildPasswordField(
+                      'New Password',
+                      _newPasswordController,
+                      _showNew,
+                      () => setState(() => _showNew = !_showNew),
+                    ),
+                    _buildPasswordField(
+                      'Confirm New Password',
+                      _confirmPasswordController,
+                      _showConfirm,
+                      () => setState(() => _showConfirm = !_showConfirm),
+                      // ✅ Confirm must match new password
+                      extraValidator: (value) {
+                        if (value != _newPasswordController.text) {
+                          return 'Passwords do not match';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 32),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _submit,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                          textStyle: const TextStyle(fontSize: 16),
+                        ),
+                        child: const Text('Change Password'),
                       ),
-                      child: Text('Change Password'),
                     ),
                   ],
                 ),
@@ -100,24 +190,11 @@ class _ChangePassScreenState extends State<ChangePassScreen> {
     );
   }
 
-  // Function to build password fields
-  Widget _buildPasswordField(String label, Function(String?) onSaved) {
-    return TextFormField(
-      obscureText: true,
-      decoration: InputDecoration(
-        labelText: label,
-        border: OutlineInputBorder(),
-      ),
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Please enter your $label';
-        }
-        if (value.length < 6) {
-          return '$label must be at least 6 characters long';
-        }
-        return null;
-      },
-      onSaved: onSaved,
-    );
+  @override
+  void dispose() {
+    _oldPasswordController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
   }
 }

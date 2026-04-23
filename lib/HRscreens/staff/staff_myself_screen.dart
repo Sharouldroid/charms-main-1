@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb; // ✅ Added for web check
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -11,6 +11,7 @@ import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/leave_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/payroll_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/claim_dashboard.dart';
+import 'package:charms/HRscreens/staff/change_pass_screen.dart';
 import 'package:charms/HRwidgets/staff/bottom_nav_staff.dart';
 import 'package:charms/screens/dashboard_screen.dart';
 
@@ -28,7 +29,7 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
   bool _isLoading = true;
   bool _isEditing = false;
 
-  XFile? _profileImage; // ✅ Changed to XFile
+  XFile? _profileImage;
   final ImagePicker _picker = ImagePicker();
 
   final _formKey = GlobalKey<FormState>();
@@ -119,16 +120,18 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
 
   void _updateControllers() {
     if (_currentStaff == null) return;
-
-    _nameController.text = "${_currentStaff!.firstname} ${_currentStaff!.lastname}";
+    _nameController.text =
+        "${_currentStaff!.firstname} ${_currentStaff!.lastname}";
     _icNumberController.text = _currentStaff!.idNum;
     _dobController.text = _currentStaff!.dob;
     _emailController.text = _currentStaff!.email;
     _phoneController.text = _currentStaff!.phone;
     _nationalityController.text = _currentStaff!.nationality;
     _religionController.text = _currentStaff!.religion;
-    _genderController.text = _currentStaff!.emergencyGender == 1 ? "Male" : "Female";
-    _maritalStatusController.text = _currentStaff!.maritalStatus == 1 ? "Single" : "Married";
+    _genderController.text =
+        _currentStaff!.emergencyGender == 1 ? "Male" : "Female";
+    _maritalStatusController.text =
+        _currentStaff!.maritalStatus == 1 ? "Single" : "Married";
     _statusController.text = "Active";
     _addressController.text = _currentStaff!.address1;
     _address2Controller.text = _currentStaff!.address2;
@@ -141,17 +144,19 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
     _emergencyNameController.text = _currentStaff!.emergencyName;
     _emergencyIcController.text = _currentStaff!.emergencyIc;
     _emergencyRelationController.text = _currentStaff!.emergencyRelation;
-    _emergencyGenderController.text = _currentStaff!.emergencyGender == 1 ? "Male" : "Female";
+    _emergencyGenderController.text =
+        _currentStaff!.emergencyGender == 1 ? "Male" : "Female";
     _emergencyPhoneController.text = _currentStaff!.emergencyPhone;
   }
 
   Future<void> _pickImage() async {
     try {
-      final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+      final XFile? pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70,
+      );
       if (pickedFile != null) {
-        setState(() {
-          _profileImage = pickedFile; // ✅ Assign XFile directly
-        });
+        setState(() => _profileImage = pickedFile);
       }
     } catch (e) {
       debugPrint("Error picking image: $e");
@@ -182,12 +187,14 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
         category: _currentStaff!.category,
         nationality: _nationalityController.text,
         religion: _religionController.text,
-        maritalStatus: _maritalStatusController.text == "Single" ? 1 : 2,
+        maritalStatus:
+            _maritalStatusController.text == "Single" ? 1 : 2,
         officePhone: _officePhoneController.text,
         emergencyName: _emergencyNameController.text,
         emergencyIc: _emergencyIcController.text,
         emergencyRelation: _emergencyRelationController.text,
-        emergencyGender: _emergencyGenderController.text == "Male" ? 1 : 2,
+        emergencyGender:
+            _emergencyGenderController.text == "Male" ? 1 : 2,
         emergencyPhone: _emergencyPhoneController.text,
         idNum: _icNumberController.text,
         dob: _dobController.text,
@@ -200,11 +207,14 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
         filepath: _currentStaff!.filepath,
       );
 
-      await context.read<Staffs>().updateStaffDetails(_currentStaff!.staffId, updatedStaff);
+      await context
+          .read<Staffs>()
+          .updateStaffDetails(_currentStaff!.staffId, updatedStaff);
 
-      // ✅ Upload photo if changed (Pass XFile directly)
-      if (_profileImage != null && _currentStaff != null) {
-        await context.read<Staffs>().uploadStaffPhoto(_currentStaff!.staffId, _profileImage!);
+      if (_profileImage != null) {
+        await context
+            .read<Staffs>()
+            .uploadStaffPhoto(_currentStaff!.staffId, _profileImage!);
       }
 
       setState(() {
@@ -231,7 +241,8 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
   }
 
   Future<void> _logout() async {
-    Navigator.of(context).pushNamedAndRemoveUntil(DashboardScreen.routeName, (route) => false);
+    Navigator.of(context).pushNamedAndRemoveUntil(
+        DashboardScreen.routeName, (route) => false);
   }
 
   void _onItemTapped(int index) {
@@ -241,16 +252,24 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
     Widget nextScreen;
     switch (index) {
       case 0:
-        nextScreen = StaffDashboardScreen(username: _currentStaff?.username ?? '');
+        nextScreen =
+            StaffDashboardScreen(username: _currentStaff?.username ?? '');
         break;
       case 1:
-        nextScreen = LeaveDashboardScreen(username: _currentStaff?.username ?? '', staffId: _currentStaff?.staffId ?? 0);
+        nextScreen = LeaveDashboardScreen(
+          username: _currentStaff?.username ?? '',
+          staffId: _currentStaff?.staffId ?? 0,
+        );
         break;
       case 2:
-        nextScreen = PayrollDashboardScreen(username: _currentStaff?.username ?? '');
+        nextScreen = PayrollDashboardScreen(
+            username: _currentStaff?.username ?? '');
         break;
       case 3:
-        nextScreen = ClaimDashboardScreen(username: _currentStaff?.username ?? '', staffId: _currentStaff?.staffId ?? 0);
+        nextScreen = ClaimDashboardScreen(
+          username: _currentStaff?.username ?? '',
+          staffId: _currentStaff?.staffId ?? 0,
+        );
         break;
       case 4:
         return;
@@ -258,10 +277,12 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
         return;
     }
 
-    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => nextScreen));
+    Navigator.pushReplacement(
+        context, MaterialPageRoute(builder: (_) => nextScreen));
   }
 
-  Widget _buildInfoField(String label, TextEditingController controller, {bool enabled = false}) {
+  Widget _buildInfoField(String label, TextEditingController controller,
+      {bool enabled = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: TextFormField(
@@ -273,7 +294,8 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
           filled: !enabled,
           fillColor: !enabled ? Colors.grey[200] : null,
         ),
-        validator: (value) => (value == null || value.isEmpty) ? 'Please enter $label' : null,
+        validator: (value) =>
+            (value == null || value.isEmpty) ? 'Please enter $label' : null,
       ),
     );
   }
@@ -284,12 +306,14 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
       appBar: AppBar(
         iconTheme: const IconThemeData(color: Colors.white),
         automaticallyImplyLeading: false,
-        title: const Text('CHARMS STAFF', style: TextStyle(color: Colors.white)),
+        title: const Text('CHARMS STAFF',
+            style: TextStyle(color: Colors.white)),
         centerTitle: true,
         backgroundColor: Colors.blue,
         actions: [
           IconButton(
-            icon: Icon(_isEditing ? Icons.save : Icons.edit, color: Colors.white),
+            icon: Icon(_isEditing ? Icons.save : Icons.edit,
+                color: Colors.white),
             onPressed: () {
               if (_isEditing) {
                 _updateStaffInfo();
@@ -324,17 +348,26 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
                                 CircleAvatar(
                                   radius: 50,
                                   backgroundColor: Colors.blue,
-                                  // ✅ Web-safe background image logic
                                   backgroundImage: _profileImage != null
                                       ? (kIsWeb
-                                          ? NetworkImage(_profileImage!.path) as ImageProvider
-                                          : FileImage(File(_profileImage!.path)))
-                                      : (_currentStaff?.filepath != null && _currentStaff!.filepath!.isNotEmpty)
-                                          ? NetworkImage('https://devcms.com.my/charmsAPI/public/storage/${_currentStaff!.filepath}')
+                                          ? NetworkImage(
+                                                  _profileImage!.path)
+                                              as ImageProvider
+                                          : FileImage(
+                                              File(_profileImage!.path)))
+                                      : (_currentStaff?.filepath != null &&
+                                              _currentStaff!
+                                                  .filepath!.isNotEmpty)
+                                          ? NetworkImage(
+                                              'https://devcms.com.my/charmsAPI/public/storage/${_currentStaff!.filepath}')
                                           : null,
                                   child: (_profileImage == null &&
-                                          (_currentStaff?.filepath == null || _currentStaff!.filepath!.isEmpty))
-                                      ? const Icon(Icons.person, size: 50, color: Colors.white)
+                                          (_currentStaff?.filepath ==
+                                                  null ||
+                                              _currentStaff!
+                                                  .filepath!.isEmpty))
+                                      ? const Icon(Icons.person,
+                                          size: 50, color: Colors.white)
                                       : null,
                                 ),
                                 if (_isEditing)
@@ -347,7 +380,8 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
                                         color: Colors.white,
                                         shape: BoxShape.circle,
                                       ),
-                                      child: const Icon(Icons.camera_alt, size: 18, color: Colors.blue),
+                                      child: const Icon(Icons.camera_alt,
+                                          size: 18, color: Colors.blue),
                                     ),
                                   ),
                               ],
@@ -356,43 +390,109 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
                           const SizedBox(height: 20),
                           Text(
                             _nameController.text,
-                            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 30),
-                    const Text("Personal Details", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Text("Personal Details",
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 10),
-                    _buildInfoField('Name', _nameController, enabled: _isEditing),
-                    _buildInfoField('IC Number', _icNumberController, enabled: _isEditing),
-                    _buildInfoField('Date of Birth', _dobController, enabled: _isEditing),
-                    _buildInfoField('Email', _emailController, enabled: _isEditing),
-                    _buildInfoField('Phone', _phoneController, enabled: _isEditing),
-                    _buildInfoField('Nationality', _nationalityController, enabled: _isEditing),
-                    _buildInfoField('Religion', _religionController, enabled: _isEditing),
-                    _buildInfoField('Gender', _genderController, enabled: _isEditing),
-                    _buildInfoField('Marital Status', _maritalStatusController, enabled: _isEditing),
-                    _buildInfoField('Status', _statusController, enabled: _isEditing),
-                    _buildInfoField('Occupation', _occupationController, enabled: _isEditing),
+                    _buildInfoField('Name', _nameController,
+                        enabled: _isEditing),
+                    _buildInfoField('IC Number', _icNumberController,
+                        enabled: _isEditing),
+                    _buildInfoField('Date of Birth', _dobController,
+                        enabled: _isEditing),
+                    _buildInfoField('Email', _emailController,
+                        enabled: _isEditing),
+                    _buildInfoField('Phone', _phoneController,
+                        enabled: _isEditing),
+                    _buildInfoField(
+                        'Nationality', _nationalityController,
+                        enabled: _isEditing),
+                    _buildInfoField('Religion', _religionController,
+                        enabled: _isEditing),
+                    _buildInfoField('Gender', _genderController,
+                        enabled: _isEditing),
+                    _buildInfoField(
+                        'Marital Status', _maritalStatusController,
+                        enabled: _isEditing),
+                    _buildInfoField('Status', _statusController,
+                        enabled: _isEditing),
+                    _buildInfoField('Occupation', _occupationController,
+                        enabled: _isEditing),
                     const SizedBox(height: 20),
-                    const Text("Address Details", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Text("Address Details",
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 10),
-                    _buildInfoField('Address Line 1', _addressController, enabled: _isEditing),
-                    _buildInfoField('Address Line 2', _address2Controller, enabled: _isEditing),
-                    _buildInfoField('City', _cityController, enabled: _isEditing),
-                    _buildInfoField('State', _stateController, enabled: _isEditing),
-                    _buildInfoField('Country', _countryController, enabled: _isEditing),
-                    _buildInfoField('Postcode', _postcodeController, enabled: _isEditing),
-                    _buildInfoField('Office Phone', _officePhoneController, enabled: _isEditing),
+                    _buildInfoField('Address Line 1', _addressController,
+                        enabled: _isEditing),
+                    _buildInfoField('Address Line 2', _address2Controller,
+                        enabled: _isEditing),
+                    _buildInfoField('City', _cityController,
+                        enabled: _isEditing),
+                    _buildInfoField('State', _stateController,
+                        enabled: _isEditing),
+                    _buildInfoField('Country', _countryController,
+                        enabled: _isEditing),
+                    _buildInfoField('Postcode', _postcodeController,
+                        enabled: _isEditing),
+                    _buildInfoField('Office Phone', _officePhoneController,
+                        enabled: _isEditing),
                     const SizedBox(height: 20),
-                    const Text("Emergency Contact Details", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Text("Emergency Contact Details",
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 10),
-                    _buildInfoField('Emergency Contact Name', _emergencyNameController, enabled: _isEditing),
-                    _buildInfoField('Emergency Contact IC', _emergencyIcController, enabled: _isEditing),
-                    _buildInfoField('Emergency Contact Relation', _emergencyRelationController, enabled: _isEditing),
-                    _buildInfoField('Emergency Gender', _emergencyGenderController, enabled: _isEditing),
-                    _buildInfoField('Emergency Contact Phone', _emergencyPhoneController, enabled: _isEditing),
+                    _buildInfoField('Emergency Contact Name',
+                        _emergencyNameController,
+                        enabled: _isEditing),
+                    _buildInfoField(
+                        'Emergency Contact IC', _emergencyIcController,
+                        enabled: _isEditing),
+                    _buildInfoField('Emergency Contact Relation',
+                        _emergencyRelationController,
+                        enabled: _isEditing),
+                    _buildInfoField(
+                        'Emergency Gender', _emergencyGenderController,
+                        enabled: _isEditing),
+                    _buildInfoField('Emergency Contact Phone',
+                        _emergencyPhoneController,
+                        enabled: _isEditing),
+
+                    // ✅ Change Password Button
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.lock_outline,
+                            color: Colors.blue),
+                        label: const Text(
+                          'Change Password',
+                          style: TextStyle(color: Colors.blue),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 14),
+                          side: const BorderSide(color: Colors.blue),
+                        ),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ChangePassScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),

@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb; // ✅ Added for web check
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'package:charms/HRmodels/staff.dart';
 import 'package:charms/HRmodels/user.dart';
@@ -9,6 +9,7 @@ import 'package:charms/HRproviders/users.dart' as hr_users;
 import 'package:charms/HRscreens/admin/admin_dashboard_screen.dart';
 import 'package:charms/HRscreens/admin/admin_list_screen.dart';
 import 'package:charms/HRscreens/admin/manage_staff_screen.dart';
+import 'package:charms/HRscreens/staff/change_pass_screen.dart';
 import 'package:charms/HRwidgets/admin/bottom_nav_bar.dart';
 import 'package:charms/screens/dashboard_screen.dart';
 import 'package:flutter/material.dart';
@@ -28,7 +29,7 @@ class _MySelfScreenState extends State<MySelfScreen> {
   Staff? _currentStaff;
   bool _isLoading = true;
   bool _isEditing = false;
-  XFile? _profileImage; // ✅ Changed to XFile
+  XFile? _profileImage;
 
   final _formKey = GlobalKey<FormState>();
 
@@ -78,11 +79,13 @@ class _MySelfScreenState extends State<MySelfScreen> {
 
   Future<void> _loadUserData() async {
     try {
-      final usersProvider = Provider.of<hr_users.Users>(context, listen: false);
+      final usersProvider =
+          Provider.of<hr_users.Users>(context, listen: false);
       final authProvider = context.read<hr_auth.Auth>();
       final token = authProvider.token;
 
-      await usersProvider.fetchUserByUsername(authProvider.username, token: token);
+      await usersProvider.fetchUserByUsername(authProvider.username,
+          token: token);
       if (usersProvider.userlist.isNotEmpty) {
         _updateControllersWithUserData(usersProvider.userlist.first);
       } else {
@@ -149,7 +152,8 @@ class _MySelfScreenState extends State<MySelfScreen> {
     _emailController.text = _currentStaff!.email;
     _phoneController.text = _currentStaff!.phone;
     _dobController.text = _currentStaff!.dob;
-    _genderController.text = _currentStaff!.emergencyGender == 1 ? 'Male' : 'Female';
+    _genderController.text =
+        _currentStaff!.emergencyGender == 1 ? 'Male' : 'Female';
     _addressController.text = _currentStaff!.address1;
     _address2Controller.text = _currentStaff!.address2;
     _cityController.text = _currentStaff!.city;
@@ -166,7 +170,7 @@ class _MySelfScreenState extends State<MySelfScreen> {
         imageQuality: 70,
       );
       if (picked != null) {
-        setState(() => _profileImage = picked); // ✅ Assign XFile directly
+        setState(() => _profileImage = picked);
       }
     } catch (e) {
       debugPrint('Error picking image: $e');
@@ -187,7 +191,6 @@ class _MySelfScreenState extends State<MySelfScreen> {
       final authProvider = context.read<hr_auth.Auth>();
       final token = authProvider.token;
 
-      // 1. If we have a Staff record, update the complete Staff profile
       if (_currentStaff != null) {
         final updatedStaff = Staff(
           staffId: _currentStaff!.staffId,
@@ -207,7 +210,8 @@ class _MySelfScreenState extends State<MySelfScreen> {
           emergencyName: _currentStaff!.emergencyName,
           emergencyIc: _currentStaff!.emergencyIc,
           emergencyRelation: _currentStaff!.emergencyRelation,
-          emergencyGender: _genderController.text == 'Male' ? 1 : 2, 
+          emergencyGender:
+              _genderController.text == 'Male' ? 1 : 2,
           emergencyPhone: _currentStaff!.emergencyPhone,
           idNum: _currentStaff!.idNum,
           dob: _dobController.text,
@@ -221,17 +225,18 @@ class _MySelfScreenState extends State<MySelfScreen> {
           filename: _currentStaff!.filename,
         );
 
-        // ✅ Updates full staff & user tables via backend
-        await context.read<Staffs>().updateStaffDetails(_currentStaff!.staffId, updatedStaff);
+        await context
+            .read<Staffs>()
+            .updateStaffDetails(_currentStaff!.staffId, updatedStaff);
 
-        // ✅ Upload photo if changed (Pass XFile directly)
         if (_profileImage != null) {
-          await context.read<Staffs>().uploadStaffPhoto(_currentStaff!.staffId, _profileImage!);
+          await context
+              .read<Staffs>()
+              .uploadStaffPhoto(_currentStaff!.staffId, _profileImage!);
         }
-      } 
-      // 2. Fallback: If no staff record exists, just update the basic user record
-      else {
-        final usersProvider = Provider.of<hr_users.Users>(context, listen: false);
+      } else {
+        final usersProvider =
+            Provider.of<hr_users.Users>(context, listen: false);
         final payload = {
           'firstname': _firstNameController.text,
           'lastname': _lastNameController.text,
@@ -249,11 +254,12 @@ class _MySelfScreenState extends State<MySelfScreen> {
         };
 
         if (usersProvider.userlist.isNotEmpty) {
-          await usersProvider.updateUser(usersProvider.userlist.first.id, payload, token: token);
+          await usersProvider.updateUser(
+              usersProvider.userlist.first.id, payload,
+              token: token);
         }
       }
 
-      // 3. Reload data to refresh the UI
       await _loadUserOrStaffData();
 
       if (mounted) {
@@ -274,7 +280,8 @@ class _MySelfScreenState extends State<MySelfScreen> {
   }
 
   Future<void> _logout() async {
-    Navigator.of(context).pushNamedAndRemoveUntil(DashboardScreen.routeName, (route) => false);
+    Navigator.of(context).pushNamedAndRemoveUntil(
+        DashboardScreen.routeName, (route) => false);
   }
 
   void _onItemTapped(int index) {
@@ -289,10 +296,12 @@ class _MySelfScreenState extends State<MySelfScreen> {
       () => const MySelfScreen(),
     ];
 
-    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => routes[index]()));
+    Navigator.pushReplacement(
+        context, MaterialPageRoute(builder: (_) => routes[index]()));
   }
 
-  Widget _buildInfoField(String label, TextEditingController controller, {bool enabled = false}) {
+  Widget _buildInfoField(String label, TextEditingController controller,
+      {bool enabled = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: TextFormField(
@@ -304,7 +313,8 @@ class _MySelfScreenState extends State<MySelfScreen> {
           filled: !enabled || !_isEditing,
           fillColor: (!enabled || !_isEditing) ? Colors.grey[200] : null,
         ),
-        validator: (v) => (v == null || v.isEmpty) ? 'Please enter $label' : null,
+        validator: (v) =>
+            (v == null || v.isEmpty) ? 'Please enter $label' : null,
       ),
     );
   }
@@ -317,10 +327,12 @@ class _MySelfScreenState extends State<MySelfScreen> {
         automaticallyImplyLeading: false,
         backgroundColor: Colors.blue,
         centerTitle: true,
-        title: const Text('CHARMS ADMIN', style: TextStyle(color: Colors.white)),
+        title: const Text('CHARMS ADMIN',
+            style: TextStyle(color: Colors.white)),
         actions: [
           IconButton(
-            icon: Icon(_isEditing ? Icons.save : Icons.edit, color: Colors.white),
+            icon: Icon(_isEditing ? Icons.save : Icons.edit,
+                color: Colors.white),
             onPressed: () {
               if (_isEditing) {
                 _updateStaffInfo();
@@ -351,17 +363,23 @@ class _MySelfScreenState extends State<MySelfScreen> {
                           CircleAvatar(
                             radius: 50,
                             backgroundColor: Colors.blue,
-                            // ✅ Web-safe background image logic
                             backgroundImage: _profileImage != null
                                 ? (kIsWeb
-                                    ? NetworkImage(_profileImage!.path) as ImageProvider
-                                    : FileImage(File(_profileImage!.path)))
-                                : (_currentStaff?.filepath != null && _currentStaff!.filepath!.isNotEmpty)
-                                    ? NetworkImage('https://devcms.com.my/charmsAPI/public/storage/${_currentStaff!.filepath}')
+                                    ? NetworkImage(_profileImage!.path)
+                                        as ImageProvider
+                                    : FileImage(
+                                        File(_profileImage!.path)))
+                                : (_currentStaff?.filepath != null &&
+                                        _currentStaff!
+                                            .filepath!.isNotEmpty)
+                                    ? NetworkImage(
+                                        'https://devcms.com.my/charmsAPI/public/storage/${_currentStaff!.filepath}')
                                     : null,
                             child: (_profileImage == null &&
-                                    (_currentStaff?.filepath == null || _currentStaff!.filepath!.isEmpty))
-                                ? const Icon(Icons.person, size: 50, color: Colors.white)
+                                    (_currentStaff?.filepath == null ||
+                                        _currentStaff!.filepath!.isEmpty))
+                                ? const Icon(Icons.person,
+                                    size: 50, color: Colors.white)
                                 : null,
                           ),
                           if (_isEditing)
@@ -374,26 +392,68 @@ class _MySelfScreenState extends State<MySelfScreen> {
                                   color: Colors.white,
                                   shape: BoxShape.circle,
                                 ),
-                                child: const Icon(Icons.camera_alt, size: 18, color: Colors.blue),
+                                child: const Icon(Icons.camera_alt,
+                                    size: 18, color: Colors.blue),
                               ),
                             ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 20),
-                    _buildInfoField('First Name', _firstNameController, enabled: true),
-                    _buildInfoField('Last Name', _lastNameController, enabled: true),
-                    _buildInfoField('Email', _emailController, enabled: true),
-                    _buildInfoField('Phone', _phoneController, enabled: true),
-                    _buildInfoField('Date of Birth', _dobController, enabled: true),
-                    _buildInfoField('Gender', _genderController, enabled: true),
-                    _buildInfoField('Occupation', _occupationController, enabled: true),
-                    _buildInfoField('Address Line 1', _addressController, enabled: true),
-                    _buildInfoField('Address Line 2', _address2Controller, enabled: true),
-                    _buildInfoField('City', _cityController, enabled: true),
-                    _buildInfoField('State', _stateController, enabled: true),
-                    _buildInfoField('Country', _countryController, enabled: true),
-                    _buildInfoField('Postcode', _postcodeController, enabled: true),
+                    _buildInfoField('First Name', _firstNameController,
+                        enabled: true),
+                    _buildInfoField('Last Name', _lastNameController,
+                        enabled: true),
+                    _buildInfoField('Email', _emailController,
+                        enabled: true),
+                    _buildInfoField('Phone', _phoneController,
+                        enabled: true),
+                    _buildInfoField('Date of Birth', _dobController,
+                        enabled: true),
+                    _buildInfoField('Gender', _genderController,
+                        enabled: true),
+                    _buildInfoField('Occupation', _occupationController,
+                        enabled: true),
+                    _buildInfoField('Address Line 1', _addressController,
+                        enabled: true),
+                    _buildInfoField('Address Line 2', _address2Controller,
+                        enabled: true),
+                    _buildInfoField('City', _cityController,
+                        enabled: true),
+                    _buildInfoField('State', _stateController,
+                        enabled: true),
+                    _buildInfoField('Country', _countryController,
+                        enabled: true),
+                    _buildInfoField('Postcode', _postcodeController,
+                        enabled: true),
+
+                    // ✅ Change Password Button
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.lock_outline,
+                            color: Colors.blue),
+                        label: const Text(
+                          'Change Password',
+                          style: TextStyle(color: Colors.blue),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 14),
+                          side: const BorderSide(color: Colors.blue),
+                        ),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ChangePassScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),
