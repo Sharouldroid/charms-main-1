@@ -1,10 +1,10 @@
-import 'dart:convert';
 
 class Attendance {
   final int attendanceId;
   final int staffId;
   final int scheduleId;
   final DateTime? clockInTime;
+  final DateTime? clockOutTime;
   final dynamic clockInImage;
   final String? clockInImagePath; 
   final String? clockInImageUrl;
@@ -16,6 +16,7 @@ class Attendance {
     required this.staffId,
     required this.scheduleId,
     this.clockInTime,
+    this.clockOutTime,
     this.clockInImage,
     this.clockInImagePath,
     this.clockInImageUrl,
@@ -31,6 +32,9 @@ class Attendance {
       clockInTime: json['clock_in_time'] != null
           ? DateTime.parse(json['clock_in_time'])
           : null,
+      clockOutTime: json['clock_out_time'] != null
+          ? DateTime.parse(json['clock_out_time'])
+          : null,
       clockInImage: json['clock_in_image'],
       clockInImagePath: json['clock_in_image_path'],
       clockInImageUrl: json['clock_in_image_url'], 
@@ -45,6 +49,7 @@ class Attendance {
       'staff_id': staffId,
       'schedule_id': scheduleId,
       'clock_in_time': clockInTime?.toIso8601String(),
+      'clock_out_time': clockOutTime?.toIso8601String(),
       'attendance_status': attendanceStatus,
     };
   }

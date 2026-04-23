@@ -1,5 +1,4 @@
 import 'package:charms/HRmodels/staff.dart'; 
-import 'package:charms/HRproviders/auth.dart' as hr_auth;
 import 'package:charms/HRproviders/staffs.dart'; 
 import 'package:charms/HRproviders/claims.dart'; // ✅ Added
 import 'package:charms/HRproviders/leaves.dart'; // ✅ Added

@@ -224,7 +224,7 @@ class _ApplyClaimScreenState extends State<ApplyClaimScreen> {
                   labelText: 'Claim Type',
                   border: OutlineInputBorder(),
                 ),
-                value: _selectedClaimType,
+                initialValue: _selectedClaimType,
                 items: _claimTypes
                     .map((type) => DropdownMenuItem(value: type, child: Text(type)))
                     .toList(),
@@ -283,7 +283,7 @@ class _ApplyClaimScreenState extends State<ApplyClaimScreen> {
                   labelText: 'Proof Type',
                   border: OutlineInputBorder(),
                 ),
-                value: _selectedProofType,
+                initialValue: _selectedProofType,
                 onChanged: (proofValue) => setState(() => _selectedProofType = proofValue),
                 items: const ['Image', 'PDF']
                     .map((v) => DropdownMenuItem(value: v, child: Text(v)))

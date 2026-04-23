@@ -41,9 +41,11 @@ class StaffScheduleDetailsScreen extends StatefulWidget {
 class _StaffScheduleDetailsScreenState
     extends State<StaffScheduleDetailsScreen> {
   bool isClockIn = false;
+  bool isClockOut = false; 
   bool _isLoading = false;
   bool _isCheckingAttendance = true;
-  String? _clockInImageUrl; // ✅ store proof image URL
+  String? _clockInImageUrl; 
+  String? _clockOutTimeStr; 
 
   @override
   void initState() {
@@ -60,13 +62,15 @@ class _StaffScheduleDetailsScreenState
         scheduleId: widget.scheduleId,
       );
 
-      // ✅ Also get image URL if already clocked in
       final imageUrl = attendanceProvider.lastCheckedImageUrl;
+      final clockOutTime = attendanceProvider.lastCheckedClockOutTime; 
 
       if (mounted) {
         setState(() {
           isClockIn = hasAttendance;
           _clockInImageUrl = imageUrl;
+          isClockOut = clockOutTime != null && clockOutTime.isNotEmpty;
+          _clockOutTimeStr = clockOutTime;
           _isCheckingAttendance = false;
         });
       }
@@ -104,16 +108,14 @@ class _StaffScheduleDetailsScreenState
     }
   }
 
-  // ✅ Auto open camera directly — no dialog
   Future<void> _handleClockIn() async {
     setState(() => _isLoading = true);
 
     try {
       final ImagePicker picker = ImagePicker();
 
-      // ✅ Directly open camera (gallery on web)
       final XFile? picked = await picker.pickImage(
-        source: kIsWeb ? ImageSource.gallery : ImageSource.camera,
+        source: ImageSource.camera, 
         preferredCameraDevice: CameraDevice.front,
         imageQuality: 85,
       );
@@ -153,7 +155,7 @@ class _StaffScheduleDetailsScreenState
       if (result['success'] == true && mounted) {
         setState(() {
           isClockIn = true;
-          _clockInImageUrl = result['imageUrl']; // ✅ store returned image URL
+          _clockInImageUrl = result['imageUrl']; 
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -183,7 +185,73 @@ class _StaffScheduleDetailsScreenState
     }
   }
 
-  // ✅ Show proof image in full screen
+  Future<void> _handleClockOut() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Clock Out'),
+        content: const Text('Are you sure you are done with your shift and want to clock out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Clock Out', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final attendanceProvider = Provider.of<Attendances>(context, listen: false);
+      
+      final now = DateTime.now();
+      final result = await attendanceProvider.clockOutAttendance(
+        staffId: widget.staffId,
+        scheduleId: widget.scheduleId,
+        clockOutTime: now.toIso8601String(),
+      );
+
+      if (result['success'] == true && mounted) {
+        setState(() {
+          isClockOut = true;
+          _clockOutTimeStr = DateFormat('hh:mm a').format(now);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Successfully clocked out! Have a good rest.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Clock out failed. Please check connection.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $error'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   void _viewProofImage() {
     if (_clockInImageUrl == null) return;
     showDialog(
@@ -275,17 +343,15 @@ class _StaffScheduleDetailsScreenState
                       DetailsRow(
                           label: 'End Time', value: widget.endTime),
                       DetailsRow(
-                          label: 'Break Start', value: widget.startBreak),
-                      DetailsRow(
-                          label: 'Break End', value: widget.endBreak),
-                      DetailsRow(
                         label: 'Status',
-                        value: isClockIn ? 'Clocked In' : widget.status,
-                        valueColor: isClockIn
+                        value: isClockOut 
+                               ? 'Shift Completed' 
+                               : isClockIn 
+                                    ? 'Clocked In' 
+                                    : widget.status,
+                        valueColor: isClockIn || isClockOut
                             ? Colors.green
-                            : widget.status.toLowerCase() == 'active'
-                                ? Colors.green
-                                : Colors.red,
+                            : Colors.red,
                       ),
                     ],
                   ),
@@ -293,8 +359,8 @@ class _StaffScheduleDetailsScreenState
               ),
               const SizedBox(height: 20),
 
-              // ✅ Show proof image if clocked in
-              if (isClockIn && _clockInImageUrl != null) ...[
+              // ✅ CHANGED: Now only shows if clocked in AND NOT clocked out
+              if (isClockIn && !isClockOut && _clockInImageUrl != null) ...[
                 Card(
                   elevation: 4,
                   child: Padding(
@@ -336,74 +402,53 @@ class _StaffScheduleDetailsScreenState
                 const SizedBox(height: 20),
               ],
 
-              Card(
-                elevation: 4,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Assigned Staff',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 12),
-                      ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: widget.assignedStaff.length,
-                        itemBuilder: (context, index) {
-                          return Card(
-                            elevation: 2,
-                            margin:
-                                const EdgeInsets.symmetric(vertical: 4),
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: Colors.blue,
-                                child: Text(
-                                  widget.assignedStaff[index].isNotEmpty
-                                      ? widget.assignedStaff[index][0]
-                                      : '?',
-                                  style: const TextStyle(
-                                      color: Colors.white),
-                                ),
-                              ),
-                              title: Text(
-                                widget.assignedStaff[index],
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w500),
-                              ),
-                              subtitle: Text(
-                                '${widget.startTime} - ${widget.endTime}',
-                                style:
-                                    TextStyle(color: Colors.grey[600]),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
+              // ✅ The Action Button Area
+              if (_isLoading)
+                const Center(child: CircularProgressIndicator())
+              else if (!isClockIn)
+                // STAGE 1: Need to Clock In
+                ElevatedButton.icon(
+                  onPressed: _handleClockIn,
+                  icon: const Icon(Icons.camera_alt),
+                  label: const Text('Clock In'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // ✅ Clock In button — directly opens camera
-              if (!isClockIn)
-                _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : ElevatedButton.icon(
-                        onPressed: _handleClockIn,
-                        icon: const Icon(Icons.camera_alt),
-                        label: const Text('Clock In'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 16),
-                        ),
+                )
+              else if (isClockIn && !isClockOut)
+                // STAGE 2: Need to Clock Out
+                ElevatedButton.icon(
+                  onPressed: _handleClockOut,
+                  icon: const Icon(Icons.exit_to_app),
+                  label: const Text('Clock Out'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                )
+              else if (isClockOut)
+                // STAGE 3: Done for the day
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'Shift completed! Clocked out at ${_clockOutTimeStr ?? "Unknown Time"}',
+                      style: const TextStyle(
+                        color: Colors.green, 
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16
                       ),
+                    ),
+                  ),
+                )
             ],
           ),
         ),

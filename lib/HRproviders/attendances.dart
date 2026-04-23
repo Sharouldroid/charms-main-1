@@ -6,14 +6,16 @@ import 'dart:typed_data';
 class Attendances with ChangeNotifier {
   final String baseUrl = 'https://devcms.com.my/charmsAPI/api';
 
-  // ✅ Store last checked image URL for use after checkAttendance
+  // ✅ Store last checked image URL & Clock Out Time
   String? lastCheckedImageUrl;
+  String? lastCheckedClockOutTime; 
 
   // 1. CREATE ATTENDANCE — now returns Map with success + imageUrl
   Future<Map<String, dynamic>> recordAttendance({
     required int staffId,
     required int scheduleId,
     required String clockInTime,
+    String? clockOutTime, // Made optional for clocking in
     Uint8List? image,
   }) async {
     final uri = Uri.parse('$baseUrl/attendance/create');
@@ -23,6 +25,9 @@ class Attendances with ChangeNotifier {
       request.fields['staff_id'] = staffId.toString();
       request.fields['schedule_id'] = scheduleId.toString();
       request.fields['clock_in_time'] = clockInTime;
+      if (clockOutTime != null) {
+        request.fields['clock_out_time'] = clockOutTime;
+      }
       request.fields['attendance_status'] = '2';
 
       if (image != null) {
@@ -43,7 +48,7 @@ class Attendances with ChangeNotifier {
         final data = json.decode(response.body);
         return {
           'success': true,
-          'imageUrl': data['clock_in_image_url'], // ✅ return URL
+          'imageUrl': data['clock_in_image_url'], 
         };
       }
       return {'success': false, 'imageUrl': null};
@@ -53,7 +58,7 @@ class Attendances with ChangeNotifier {
     }
   }
 
-  // 2. CHECK ATTENDANCE — also stores imageUrl
+  // 2. CHECK ATTENDANCE — also stores imageUrl and clockOutTime
   Future<bool> checkAttendance({
     required int staffId,
     required int scheduleId,
@@ -68,8 +73,9 @@ class Attendances with ChangeNotifier {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
 
-        // ✅ Store image URL for use in screen
+        // ✅ Store image URL and Clock Out time for use in screen
         lastCheckedImageUrl = data['clock_in_image_url'];
+        lastCheckedClockOutTime = data['clock_out_time'];
 
         if (data['exists'] == true && data['attendance_status'] == 2) {
           return true;
@@ -79,6 +85,41 @@ class Attendances with ChangeNotifier {
     } catch (error) {
       debugPrint('Error checking attendance: $error');
       return false;
+    }
+  }
+
+  // ✅ 2.5 CLOCK OUT ATTENDANCE
+  Future<Map<String, dynamic>> clockOutAttendance({
+    required int staffId,
+    required int scheduleId,
+    required String clockOutTime,
+  }) async {
+    // Depending on your Laravel API, this might be a PUT or POST. 
+    // Usually, it's a POST to a specific endpoint, or a PUT to update the existing record.
+    final uri = Uri.parse('$baseUrl/attendance/clock-out'); // Adjust this URL to match your backend!
+
+    try {
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'staff_id': staffId,
+          'schedule_id': scheduleId,
+          'clock_out_time': clockOutTime,
+        }),
+      );
+
+      debugPrint('clockOutAttendance status: ${response.statusCode}');
+      debugPrint('clockOutAttendance body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        notifyListeners();
+        return {'success': true};
+      }
+      return {'success': false};
+    } catch (error) {
+      debugPrint('Error clocking out: $error');
+      return {'success': false};
     }
   }
 

@@ -13,7 +13,6 @@ import 'package:charms/screens/dashboard_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:charms/HRproviders/claims.dart';
-import 'package:charms/HRproviders/schedules.dart';
 import 'package:charms/HRproviders/leaves.dart';
 import 'package:charms/HRproviders/payments.dart';
 

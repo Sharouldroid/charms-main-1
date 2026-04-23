@@ -1,5 +1,3 @@
-
-import 'package:charms/image_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -34,156 +32,140 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
         isLoading = false;
       });
     } catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading attendances: $error')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading attendances: $error')),
+        );
+      }
       setState(() => isLoading = false);
     }
   }
 
- Widget _buildAttendanceCard(Map<String, dynamic> record) {
-  final String? imageUrl = record['clock_in_image_url'];
+  Widget _buildAttendanceCard(Map<String, dynamic> record) {
+    final String? imageUrl = record['clock_in_image_url'];
 
-  return Card(
-    margin: const EdgeInsets.symmetric(vertical: 8.0),
-    elevation: 4,
-    child: Column(
-      children: [
-        ListTile(
-          title: Text('Staff ID: ${record['staff_id']}'),
-          subtitle: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 4),
-              Text('Clock In: ${record['clock_in_time'] ?? 'Not recorded'}'),
-              Text('Status: ${_getStatusText(record['attendance_status'])}'),
-            ],
-          ),
-          trailing: PopupMenuButton(
-            onSelected: (value) async {
-              if (value == 'edit') {
-                await _editAttendance(context, record);
-              } else if (value == 'delete') {
-                await _deleteAttendance(record['attendance_id']);
-              }
-            },
-            itemBuilder: (BuildContext context) => [
-              const PopupMenuItem(
-                value: 'edit',
-                child: ListTile(
-                  leading: Icon(Icons.edit),
-                  title: Text('Edit'),
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'delete',
-                child: ListTile(
-                  leading: Icon(Icons.delete),
-                  title: Text('Delete'),
-                ),
-              ),
-            ],
-          ),
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+      elevation: 4,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        title: Text(
+          'Staff ID: ${record['staff_id']}', 
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 6),
+            Text('Clock In: ${record['clock_in_time'] ?? 'Not recorded'}'),
+            
+            // ✅ ADDED: Displays the Clock Out time for the Admin to see
+            Text('Clock Out: ${record['clock_out_time'] ?? 'Not recorded'}'),
+            
+            const SizedBox(height: 4),
+            Text(
+              'Status: ${_getStatusText(record['attendance_status'])}',
+              style: TextStyle(
+                color: _getStatusColor(record['attendance_status']),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // ✅ "View Proof" Eye Button (Only shows if image exists)
+            if (imageUrl != null && imageUrl.isNotEmpty)
+              IconButton(
+                icon: const Icon(Icons.visibility, color: Colors.blue),
+                tooltip: 'View Proof',
+                onPressed: () {
+                  // Ensure URL is fully formed
+                  final fullUrl = imageUrl.startsWith('http')
+                      ? imageUrl
+                      : 'https://devcms.com.my/charmsAPI/public/storage/$imageUrl';
 
-        // ✅ Show proof image via URL
-        if (imageUrl != null && imageUrl.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Attendance Proof:',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                GestureDetector(
-                  onTap: () {
-                    showDialog(
-                      context: context,
-                      builder: (_) => Dialog(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            AppBar(
-                              title: const Text('Proof Image',
-                                  style:
-                                      TextStyle(color: Colors.white)),
-                              backgroundColor: Colors.blue,
-                              automaticallyImplyLeading: false,
-                              actions: [
-                                IconButton(
-                                  icon: const Icon(Icons.close,
-                                      color: Colors.white),
-                                  onPressed: () =>
-                                      Navigator.pop(context),
-                                ),
-                              ],
-                            ),
-                            InteractiveViewer(
-                              child: Image.network(
-                                imageUrl,
-                                fit: BoxFit.contain,
-                                errorBuilder: (_, __, ___) =>
-                                    const Padding(
-                                  padding: EdgeInsets.all(16),
-                                  child: Text('Failed to load image'),
-                                ),
+                  showDialog(
+                    context: context,
+                    builder: (_) => Dialog(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          AppBar(
+                            title: const Text('Proof Image',
+                                style: TextStyle(color: Colors.white)),
+                            backgroundColor: Colors.blue,
+                            automaticallyImplyLeading: false,
+                            actions: [
+                              IconButton(
+                                icon: const Icon(Icons.close,
+                                    color: Colors.white),
+                                onPressed: () => Navigator.pop(context),
+                              ),
+                            ],
+                          ),
+                          InteractiveViewer(
+                            child: Image.network(
+                              fullUrl,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => const Padding(
+                                padding: EdgeInsets.all(16),
+                                child: Text('Failed to load image'),
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      imageUrl,
-                      height: 150,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const Center(
-                        child: Text('Failed to load proof image'),
+                          ),
+                        ],
                       ),
                     ),
+                  );
+                },
+              ),
+
+            // Edit/Delete Menu
+            PopupMenuButton<String>(
+              onSelected: (value) async {
+                if (value == 'edit') {
+                  await _editAttendance(context, record);
+                } else if (value == 'delete') {
+                  await _deleteAttendance(record['attendance_id']);
+                }
+              },
+              itemBuilder: (BuildContext context) => [
+                const PopupMenuItem(
+                  value: 'edit',
+                  child: ListTile(
+                    leading: Icon(Icons.edit, color: Colors.blue),
+                    title: Text('Edit'),
                   ),
                 ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Tap to view full screen',
-                  style: TextStyle(fontSize: 11, color: Colors.grey),
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: ListTile(
+                    leading: Icon(Icons.delete, color: Colors.red),
+                    title: Text('Delete'),
+                  ),
                 ),
               ],
             ),
-          )
-        else
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: Text(
-              'No proof image available',
-              style: TextStyle(color: Colors.grey, fontSize: 12),
-            ),
-          ),
-      ],
-    ),
-  );
-}
-
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        iconTheme: IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.white),
         backgroundColor: Colors.blue,
         title: const Text('Manage Attendance',
             style: TextStyle(color: Colors.white)),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: Icon(Icons.refresh, color: Colors.white),
+            icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: _loadAttendances,
           ),
         ],
@@ -197,21 +179,22 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
               children: [
                 Text(
                   'Selected Date: ${DateFormat('yyyy-MM-dd').format(selectedDate)}',
-                  style: const TextStyle(fontSize: 16),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
-                ElevatedButton(
+                ElevatedButton.icon(
                   onPressed: () => _pickDate(context),
-                  child: const Text('Select Date'),
+                  icon: const Icon(Icons.calendar_today, size: 18),
+                  label: const Text('Select Date'),
                 ),
               ],
             ),
           ),
           Expanded(
             child: isLoading
-                ? Center(child: CircularProgressIndicator())
+                ? const Center(child: CircularProgressIndicator())
                 : attendanceRecords.isNotEmpty
                     ? ListView.builder(
-                        padding: const EdgeInsets.all(16.0),
+                        padding: const EdgeInsets.symmetric(horizontal: 12.0),
                         itemCount: attendanceRecords.length,
                         itemBuilder: (ctx, i) =>
                             _buildAttendanceCard(attendanceRecords[i]),
@@ -219,7 +202,7 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
                     : const Center(
                         child: Text(
                           'No attendance records for the selected date.',
-                          style: TextStyle(fontSize: 16),
+                          style: TextStyle(fontSize: 16, color: Colors.grey),
                         ),
                       ),
           ),
@@ -236,6 +219,18 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
         return 'Clocked In';
       default:
         return 'Unknown';
+    }
+  }
+
+  // ✅ Helper for styling status text
+  Color _getStatusColor(int? status) {
+    switch (status) {
+      case 1:
+        return Colors.red;
+      case 2:
+        return Colors.green;
+      default:
+        return Colors.grey;
     }
   }
 
@@ -261,14 +256,18 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
       final success = await attendanceProvider.deleteAttendance(id);
       if (success) {
         await _loadAttendances();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Attendance deleted successfully')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Attendance deleted successfully')),
+          );
+        }
       }
     } catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error deleting attendance: $error')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error deleting attendance: $error')),
+        );
+      }
     }
   }
 
@@ -281,7 +280,7 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          title: Text('Edit Attendance'),
+          title: const Text('Edit Attendance'),
           content: Form(
             key: formKey,
             child: Column(
@@ -317,16 +316,20 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
                     );
                     if (success) {
                       await _loadAttendances();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content: Text('Attendance updated successfully')),
-                      );
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Attendance updated successfully')),
+                        );
+                      }
                     }
                   } catch (error) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content: Text('Error updating attendance: $error')),
-                    );
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content: Text('Error updating attendance: $error')),
+                      );
+                    }
                   }
                 }
               },
