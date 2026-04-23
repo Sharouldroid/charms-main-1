@@ -41,18 +41,8 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
     }
   }
 
-  Widget _buildAttendanceCard(Map<String, dynamic> record) {
-  // Print detailed info about the record for debugging
-  print('Record ID: ${record['attendance_id']}');
-  if (record['clock_in_image'] != null) {
-    if (record['clock_in_image'] is Map && record['clock_in_image']['data'] is List) {
-      final data = record['clock_in_image']['data'];
-      print('Image data length: ${data.length}');
-      if (data.length > 0) {
-        print('First few bytes: ${data.take(10).toList()}');
-      }
-    }
-  }
+ Widget _buildAttendanceCard(Map<String, dynamic> record) {
+  final String? imageUrl = record['clock_in_image_url'];
 
   return Card(
     margin: const EdgeInsets.symmetric(vertical: 8.0),
@@ -95,25 +85,85 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
             ],
           ),
         ),
-        if (record['clock_in_image'] != null)
+
+        // ✅ Show proof image via URL
+        if (imageUrl != null && imageUrl.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: GestureDetector(
-              onTap: () {
-                showDialog(
-                  context: context,
-                  builder: (context) => Dialog(
-                    child: InteractiveViewer(
-                      child: ImageUtils.buildImageWidget(
-                        record['clock_in_image'],
-                        height: 300,
-                        width: 300,
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Attendance Proof:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (_) => Dialog(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            AppBar(
+                              title: const Text('Proof Image',
+                                  style:
+                                      TextStyle(color: Colors.white)),
+                              backgroundColor: Colors.blue,
+                              automaticallyImplyLeading: false,
+                              actions: [
+                                IconButton(
+                                  icon: const Icon(Icons.close,
+                                      color: Colors.white),
+                                  onPressed: () =>
+                                      Navigator.pop(context),
+                                ),
+                              ],
+                            ),
+                            InteractiveViewer(
+                              child: Image.network(
+                                imageUrl,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) =>
+                                    const Padding(
+                                  padding: EdgeInsets.all(16),
+                                  child: Text('Failed to load image'),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      imageUrl,
+                      height: 150,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Center(
+                        child: Text('Failed to load proof image'),
                       ),
                     ),
                   ),
-                );
-              },
-              child: ImageUtils.buildImageWidget(record['clock_in_image']),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Tap to view full screen',
+                  style: TextStyle(fontSize: 11, color: Colors.grey),
+                ),
+              ],
+            ),
+          )
+        else
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Text(
+              'No proof image available',
+              style: TextStyle(color: Colors.grey, fontSize: 12),
             ),
           ),
       ],
