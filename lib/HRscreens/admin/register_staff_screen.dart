@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/foundation.dart' show kIsWeb; // ✅ Added for web check
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -70,6 +71,19 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
   XFile? _profileImage; // ✅ Changed to XFile
   final ImagePicker _picker = ImagePicker();
 
+  late String _tempPassword; // ✅ ADD THIS
+    String _generateTempPassword() {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#!';
+      final rand = Random.secure();
+      return List.generate(10, (i) => chars[rand.nextInt(chars.length)]).join();
+    }
+
+    @override
+      void initState() {
+        super.initState();
+        _tempPassword = _generateTempPassword(); //auto-generate once
+      }
+
   Future<void> _pickImage() async {
     final picked = await _picker.pickImage(
       source: ImageSource.gallery,
@@ -86,7 +100,8 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
     setState(() => _isLoading = true);
 
     try {
-      _staffData['password'] = _staffData['passkey'] ?? '';
+      _staffData['password'] = _tempPassword;
+      _staffData['passkey'] = _tempPassword;
       _staffData['category'] = (_staffData['category'] ?? '').isEmpty ? '1' : _staffData['category']!;
       _staffData['usertype'] = (_staffData['usertype'] ?? '').isEmpty ? '9' : _staffData['usertype']!;
       _staffData['marital_status'] = (_staffData['marital_status'] ?? '').isEmpty ? '1' : _staffData['marital_status']!;
@@ -173,14 +188,14 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
                   validator: (value) => value == null || value.trim().isEmpty ? 'Please enter a username' : null,
                   onSaved: (value) => _staffData['username'] = value!,
                 ),
-                TextFormField(
-                  decoration: const InputDecoration(labelText: 'Password'),
-                  obscureText: true,
-                  onSaved: (value) {
-                    _staffData['passkey'] = value ?? '';
-                    _staffData['password'] = value ?? '';
-                  },
-                ),
+                // TextFormField(
+                //   decoration: const InputDecoration(labelText: 'Password'),
+                //   obscureText: true,
+                //   onSaved: (value) {
+                //     _staffData['passkey'] = value ?? '';
+                //     _staffData['password'] = value ?? '';
+                //   },
+                // ),
                 TextFormField(
                   decoration: const InputDecoration(labelText: 'First Name'),
                   validator: (value) => value == null || value.trim().isEmpty ? 'Please enter a first name' : null,

@@ -214,6 +214,7 @@ class Auth with ChangeNotifier {
         'emergency_relation': staffData['emergency_relation'],
         'emergency_gender': staffData['emergency_gender'],
         'emergency_phone': staffData['emergency_phone'],
+        'plain_password': cleanPass,
       };
 
       debugPrint('STAFF PROFILE CREATE URL: $staffProfileUrl');
