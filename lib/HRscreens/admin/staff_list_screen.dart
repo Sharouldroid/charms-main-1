@@ -41,9 +41,23 @@ class _StaffListScreenState extends State<StaffListScreen> {
     }
   }
 
+  Future<void> _navigateToStaffDetails(Staff staff) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => StaffDetailsScreen(staff: staff)),
+    );
+
+    if (result == true) {
+      if (!mounted) return;
+      // ✅ Only refresh, SnackBar is shown in StaffDetailsScreen before pop
+      await context.read<Staffs>().fetchStaff();
+    }
+  }
+
   List<Staff> _getFilteredStaff(List<Staff> staffList) {
     return staffList.where((staff) {
-      final full = '${staff.firstname} ${staff.lastname} ${staff.staffId}'.toLowerCase();
+      final full =
+          '${staff.firstname} ${staff.lastname} ${staff.staffId}'.toLowerCase();
       return full.contains(_searchQuery.toLowerCase());
     }).toList();
   }
@@ -64,7 +78,8 @@ class _StaffListScreenState extends State<StaffListScreen> {
         appBar: AppBar(
           backgroundColor: Colors.blue,
           iconTheme: const IconThemeData(color: Colors.white),
-          title: const Text('Manage Staff', style: TextStyle(color: Colors.white)),
+          title: const Text('Manage Staff',
+              style: TextStyle(color: Colors.white)),
           centerTitle: true,
           bottom: TabBar(
             onTap: (index) {
@@ -93,25 +108,30 @@ class _StaffListScreenState extends State<StaffListScreen> {
                         children: [
                           Text(
                             'Total Employees: ${filteredStaff.length}',
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                           ElevatedButton.icon(
-                           onPressed: () async {
-                                final result = await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => const RegisterStaffScreen()),
-                                );
-
-                                if (result == true) {
-                                  await _loadStaffData();
-                                }
-                              },
+                            onPressed: () async {
+                              final result = await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => const RegisterStaffScreen()),
+                              );
+                              if (result == true) {
+                                await _loadStaffData();
+                              }
+                            },
                             icon: const Icon(Icons.add, color: Colors.red),
-                            label: const Text('Add Staff', style: TextStyle(color: Colors.red)),
+                            label: const Text('Add Staff',
+                                style: TextStyle(color: Colors.red)),
                           ),
                           IconButton(
-                            icon: Icon(_isAscending ? Icons.sort_by_alpha : Icons.sort),
-                            onPressed: () => setState(() => _isAscending = !_isAscending),
+                            icon: Icon(_isAscending
+                                ? Icons.sort_by_alpha
+                                : Icons.sort),
+                            onPressed: () =>
+                                setState(() => _isAscending = !_isAscending),
                             tooltip: 'Sort Alphabetically',
                           ),
                         ],
@@ -125,18 +145,23 @@ class _StaffListScreenState extends State<StaffListScreen> {
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.search),
                         ),
-                        onChanged: (value) => setState(() => _searchQuery = value),
+                        onChanged: (value) =>
+                            setState(() => _searchQuery = value),
                       ),
                     ),
                     const SizedBox(height: 10),
                     Expanded(
                       child: filteredStaff.isEmpty
-                          ? const Center(child: Text('No staff found in this category'))
+                          ? const Center(
+                              child: Text('No staff found in this category'))
                           : ListView.builder(
                               itemCount: filteredStaff.length,
                               itemBuilder: (context, index) {
                                 final staff = filteredStaff[index];
-                                return StaffListTile(staff: staff);
+                                return StaffListTile(
+                                  staff: staff,
+                                  onTap: () => _navigateToStaffDetails(staff),
+                                );
                               },
                             ),
                     ),
@@ -150,8 +175,13 @@ class _StaffListScreenState extends State<StaffListScreen> {
 
 class StaffListTile extends StatelessWidget {
   final Staff staff;
+  final VoidCallback onTap;
 
-  const StaffListTile({super.key, required this.staff});
+  const StaffListTile({
+    super.key,
+    required this.staff,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -163,12 +193,7 @@ class StaffListTile extends StatelessWidget {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Text('ID: ${staff.staffId} | ${staff.occupation}'),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => StaffDetailsScreen(staff: staff)),
-          );
-        },
+        onTap: onTap,
       ),
     );
   }
