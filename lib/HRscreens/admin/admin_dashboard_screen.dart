@@ -51,6 +51,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     'UMT': 0,
   };
 
+  // Modern Color Palette Constants
+  final Color bgColor = const Color(0xFFF4F7FA);
+  final Color primaryBlue = const Color(0xFF2563EB);
+
   @override
   void initState() {
     super.initState();
@@ -103,7 +107,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     payment.workDate.year == currentDate.year)
                 .length;
 
-        // ✅ Count pending claims
         pendingClaims = claimsProvider.claims
             .where((c) => c.status == 'Pending')
             .length;
@@ -175,13 +178,24 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: bgColor, // Modern light grey background
       extendBody: true,
       appBar: AppBar(
+        elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         automaticallyImplyLeading: false,
-        title: const Text('CHARMS ADMIN', style: TextStyle(color: Colors.white)),
+        title: const Text('CHARMS ADMIN',
+            style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2)),
         centerTitle: true,
-        backgroundColor: Colors.blue,
+        backgroundColor: primaryBlue,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(20),
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.swap_horiz),
@@ -212,10 +226,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 icon: totalPending > 0
                     ? Badge(
                         label: Text(totalPending.toString()),
-                        backgroundColor: Colors.red,
-                        child: const Icon(Icons.notifications),
+                        backgroundColor: Colors.redAccent,
+                        child: const Icon(Icons.notifications_none_rounded, size: 26),
                       )
-                    : const Icon(Icons.notifications),
+                    : const Icon(Icons.notifications_none_rounded, size: 26),
                 onPressed: () {
                   Navigator.push(
                     context,
@@ -227,14 +241,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout_rounded),
             tooltip: 'Back to Dashboard',
             onPressed: _logout,
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: CircularProgressIndicator(color: primaryBlue))
           : _buildDashboardContent(),
       bottomNavigationBar: BottomNavBar(
         selectedIndex: _selectedIndex,
@@ -245,89 +260,119 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   Widget _buildDashboardContent() {
     return RefreshIndicator(
+      color: primaryBlue,
       onRefresh: _loadDashboardData,
       child: SingleChildScrollView(
-        child: Column(
-          children: [
-            const SizedBox(height: 10),
-            Text(
-              "Welcome, ${widget.username}!",
-              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-            ),
-            Text("Last Login: $lastLoginTime"),
-            const SizedBox(height: 10),
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start, // Keeps the rest of the page layout structured
+            children: [
+              // ✅ Wrapped greeting and login time in a Center widget
+              Center(
+                child: Column(
+                  children: [
+                    Text(
+                      "Welcome back,\n${widget.username} 👋", // Added emoji here
+                      textAlign: TextAlign.center, // Ensures the multi-line text is centered
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1E293B), // Dark slate color
+                        height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center, // Centers the icon and text
+                      children: [
+                        const Icon(Icons.access_time_rounded, size: 16, color: Colors.grey),
+                        const SizedBox(width: 4),
+                        Text(
+                          "Last Login: $lastLoginTime",
+                          style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
 
-            // Row 1 — Total Employees & Leave Pending
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Row(
+              // Row 1 — Total Employees & Leave Pending
+              Row(
                 children: [
                   Expanded(
                     child: SummaryCard(
                       title: 'Total Employees',
                       count: totalEmployees,
-                      icon: Icons.people,
+                      icon: Icons.people_alt_rounded,
                       iconColor: Colors.blue,
                     ),
                   ),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: SummaryCard(
                       title: 'Leave Pending',
                       count: onLeaveCount,
-                      icon: Icons.beach_access,
+                      icon: Icons.beach_access_rounded,
                       iconColor: Colors.red,
                     ),
                   ),
                 ],
               ),
-            ),
+              const SizedBox(height: 12),
 
-            // Row 2 — Today's Attendance & Payroll Pending
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Row(
+              // Row 2 — Today's Attendance & Payroll Pending
+              Row(
                 children: [
                   Expanded(
                     child: SummaryCard(
                       title: "Today's Attendance",
                       count: todayAttendance,
-                      icon: Icons.access_time,
+                      icon: Icons.timer_rounded,
                       iconColor: Colors.green,
                     ),
                   ),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: SummaryCard(
                       title: 'Payroll Pending',
                       count: pendingPayroll,
-                      icon: Icons.receipt,
+                      icon: Icons.receipt_long_rounded,
                       iconColor: Colors.teal,
                     ),
                   ),
                 ],
               ),
-            ),
+              const SizedBox(height: 12),
 
-            // ✅ Row 3 — Claim Pending (Centered)
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Row(
+              // Row 3 — Claim Pending (Centered beautifully)
+              Row(
                 children: [
-                  const Spacer(flex: 1), // Takes up 25% empty space on the left
+                  const Spacer(flex: 1),
                   Expanded(
-                    flex: 2, // Takes up 50% space (matches the width of the cards above)
+                    flex: 2,
                     child: SummaryCard(
                       title: 'Claim Pending',
                       count: pendingClaims,
-                      icon: Icons.request_page,
+                      icon: Icons.request_page_rounded,
                       iconColor: Colors.orange,
                     ),
                   ),
-                  const Spacer(flex: 1), // Takes up 25% empty space on the right
+                  const Spacer(flex: 1),
                 ],
               ),
-            ),
-            _buildMovementCards(),
-          ],
+              
+              const SizedBox(height: 32),
+              _buildMovementCards(),
+              const SizedBox(height: 80), // Padding for Bottom Nav Bar
+            ],
+          ),
         ),
       ),
     );
@@ -336,63 +381,105 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget _buildMovementCards() {
     final today = DateFormat('dd MMM yyyy').format(DateTime.now());
 
-    return Container(
-      height: 400,
-      padding: const EdgeInsets.all(5),
-      decoration: const BoxDecoration(
-        color: Colors.blue,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(30),
-          topRight: Radius.circular(30),
-        ),
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Text(
-              "Today's Schedule ($today)",
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              "Today's Schedule",
+              style: TextStyle(
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
+                color: Color(0xFF1E293B),
               ),
             ),
-          ),
-          ...locationStaffCounts.entries.map((entry) {
-            return Card(
-              elevation: 2,
-              margin: const EdgeInsets.all(5.0),
-              child: ListTile(
-                leading: const Icon(
-                  Icons.location_on_outlined,
-                  size: 30,
+            Text(
+              today,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.blue,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        ...locationStaffCounts.entries.map((entry) {
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12.0),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              leading: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.location_on_rounded,
+                  size: 24,
                   color: Colors.blue,
                 ),
-                title: Text(
-                  entry.key,
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                subtitle: Text('Staff scheduled today: ${entry.value}'),
-                trailing: const Icon(Icons.arrow_forward_ios,
-                    size: 30, color: Colors.blue),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ScheduleListScreen(
-                        location: entry.key,
-                        date: DateTime.now(),
-                      ),
-                    ),
-                  );
-                },
               ),
-            );
-          }),
-        ],
-      ),
+              title: Text(
+                entry.key,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF334155),
+                ),
+              ),
+              subtitle: Padding(
+                padding: const EdgeInsets.only(top: 4.0),
+                child: Text(
+                  'Staff scheduled: ${entry.value}',
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              trailing: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 16,
+                  color: Colors.blue,
+                ),
+              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ScheduleListScreen(
+                      location: entry.key,
+                      date: DateTime.now(),
+                    ),
+                  ),
+                );
+              },
+            ),
+          );
+        }),
+      ],
     );
   }
 }
@@ -414,26 +501,53 @@ class SummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AspectRatio(
-      aspectRatio: 1.5,
-      child: Card(
-        elevation: 2,
+      aspectRatio: 1.4, // Slightly tweaked for modern proportions
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20), // Modern curved edges
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04), // Very soft shadow
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
+          padding: const EdgeInsets.all(16.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 30, color: iconColor),
-              const SizedBox(height: 6),
+              // Tinted background behind the icon
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.12), // Soft tint
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 28, color: iconColor),
+              ),
+              const SizedBox(height: 12), // ✅ Replaced Spacer with fixed SizedBox to center text
               Text(
-                title,
-                textAlign: TextAlign.center,
+                count.toString(),
                 style: const TextStyle(
-                    fontSize: 14, fontWeight: FontWeight.bold),
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF1E293B),
+                ),
               ),
               const SizedBox(height: 4),
               Text(
-                count.toString(),
-                style: const TextStyle(fontSize: 20),
+                title,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade600, // Muted subtitle color
+                ),
               ),
             ],
           ),

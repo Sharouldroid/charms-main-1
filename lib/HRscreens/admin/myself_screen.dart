@@ -33,6 +33,10 @@ class _MySelfScreenState extends State<MySelfScreen> {
 
   final _formKey = GlobalKey<FormState>();
 
+  // ── Matches AdminDashboard palette ──────────────────────────────────────────
+  final Color _bgColor = const Color(0xFFF4F7FA);
+  final Color _primaryBlue = const Color(0xFF2563EB);
+
   late TextEditingController _firstNameController;
   late TextEditingController _lastNameController;
   late TextEditingController _dobController;
@@ -72,15 +76,12 @@ class _MySelfScreenState extends State<MySelfScreen> {
 
   Future<void> _loadUserOrStaffData() async {
     await _loadStaffData();
-    if (_currentStaff == null) {
-      await _loadUserData();
-    }
+    if (_currentStaff == null) await _loadUserData();
   }
 
   Future<void> _loadUserData() async {
     try {
-      final usersProvider =
-          Provider.of<hr_users.Users>(context, listen: false);
+      final usersProvider = Provider.of<hr_users.Users>(context, listen: false);
       final authProvider = context.read<hr_auth.Auth>();
       final token = authProvider.token;
 
@@ -109,17 +110,14 @@ class _MySelfScreenState extends State<MySelfScreen> {
       final username = authProvider.username.trim().toLowerCase();
 
       await staffsProvider.fetchStaff();
-      final staffList = staffsProvider.staffList;
-
-      final matches = staffList.where((s) {
-        return s.username.trim().toLowerCase() == username;
-      }).toList();
+      final matches = staffsProvider.staffList
+          .where((s) => s.username.trim().toLowerCase() == username)
+          .toList();
 
       if (matches.isEmpty) {
         debugPrint('No matching staff found for username=$username');
         return;
       }
-
       _currentStaff = matches.first;
       _updateControllersWithStaffData();
     } catch (error) {
@@ -165,19 +163,14 @@ class _MySelfScreenState extends State<MySelfScreen> {
 
   Future<void> _pickImage() async {
     try {
-      final picked = await ImagePicker().pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 70,
-      );
-      if (picked != null) {
-        setState(() => _profileImage = picked);
-      }
+      final picked = await ImagePicker()
+          .pickImage(source: ImageSource.gallery, imageQuality: 70);
+      if (picked != null) setState(() => _profileImage = picked);
     } catch (e) {
       debugPrint('Error picking image: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to pick image: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Failed to pick image: $e')));
       }
     }
   }
@@ -187,7 +180,6 @@ class _MySelfScreenState extends State<MySelfScreen> {
 
     try {
       setState(() => _isLoading = true);
-
       final authProvider = context.read<hr_auth.Auth>();
       final token = authProvider.token;
 
@@ -210,8 +202,7 @@ class _MySelfScreenState extends State<MySelfScreen> {
           emergencyName: _currentStaff!.emergencyName,
           emergencyIc: _currentStaff!.emergencyIc,
           emergencyRelation: _currentStaff!.emergencyRelation,
-          emergencyGender:
-              _genderController.text == 'Male' ? 1 : 2,
+          emergencyGender: _genderController.text == 'Male' ? 1 : 2,
           emergencyPhone: _currentStaff!.emergencyPhone,
           idNum: _currentStaff!.idNum,
           dob: _dobController.text,
@@ -280,8 +271,8 @@ class _MySelfScreenState extends State<MySelfScreen> {
   }
 
   Future<void> _logout() async {
-    Navigator.of(context).pushNamedAndRemoveUntil(
-        DashboardScreen.routeName, (route) => false);
+    Navigator.of(context)
+        .pushNamedAndRemoveUntil(DashboardScreen.routeName, (route) => false);
   }
 
   void _onItemTapped(int index) {
@@ -295,23 +286,59 @@ class _MySelfScreenState extends State<MySelfScreen> {
       () => AdminListScreen(username: username),
       () => const MySelfScreen(),
     ];
-
     Navigator.pushReplacement(
         context, MaterialPageRoute(builder: (_) => routes[index]()));
   }
 
-  Widget _buildInfoField(String label, TextEditingController controller,
-      {bool enabled = false}) {
+  // ── Shared field builder ─────────────────────────────────────────────────────
+  Widget _buildInfoField(
+    String label,
+    TextEditingController controller,
+    IconData icon, {
+    bool enabled = false,
+  }) {
+    final bool active = enabled && _isEditing;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.only(bottom: 14),
       child: TextFormField(
         controller: controller,
-        enabled: enabled && _isEditing,
+        enabled: active,
+        style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF1E293B)),
         decoration: InputDecoration(
           labelText: label,
-          border: const OutlineInputBorder(),
-          filled: !enabled || !_isEditing,
-          fillColor: (!enabled || !_isEditing) ? Colors.grey[200] : null,
+          labelStyle: TextStyle(
+              color: active ? _primaryBlue : Colors.grey.shade500,
+              fontSize: 13,
+              fontWeight: FontWeight.w500),
+          prefixIcon: Icon(icon,
+              size: 20, color: active ? _primaryBlue : Colors.grey.shade400),
+          filled: true,
+          fillColor: active ? Colors.white : Colors.grey.shade100,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: _primaryBlue.withOpacity(0.3)),
+          ),
+          disabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: Colors.grey.shade200),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: _primaryBlue, width: 1.5),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Colors.red),
+          ),
+          focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Colors.red, width: 1.5),
+          ),
         ),
         validator: (v) =>
             (v == null || v.isEmpty) ? 'Please enter $label' : null,
@@ -319,20 +346,47 @@ class _MySelfScreenState extends State<MySelfScreen> {
     );
   }
 
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12, top: 4),
+      child: Text(
+        title,
+        style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: Colors.grey.shade500,
+            letterSpacing: 0.8),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: _bgColor,
+      extendBody: true,
       appBar: AppBar(
+        elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         automaticallyImplyLeading: false,
-        backgroundColor: Colors.blue,
+        backgroundColor: _primaryBlue,
         centerTitle: true,
-        title: const Text('CHARMS ADMIN',
-            style: TextStyle(color: Colors.white)),
+        title: const Text(
+          'CHARMS ADMIN',
+          style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2),
+        ),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
+        ),
         actions: [
           IconButton(
-            icon: Icon(_isEditing ? Icons.save : Icons.edit,
-                color: Colors.white),
+            icon: Icon(
+              _isEditing ? Icons.check_circle_rounded : Icons.edit_rounded,
+              color: Colors.white,
+            ),
             onPressed: () {
               if (_isEditing) {
                 _updateStaffInfo();
@@ -341,119 +395,223 @@ class _MySelfScreenState extends State<MySelfScreen> {
               }
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            tooltip: 'Back to Dashboard',
-            onPressed: _logout,
-          ),
+          if (_isEditing)
+            IconButton(
+              icon: const Icon(Icons.close_rounded, color: Colors.white),
+              tooltip: 'Cancel',
+              onPressed: () => setState(() => _isEditing = false),
+            ),
+          if (!_isEditing)
+            IconButton(
+              icon: const Icon(Icons.logout_rounded, color: Colors.white),
+              tooltip: 'Back to Dashboard',
+              onPressed: _logout,
+            ),
+          const SizedBox(width: 8),
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: CircularProgressIndicator(color: _primaryBlue))
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 120),
               child: Form(
                 key: _formKey,
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    GestureDetector(
-                      onTap: _isEditing ? _pickImage : null,
-                      child: Stack(
+                    // ── Avatar ─────────────────────────────────────────────
+                    Center(
+                      child: Column(
                         children: [
-                          CircleAvatar(
-                            radius: 50,
-                            backgroundColor: Colors.blue,
-                            backgroundImage: _profileImage != null
-                                ? (kIsWeb
-                                    ? NetworkImage(_profileImage!.path)
-                                        as ImageProvider
-                                    : FileImage(
-                                        File(_profileImage!.path)))
-                                : (_currentStaff?.filepath != null &&
-                                        _currentStaff!
-                                            .filepath!.isNotEmpty)
-                                    ? NetworkImage(
-                                        'https://devcms.com.my/charmsAPI/public/storage/${_currentStaff!.filepath}')
-                                    : null,
-                            child: (_profileImage == null &&
-                                    (_currentStaff?.filepath == null ||
-                                        _currentStaff!.filepath!.isEmpty))
-                                ? const Icon(Icons.person,
-                                    size: 50, color: Colors.white)
-                                : null,
-                          ),
-                          if (_isEditing)
-                            Positioned(
-                              bottom: 0,
-                              right: 0,
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: const BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
+                          GestureDetector(
+                            onTap: _isEditing ? _pickImage : null,
+                            child: Stack(
+                              children: [
+                                Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: _primaryBlue.withOpacity(0.15),
+                                        blurRadius: 20,
+                                        offset: const Offset(0, 8),
+                                      ),
+                                    ],
+                                  ),
+                                  child: CircleAvatar(
+                                    radius: 52,
+                                    backgroundColor:
+                                        _primaryBlue.withOpacity(0.12),
+                                    backgroundImage: _profileImage != null
+                                        ? (kIsWeb
+                                            ? NetworkImage(_profileImage!.path)
+                                                as ImageProvider
+                                            : FileImage(
+                                                File(_profileImage!.path)))
+                                        : (_currentStaff?.filepath != null &&
+                                                _currentStaff!
+                                                    .filepath!.isNotEmpty)
+                                            ? NetworkImage(
+                                                'https://devcms.com.my/charmsAPI/public/storage/${_currentStaff!.filepath}')
+                                            : null,
+                                    child: (_profileImage == null &&
+                                            (_currentStaff?.filepath == null ||
+                                                _currentStaff!
+                                                    .filepath!.isEmpty))
+                                        ? Icon(Icons.person_rounded,
+                                            size: 52, color: _primaryBlue)
+                                        : null,
+                                  ),
                                 ),
-                                child: const Icon(Icons.camera_alt,
-                                    size: 18, color: Colors.blue),
+                                if (_isEditing)
+                                  Positioned(
+                                    bottom: 2,
+                                    right: 2,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: _primaryBlue,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                            color: Colors.white, width: 2),
+                                      ),
+                                      child: const Icon(Icons.camera_alt,
+                                          size: 14, color: Colors.white),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Text(
+                            '${_firstNameController.text} ${_lastNameController.text}'
+                                .trim()
+                                .isNotEmpty
+                                ? '${_firstNameController.text} ${_lastNameController.text}'.trim()
+                                : 'My Profile',
+                            style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF1E293B)),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _emailController.text.isNotEmpty
+                                ? _emailController.text
+                                : '',
+                            style: TextStyle(
+                                color: Colors.grey.shade500,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500),
+                          ),
+                          if (_isEditing) ...[
+                            const SizedBox(height: 10),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withOpacity(0.10),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.edit_note_rounded,
+                                      size: 14, color: Colors.orange),
+                                  SizedBox(width: 4),
+                                  Text('Editing profile',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.orange)),
+                                ],
                               ),
                             ),
+                          ],
                         ],
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 28),
+
+                    // ── Personal Info ──────────────────────────────────────
+                    _buildSectionHeader('PERSONAL INFORMATION'),
                     _buildInfoField('First Name', _firstNameController,
+                        Icons.badge_rounded,
                         enabled: true),
                     _buildInfoField('Last Name', _lastNameController,
+                        Icons.badge_outlined,
                         enabled: true),
-                    _buildInfoField('Email', _emailController,
+                    _buildInfoField(
+                        'Date of Birth', _dobController, Icons.cake_rounded,
                         enabled: true),
-                    _buildInfoField('Phone', _phoneController,
-                        enabled: true),
-                    _buildInfoField('Date of Birth', _dobController,
-                        enabled: true),
-                    _buildInfoField('Gender', _genderController,
+                    _buildInfoField(
+                        'Gender', _genderController, Icons.wc_rounded,
                         enabled: true),
                     _buildInfoField('Occupation', _occupationController,
-                        enabled: true),
-                    _buildInfoField('Address Line 1', _addressController,
-                        enabled: true),
-                    _buildInfoField('Address Line 2', _address2Controller,
-                        enabled: true),
-                    _buildInfoField('City', _cityController,
-                        enabled: true),
-                    _buildInfoField('State', _stateController,
-                        enabled: true),
-                    _buildInfoField('Country', _countryController,
-                        enabled: true),
-                    _buildInfoField('Postcode', _postcodeController,
+                        Icons.work_rounded,
                         enabled: true),
 
-                    // ✅ Change Password Button
+                    const SizedBox(height: 8),
+                    // ── Contact ────────────────────────────────────────────
+                    _buildSectionHeader('CONTACT'),
+                    _buildInfoField(
+                        'Email', _emailController, Icons.email_rounded,
+                        enabled: true),
+                    _buildInfoField(
+                        'Phone', _phoneController, Icons.phone_rounded,
+                        enabled: true),
+
+                    const SizedBox(height: 8),
+                    // ── Address ────────────────────────────────────────────
+                    _buildSectionHeader('ADDRESS'),
+                    _buildInfoField('Address Line 1', _addressController,
+                        Icons.location_on_rounded,
+                        enabled: true),
+                    _buildInfoField('Address Line 2', _address2Controller,
+                        Icons.location_on_outlined,
+                        enabled: true),
+                    _buildInfoField(
+                        'City', _cityController, Icons.location_city_rounded,
+                        enabled: true),
+                    _buildInfoField(
+                        'State', _stateController, Icons.map_rounded,
+                        enabled: true),
+                    _buildInfoField(
+                        'Country', _countryController, Icons.flag_rounded,
+                        enabled: true),
+                    _buildInfoField(
+                        'Postcode', _postcodeController, Icons.pin_rounded,
+                        enabled: true),
+
                     const SizedBox(height: 24),
+
+                    // ── Change Password ────────────────────────────────────
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
-                        icon: const Icon(Icons.lock_outline,
-                            color: Colors.blue),
-                        label: const Text(
+                        icon: Icon(Icons.lock_outline_rounded,
+                            color: _primaryBlue),
+                        label: Text(
                           'Change Password',
-                          style: TextStyle(color: Colors.blue),
+                          style: TextStyle(
+                              color: _primaryBlue,
+                              fontWeight: FontWeight.w700),
                         ),
                         style: OutlinedButton.styleFrom(
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 14),
-                          side: const BorderSide(color: Colors.blue),
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          side: BorderSide(color: _primaryBlue, width: 1.5),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
                         ),
                         onPressed: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const ChangePassScreen(),
-                            ),
+                                builder: (_) => const ChangePassScreen()),
                           );
                         },
                       ),
                     ),
-                    const SizedBox(height: 20),
                   ],
                 ),
               ),
