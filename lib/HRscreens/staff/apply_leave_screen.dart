@@ -31,6 +31,10 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
   XFile? _attachedFile;
   bool _submitting = false;
 
+  // Distinct Staff UI Color Palette (Indigo & Slate)
+  final Color staffPrimary = const Color(0xFF4F46E5); // Deep Indigo
+  final Color staffBg = const Color(0xFFF8FAFC); // Very Light Slate
+
   // leave types requiring proof
   final Set<String> _proofRequiredLeaveTypes = {
     'Sick Leave',
@@ -61,6 +65,18 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
       initialDate: initialDate,
       firstDate: DateTime(2020),
       lastDate: DateTime(2101),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: staffPrimary,
+              onPrimary: Colors.white,
+              onSurface: const Color(0xFF1E293B),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (picked == null) return;
@@ -81,36 +97,39 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
   Future<void> _showAttachmentOptions() async {
     showModalBottomSheet(
       context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (BuildContext context) {
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // ListTile(
-              //   leading: const Icon(Icons.camera_alt),
-              //   title: const Text('Take Photo'),
-              //   onTap: () {
-              //     Navigator.pop(context);
-              //     _pickImage(ImageSource.camera);
-              //   },
-              // ),
-              ListTile(
-                leading: const Icon(Icons.photo_library),
-                title: const Text('Choose from Gallery'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickImage(ImageSource.gallery);
-                },
-              ),
-              // ListTile(
-              //   leading: const Icon(Icons.attach_file),
-              //   title: const Text('Choose File'),
-              //   onTap: () {
-              //     Navigator.pop(context);
-              //     _pickFile();
-              //   },
-              // ),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: staffPrimary.withOpacity(0.1), shape: BoxShape.circle),
+                    child: Icon(Icons.photo_library_rounded, color: staffPrimary),
+                  ),
+                  title: const Text('Choose from Gallery', style: TextStyle(fontWeight: FontWeight.bold)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickImage(ImageSource.gallery);
+                  },
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -153,13 +172,13 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
     if (_isProofRequired) {
       if ((_selectedProofType ?? '').isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select proof type.')),
+          const SnackBar(content: Text('Please select proof type.'), backgroundColor: Colors.redAccent),
         );
         return;
       }
       if (_attachedFile == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Proof attachment is required for this leave type.')),
+          const SnackBar(content: Text('Proof attachment is required for this leave type.'), backgroundColor: Colors.redAccent),
         );
         return;
       }
@@ -190,18 +209,46 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Leave application submitted successfully')),
+        const SnackBar(content: Text('Leave application submitted successfully'), backgroundColor: Colors.teal),
       );
 
       Navigator.pop(context, true); // tells previous screen to refresh
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to submit leave: $e')),
+        SnackBar(content: Text('Failed to submit leave: $e'), backgroundColor: Colors.redAccent),
       );
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
+  }
+
+  // Helper to build consistent inputs
+  InputDecoration _buildInputDecoration(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+      prefixIcon: Icon(icon, color: staffPrimary.withOpacity(0.7), size: 22),
+      filled: true,
+      fillColor: Colors.grey.shade50,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.shade200),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: staffPrimary, width: 2),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.redAccent),
+      ),
+    );
   }
 
   @override
@@ -210,175 +257,220 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
     final attachLabel = _isProofRequired ? 'Attach Document *' : 'Attach Document (Optional)';
 
     return Scaffold(
+      backgroundColor: staffBg, // Modern background
       appBar: AppBar(
-        title: const Text('Apply for Leave', style: TextStyle(color: Colors.white)),
-        backgroundColor: Colors.blue,
-        centerTitle: true,
+        elevation: 0,
+        backgroundColor: staffPrimary,
         iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text('APPLY LEAVE',
+            style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2)),
+        centerTitle: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(20),
+          ),
+        ),
       ),
       body: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              DropdownButtonFormField<String>(
-                decoration: const InputDecoration(
-                  labelText: 'Leave Type',
-                  border: OutlineInputBorder(),
-                ),
-                initialValue: _selectedLeaveType,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedLeaveType = value;
-                    if (!_isProofRequired) {
-                      _selectedProofType = null;
-                      _attachedFile = null;
-                    }
-                  });
-                },
-                items: const [
-                  'Annual Leave',
-                  'Sick Leave',
-                  'Maternity Leave',
-                  'Paternity Leave',
-                  'Emergency Leave',
-                  'Unpaid Leave',
-                  'Bereavement',
-                  'Quarantine',
-                  'Half Day Leave 1',
-                  'Half Day Leave 2',
-                ].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-                validator: (value) =>
-                    (value == null || value.isEmpty) ? 'Please select a leave type' : null,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 15,
+                offset: const Offset(0, 5),
               ),
-              const SizedBox(height: 16),
-
-              GestureDetector(
-                onTap: () => _selectDate(context, true),
-                child: AbsorbPointer(
-                  child: TextFormField(
-                    decoration: const InputDecoration(
-                      labelText: 'Start Date',
-                      border: OutlineInputBorder(),
-                      suffixIcon: Icon(Icons.calendar_today),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  
+                  // Icon Header
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: staffPrimary.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.beach_access_rounded, size: 40, color: staffPrimary),
                     ),
-                    controller: TextEditingController(
-                      text: _startDate == null ? '' : DateFormat('dd/MM/yyyy').format(_startDate!),
-                    ),
-                    validator: (_) => _startDate == null ? 'Please select a start date' : null,
                   ),
-                ),
-              ),
-              const SizedBox(height: 16),
+                  const SizedBox(height: 24),
 
-              GestureDetector(
-                onTap: () => _selectDate(context, false),
-                child: AbsorbPointer(
-                  child: TextFormField(
-                    decoration: const InputDecoration(
-                      labelText: 'End Date',
-                      border: OutlineInputBorder(),
-                      suffixIcon: Icon(Icons.calendar_today),
+                  DropdownButtonFormField<String>(
+                    decoration: _buildInputDecoration('Leave Type', Icons.category_rounded),
+                    icon: Icon(Icons.keyboard_arrow_down_rounded, color: staffPrimary),
+                    initialValue: _selectedLeaveType,
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedLeaveType = value;
+                        if (!_isProofRequired) {
+                          _selectedProofType = null;
+                          _attachedFile = null;
+                        }
+                      });
+                    },
+                    items: const [
+                      'Annual Leave',
+                      'Sick Leave',
+                      'Maternity Leave',
+                      'Paternity Leave',
+                      'Emergency Leave',
+                      'Unpaid Leave',
+                      'Bereavement',
+                      'Quarantine',
+                      'Half Day Leave 1',
+                      'Half Day Leave 2',
+                    ].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                    validator: (value) =>
+                        (value == null || value.isEmpty) ? 'Please select a leave type' : null,
+                  ),
+                  const SizedBox(height: 16),
+
+                  GestureDetector(
+                    onTap: () => _selectDate(context, true),
+                    child: AbsorbPointer(
+                      child: TextFormField(
+                        decoration: _buildInputDecoration('Start Date', Icons.date_range_rounded),
+                        controller: TextEditingController(
+                          text: _startDate == null ? '' : DateFormat('dd MMM yyyy').format(_startDate!),
+                        ),
+                        validator: (_) => _startDate == null ? 'Please select a start date' : null,
+                      ),
                     ),
-                    controller: TextEditingController(
-                      text: _endDate == null ? '' : DateFormat('dd/MM/yyyy').format(_endDate!),
+                  ),
+                  const SizedBox(height: 16),
+
+                  GestureDetector(
+                    onTap: () => _selectDate(context, false),
+                    child: AbsorbPointer(
+                      child: TextFormField(
+                        decoration: _buildInputDecoration('End Date', Icons.date_range_rounded).copyWith(
+                          suffixIcon: Icon(Icons.calendar_today_rounded, color: staffPrimary.withOpacity(0.7)),
+                        ),
+                        controller: TextEditingController(
+                          text: _endDate == null ? '' : DateFormat('dd MMM yyyy').format(_endDate!),
+                        ),
+                        validator: (_) {
+                          if (_endDate == null) return 'Please select an end date';
+                          if (_startDate != null && _endDate!.isBefore(_startDate!)) {
+                            return 'End date cannot be before start date';
+                          }
+                          return null;
+                        },
+                      ),
                     ),
-                    validator: (_) {
-                      if (_endDate == null) return 'Please select an end date';
-                      if (_startDate != null && _endDate!.isBefore(_startDate!)) {
-                        return 'End date cannot be before start date';
+                  ),
+                  const SizedBox(height: 16),
+
+                  TextFormField(
+                    controller: _reasonController,
+                    maxLines: 3,
+                    decoration: _buildInputDecoration('Reason for Leave', Icons.subject_rounded),
+                    validator: (value) =>
+                        (value == null || value.trim().isEmpty) ? 'Please provide a reason for leave' : null,
+                  ),
+                  
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16.0),
+                    child: Divider(),
+                  ),
+
+                  DropdownButtonFormField<String>(
+                    decoration: _buildInputDecoration(proofLabel, Icons.attachment_rounded),
+                    icon: Icon(Icons.keyboard_arrow_down_rounded, color: staffPrimary),
+                    initialValue: _selectedProofType,
+                    onChanged: (value) => setState(() => _selectedProofType = value),
+                    items: const [
+                      DropdownMenuItem(value: 'Image', child: Text('Image')),
+                    ],
+                    validator: (value) {
+                      if (_isProofRequired && (value == null || value.isEmpty)) {
+                        return 'Please select a proof type';
                       }
                       return null;
                     },
                   ),
-                ),
-              ),
-              const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-              TextFormField(
-                controller: _reasonController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Reason for Leave',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) =>
-                    (value == null || value.trim().isEmpty) ? 'Please provide a reason for leave' : null,
-              ),
-              const SizedBox(height: 16),
-
-              DropdownButtonFormField<String>(
-                decoration: InputDecoration(
-                  labelText: proofLabel,
-                  border: const OutlineInputBorder(),
-                ),
-                initialValue: _selectedProofType,
-                onChanged: (value) => setState(() => _selectedProofType = value),
-                items: const [
-                  DropdownMenuItem(value: 'Image', child: Text('Image')),
-                  // DropdownMenuItem(value: 'PDF', child: Text('PDF')),
-                ],
-                validator: (value) {
-                  if (_isProofRequired && (value == null || value.isEmpty)) {
-                    return 'Please select a proof type';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _attachedFile != null ? 'Attached: ${_attachedFile!.name}' : attachLabel,
-                      style: const TextStyle(fontSize: 15),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade200),
                     ),
-                  ),
-                  TextButton.icon(
-                    onPressed: _showAttachmentOptions,
-                    icon: const Icon(Icons.attach_file),
-                    label: const Text('Attach'),
-                  ),
-                ],
-              ),
-
-              if (_isProofRequired && _attachedFile == null)
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Padding(
-                    padding: EdgeInsets.only(top: 4),
-                    child: Text(
-                      'Proof attachment is required for this leave type.',
-                      style: TextStyle(color: Colors.red, fontSize: 12),
-                    ),
-                  ),
-                ),
-
-              const SizedBox(height: 24),
-
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _submitting ? null : _submitLeave,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  child: _submitting
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Text(
-                          'Submit',
-                          style: TextStyle(color: Colors.white, fontSize: 16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _attachedFile != null ? 'Attached: ${_attachedFile!.name}' : attachLabel,
+                            style: TextStyle(
+                              fontSize: 14, 
+                              color: _attachedFile != null ? staffPrimary : Colors.grey.shade600,
+                              fontWeight: _attachedFile != null ? FontWeight.bold : FontWeight.normal,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                ),
+                        OutlinedButton.icon(
+                          onPressed: _showAttachmentOptions,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: staffPrimary,
+                            side: BorderSide(color: staffPrimary),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          icon: const Icon(Icons.upload_file_rounded, size: 18),
+                          label: const Text('Attach'),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  if (_isProofRequired && _attachedFile == null)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8, left: 4),
+                      child: Text(
+                        'Proof attachment is required for this leave type.',
+                        style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+
+                  const SizedBox(height: 32),
+
+                  ElevatedButton.icon(
+                    onPressed: _submitting ? null : _submitLeave,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.teal, // Modern submit color
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: _submitting 
+                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Icon(Icons.send_rounded),
+                    label: Text(
+                      _submitting ? 'Submitting...' : 'Submit Leave Request',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),

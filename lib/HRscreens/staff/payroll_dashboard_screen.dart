@@ -35,9 +35,21 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
   Staff? _currentStaff;
   int _selectedIndex = 2;
 
-  final List<String> months = const [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
+  // ── Matches StaffDashboardScreen palette ─────────────────────────────────────
+  final Color staffPrimary = const Color(0xFF4F46E5);
+  final Color staffBg = const Color(0xFFF8FAFC);
+  final Color staffCardBorder = const Color(0xFFE2E8F0);
+
+  static const List<String> months = [
+    'January', 'February', 'March', 'April',
+    'May', 'June', 'July', 'August',
+    'September', 'October', 'November', 'December',
+  ];
+
+  // Short month labels for the card
+  static const List<String> monthsShort = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
   ];
 
   @override
@@ -52,7 +64,6 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
       final leavesProvider = context.read<Leaves>();
       final claimsProvider = context.read<Claims>();
 
-      // ✅ Fetch all data in parallel including leaves/claims for badge
       await Future.wait([
         staffsProvider.fetchStaff(),
         leavesProvider.fetchLeaves(),
@@ -83,7 +94,6 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
     final paymentsProvider = context.read<Payments>();
     try {
       await paymentsProvider.fetchPaymentsByYear(selectedYear);
-
       if (mounted) {
         setState(() {
           _monthlyPayments = paymentsProvider.payments
@@ -177,27 +187,34 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: staffBg,
+      extendBody: true,
       appBar: AppBar(
-        title: const Text('CHARMS STAFF',
-            style: TextStyle(color: Colors.white)),
-        backgroundColor: Colors.blue,
+        elevation: 0,
+        title: const Text(
+          'STAFF PORTAL',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.2,
+          ),
+        ),
+        backgroundColor: staffPrimary,
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
         automaticallyImplyLeading: false,
         actions: [
-          // ✅ Notification badge — same as dashboard
+          // ── Notification badge — same logic as StaffDashboard ────────────
           Consumer3<Leaves, Claims, Schedules>(
             builder: (context, leaves, claims, schedules, child) {
               int staffId = _currentStaff?.staffId ?? 0;
 
               int resolvedLeaves = leaves.leaves
-                  .where((l) =>
-                      l.staffId == staffId && l.status != 'Pending')
+                  .where((l) => l.staffId == staffId && l.status != 'Pending')
                   .length;
 
               int resolvedClaims = claims.claims
-                  .where((c) =>
-                      c.staffId == staffId && c.status != 'Pending')
+                  .where((c) => c.staffId == staffId && c.status != 'Pending')
                   .length;
 
               int assignedSchedules = schedules.schedules
@@ -211,10 +228,11 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
                 icon: totalNotifications > 0
                     ? Badge(
                         label: Text(totalNotifications.toString()),
-                        backgroundColor: Colors.red,
-                        child: const Icon(Icons.notifications),
+                        backgroundColor: Colors.redAccent,
+                        child:
+                            const Icon(Icons.notifications_active_rounded),
                       )
-                    : const Icon(Icons.notifications),
+                    : const Icon(Icons.notifications_none_rounded),
                 onPressed: () {
                   Navigator.push(
                     context,
@@ -229,42 +247,60 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout_rounded),
             tooltip: 'Back to Dashboard',
             onPressed: _logout,
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: CircularProgressIndicator(color: staffPrimary))
           : Column(
               children: [
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                // ── Header banner — mirrors StaffDashboard ───────────────
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.only(
+                      top: 20, bottom: 24, left: 24, right: 24),
+                  decoration: BoxDecoration(
+                    color: staffPrimary,
+                    borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(30),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Payroll',
+                        'My Payroll 💳',
                         style: TextStyle(
-                            fontSize: 24, fontWeight: FontWeight.bold),
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                       ),
+                      const SizedBox(height: 8),
+                      // ── Year picker inside header ─────────────────────
                       Row(
                         children: [
-                          const Text('Year: ',
-                              style: TextStyle(fontSize: 16)),
-                          DropdownButton<int>(
-                            value: selectedYear,
-                            items: List.generate(
-                                    5, (i) => DateTime.now().year - i)
-                                .map((year) => DropdownMenuItem(
-                                      value: year,
-                                      child: Text(year.toString()),
-                                    ))
-                                .toList(),
+                          Icon(Icons.calendar_today_rounded,
+                              size: 16, color: Colors.indigo.shade200),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Showing payslips for',
+                            style: TextStyle(
+                              color: Colors.indigo.shade100,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          _YearPicker(
+                            selectedYear: selectedYear,
                             onChanged: (year) async {
                               setState(() {
-                                selectedYear = year!;
+                                selectedYear = year;
                                 _isLoading = true;
                               });
                               await _fetchPaymentsForYear();
@@ -278,71 +314,62 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
                     ],
                   ),
                 ),
-                Expanded(
-                  child: GridView.builder(
-                    padding: const EdgeInsets.all(16),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      childAspectRatio: 1.5,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                    ),
-                    itemCount: months.length,
-                    itemBuilder: (context, index) {
-                      final monthName = months[index];
-                      final monthIndex = index + 1;
-                      final hasPayslip = _monthlyPayments.any(
-                        (p) =>
-                            p.workDate.month == monthIndex &&
-                            p.workDate.year == selectedYear,
-                      );
 
-                      return Card(
-                        elevation: 3,
-                        child: InkWell(
-                          onTap: hasPayslip
-                              ? () => _viewPayslip(monthName)
-                              : null,
-                          child: Padding(
-                            padding: const EdgeInsets.all(8),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  monthName,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  hasPayslip
-                                      ? 'View Payslip'
-                                      : 'No Payslip',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: hasPayslip
-                                        ? Colors.blue
-                                        : Colors.grey,
-                                  ),
-                                ),
-                                Icon(
-                                  hasPayslip
-                                      ? Icons.description
-                                      : Icons.block,
-                                  color: hasPayslip
-                                      ? Colors.blue
-                                      : Colors.grey,
-                                  size: 20,
-                                ),
-                              ],
+                // ── Grid section ─────────────────────────────────────────
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Text(
+                            'Monthly Payslips',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFF1E293B),
                             ),
                           ),
                         ),
-                      );
-                    },
+                        Expanded(
+                          child: GridView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.only(bottom: 100),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 3,
+                              childAspectRatio: 0.9,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                            ),
+                            itemCount: months.length,
+                            itemBuilder: (context, index) {
+                              final monthName = months[index];
+                              final shortName = monthsShort[index];
+                              final monthIndex = index + 1;
+                              final hasPayslip = _monthlyPayments.any(
+                                (p) =>
+                                    p.workDate.month == monthIndex &&
+                                    p.workDate.year == selectedYear,
+                              );
+
+                              return _MonthCard(
+                                shortName: shortName,
+                                fullName: monthName,
+                                hasPayslip: hasPayslip,
+                                staffPrimary: staffPrimary,
+                                cardBorder: staffCardBorder,
+                                onTap: hasPayslip
+                                    ? () => _viewPayslip(monthName)
+                                    : null,
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -350,6 +377,134 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
       bottomNavigationBar: BottomNavStaff(
         selectedIndex: _selectedIndex,
         onItemTapped: _onItemTapped,
+      ),
+    );
+  }
+}
+
+// ── Year picker pill widget ───────────────────────────────────────────────────
+class _YearPicker extends StatelessWidget {
+  final int selectedYear;
+  final ValueChanged<int> onChanged;
+
+  const _YearPicker({required this.selectedYear, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.3)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<int>(
+          value: selectedYear,
+          dropdownColor: const Color(0xFF4F46E5),
+          style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w700),
+          icon: const Icon(Icons.expand_more_rounded,
+              color: Colors.white, size: 18),
+          items: List.generate(5, (i) => DateTime.now().year - i)
+              .map((year) => DropdownMenuItem(
+                    value: year,
+                    child: Text(year.toString()),
+                  ))
+              .toList(),
+          onChanged: (year) {
+            if (year != null) onChanged(year);
+          },
+        ),
+      ),
+    );
+  }
+}
+
+// ── Month card widget ─────────────────────────────────────────────────────────
+class _MonthCard extends StatelessWidget {
+  final String shortName;
+  final String fullName;
+  final bool hasPayslip;
+  final Color staffPrimary;
+  final Color cardBorder;
+  final VoidCallback? onTap;
+
+  const _MonthCard({
+    required this.shortName,
+    required this.fullName,
+    required this.hasPayslip,
+    required this.staffPrimary,
+    required this.cardBorder,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          color: hasPayslip ? staffPrimary.withOpacity(0.06) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: hasPayslip ? staffPrimary.withOpacity(0.35) : cardBorder,
+            width: hasPayslip ? 1.5 : 1.0,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // ── Month label ────────────────────────────────────────────
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: hasPayslip
+                    ? staffPrimary.withOpacity(0.12)
+                    : Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                shortName.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: hasPayslip
+                      ? staffPrimary
+                      : Colors.grey.shade400,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // ── Status icon ────────────────────────────────────────────
+            Icon(
+              hasPayslip
+                  ? Icons.description_rounded
+                  : Icons.remove_circle_outline_rounded,
+              size: 26,
+              color: hasPayslip ? staffPrimary : Colors.grey.shade300,
+            ),
+            const SizedBox(height: 6),
+
+            // ── Status label ───────────────────────────────────────────
+            Text(
+              hasPayslip ? 'View' : 'N/A',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: hasPayslip
+                    ? staffPrimary
+                    : Colors.grey.shade400,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,5 +1,5 @@
 import 'package:charms/HRproviders/attendances.dart';
-import 'package:charms/HRproviders/leaves.dart'; 
+import 'package:charms/HRproviders/leaves.dart';
 import 'package:charms/HRproviders/claims.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -15,7 +15,7 @@ import 'package:charms/HRscreens/staff/staff_myself_screen.dart';
 import 'package:charms/HRscreens/staff/staff_schedule_details_screen.dart';
 import 'package:charms/HRwidgets/staff/bottom_nav_staff.dart';
 import 'package:charms/HRscreens/staff/staff_notification_screen.dart';
-import 'package:charms/HRscreens/admin/admin_dashboard_screen.dart'; 
+import 'package:charms/HRscreens/admin/admin_dashboard_screen.dart';
 
 class StaffDashboardScreen extends StatefulWidget {
   final String username;
@@ -35,6 +35,11 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
   int workLocation = 0;
   DateTime? lastLoginTime;
   bool _mounted = true;
+
+  // Distinct Staff UI Color Palette (Indigo & Slate)
+  final Color staffPrimary = const Color(0xFF4F46E5);
+  final Color staffBg = const Color(0xFFF8FAFC);
+  final Color staffCardBorder = const Color(0xFFE2E8F0);
 
   String getBranchName(int workLocation) {
     const branches = {
@@ -63,10 +68,9 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
     try {
       final staffsProvider = Provider.of<Staffs>(context, listen: false);
       final schedulesProvider = Provider.of<Schedules>(context, listen: false);
-      final leavesProvider = Provider.of<Leaves>(context, listen: false); // ✅
-      final claimsProvider = Provider.of<Claims>(context, listen: false); // ✅
+      final leavesProvider = Provider.of<Leaves>(context, listen: false);
+      final claimsProvider = Provider.of<Claims>(context, listen: false);
 
-      // Fetch data so the notification badge can calculate immediately
       await Future.wait([
         staffsProvider.fetchStaff(),
         leavesProvider.fetchLeaves(),
@@ -92,7 +96,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
               workLocation = _staffSchedules[0].workLocation;
               branch = getBranchName(workLocation);
             }
-            lastLoginTime = DateTime.now(); // fast compile fix
+            lastLoginTime = DateTime.now();
             _isLoading = false;
           });
         }
@@ -105,9 +109,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
         }
       }
     } catch (error) {
-      if (_mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (_mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -172,60 +174,72 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: staffBg,
       extendBody: true,
       appBar: AppBar(
+        elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         automaticallyImplyLeading: false,
-        title: const Text('CHARMS STAFF', style: TextStyle(color: Colors.white)),
+        title: const Text(
+          'STAFF PORTAL',
+          style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2),
+        ),
         centerTitle: true,
-        backgroundColor: Colors.blue,
+        backgroundColor: staffPrimary,
         actions: [
-          // NEW: Switch to Admin Mode Button (ONLY FOR ADMINS)
+          // Switch to Admin Mode (only for admins)
           if (_currentStaff != null && _currentStaff!.usertype == 6)
             IconButton(
-              icon: const Icon(Icons.swap_horiz),
+              icon: const Icon(Icons.admin_panel_settings_rounded),
               tooltip: 'Switch to Admin Mode',
               onPressed: () {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => AdminDashboardScreen(username: widget.username),
+                    builder: (_) =>
+                        AdminDashboardScreen(username: widget.username),
                   ),
                 );
               },
             ),
-          // Staff Notification Badge (Counts resolved items & schedules)
+          // Staff Notification Badge
           Consumer3<Leaves, Claims, Schedules>(
             builder: (context, leaves, claims, schedules, child) {
               int staffId = _currentStaff?.staffId ?? 0;
 
-              if (staffId == 0) return const Icon(Icons.notifications);
+              if (staffId == 0) {
+                return const Icon(Icons.notifications_none_rounded);
+              }
 
-              // Count Leaves that are Approved/Rejected for this specific staff
               int resolvedLeaves = leaves.leaves
-                  .where((l) => l.staffId == staffId && l.status != 'Pending')
+                  .where(
+                      (l) => l.staffId == staffId && l.status != 'Pending')
                   .length;
 
-              // Count Claims that are Approved/Rejected for this specific staff
               int resolvedClaims = claims.claims
-                  .where((c) => c.staffId == staffId && c.status != 'Pending')
+                  .where(
+                      (c) => c.staffId == staffId && c.status != 'Pending')
                   .length;
 
-              // Count total schedules assigned to this staff
               int assignedSchedules = schedules.schedules
                   .where((s) => s.staffId == staffId)
                   .length;
 
-              int totalNotifications = resolvedLeaves + resolvedClaims + assignedSchedules;
+              int totalNotifications =
+                  resolvedLeaves + resolvedClaims + assignedSchedules;
 
               return IconButton(
                 icon: totalNotifications > 0
                     ? Badge(
                         label: Text(totalNotifications.toString()),
-                        backgroundColor: Colors.red,
-                        child: const Icon(Icons.notifications),
+                        backgroundColor: Colors.redAccent,
+                        child:
+                            const Icon(Icons.notifications_active_rounded),
                       )
-                    : const Icon(Icons.notifications),
+                    : const Icon(Icons.notifications_none_rounded),
                 onPressed: () {
                   Navigator.push(
                     context,
@@ -240,10 +254,11 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Back to Dashboard',
+            icon: const Icon(Icons.logout_rounded),
+            tooltip: 'Logout',
             onPressed: _logout,
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: _buildDashboardContent(),
@@ -255,118 +270,259 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
   }
 
   Widget _buildDashboardContent() {
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          const SizedBox(height: 10),
-          Text(
-            "Welcome, ${_currentStaff?.firstname ?? widget.username}!",
-            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Top Welcome Header (indigo banner) ────────────────────────────
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.only(
+              top: 20, bottom: 28, left: 24, right: 24),
+          decoration: BoxDecoration(
+            color: staffPrimary,
+            borderRadius: const BorderRadius.vertical(
+              bottom: Radius.circular(30),
+            ),
           ),
-          Text(
-            lastLoginTime != null
-                ? "Last Login: ${formatDateTime(lastLoginTime!)}"
-                : "Last Login: Not available",
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Hello , ${widget.username} !",
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(Icons.access_time_rounded,
+                      size: 16, color: Colors.indigo.shade200),
+                  const SizedBox(width: 6),
+                  Text(
+                    lastLoginTime != null
+                        ? "Last Login: ${formatDateTime(lastLoginTime!)}"
+                        : "Last Login: Not available",
+                    style: TextStyle(
+                      color: Colors.indigo.shade100,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          const SizedBox(height: 20),
-          _buildSchedulesCards(),
-        ],
-      ),
+        ),
+
+        // ── Schedules section ────────────────────────────────────────────
+        Expanded(child: _buildSchedulesCards()),
+      ],
     );
   }
 
   Widget _buildSchedulesCards() {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    if (_isLoading) {
+      return Center(child: CircularProgressIndicator(color: staffPrimary));
+    }
 
-    return Container(
-      height: 800,
-      padding: const EdgeInsets.all(8),
-      decoration: const BoxDecoration(
-        color: Colors.blue,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(30),
-          topRight: Radius.circular(30),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 10),
-          const Text(
-            "   Your Schedules:",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Section label — sits cleanly on white background ─────────────
+        Padding(
+          padding:
+              const EdgeInsets.only(left: 24, right: 24, top: 20, bottom: 8),
+          child: Text(
+            "Your Upcoming Shifts",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF1E293B),
+            ),
           ),
-          _staffSchedules.isEmpty
-              ? const Center(
-                  child: Padding(
-                    padding: EdgeInsets.only(top: 20),
-                    child: Text(
-                      'No schedules found',
-                      style: TextStyle(color: Colors.white, fontSize: 16),
-                    ),
+        ),
+        Expanded(
+          child: _staffSchedules.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.event_available_rounded,
+                          size: 64, color: Colors.grey.shade300),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No upcoming schedules',
+                        style: TextStyle(
+                            color: Colors.grey.shade500,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500),
+                      ),
+                    ],
                   ),
                 )
-              : Expanded(
-                  child: ListView.builder(
-                    itemCount: _staffSchedules.length,
-                    itemBuilder: (context, index) {
-                      final schedule = _staffSchedules[index];
-                      final currentBranch = getBranchName(schedule.workLocation);
+              : ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.only(
+                      top: 8, bottom: 100, left: 16, right: 16),
+                  itemCount: _staffSchedules.length,
+                  itemBuilder: (context, index) {
+                    final schedule = _staffSchedules[index];
+                    final currentBranch =
+                        getBranchName(schedule.workLocation);
+                    final dateObj = schedule.workDate;
 
-                      return Card(
-                        elevation: 2,
-                        margin: const EdgeInsets.all(5.0),
-                        child: ListTile(
-                          leading: const Icon(Icons.location_on_outlined, size: 30, color: Colors.blue),
-                          title: Text(
-                            currentBranch,
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Text(
-                            'Date: ${schedule.workDate.toString().split(' ')[0]}\n'
-                            'Time: ${schedule.workStartTime} - ${schedule.workEndTime}',
-                          ),
-                          onTap: () async {
-                            final attendanceProvider =
-                                Provider.of<Attendances>(context, listen: false);
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12.0),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: staffCardBorder),
+                      ),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () async {
+                          final attendanceProvider =
+                              Provider.of<Attendances>(context,
+                                  listen: false);
 
-                            final isClockIn = await attendanceProvider.checkAttendance(
-                              staffId: _currentStaff?.staffId ?? 0,
-                              scheduleId: schedule.schedId,
-                            );
+                          final isClockIn =
+                              await attendanceProvider.checkAttendance(
+                            staffId: _currentStaff?.staffId ?? 0,
+                            scheduleId: schedule.schedId,
+                          );
 
-                            if (!mounted) return;
+                          if (!mounted) return;
 
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => StaffScheduleDetailsScreen(
-                                  location: currentBranch,
-                                  workDate: schedule.workDate,
-                                  assignedStaff: [_currentStaff?.firstname ?? ''],
-                                  startTime: schedule.workStartTime.toString(),
-                                  endTime: schedule.workEndTime.toString(),
-                                  startBreak: schedule.breakStartTime.toString(),
-                                  endBreak: schedule.breakEndTime.toString(),
-                                  status: isClockIn ? 'Clocked In' : 'Not clocked in',
-                                  scheduleId: schedule.schedId,
-                                  staffId: _currentStaff?.staffId ?? 0,
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  StaffScheduleDetailsScreen(
+                                location: currentBranch,
+                                workDate: schedule.workDate,
+                                assignedStaff: [
+                                  _currentStaff?.firstname ?? ''
+                                ],
+                                startTime:
+                                    schedule.workStartTime.toString(),
+                                endTime: schedule.workEndTime.toString(),
+                                startBreak:
+                                    schedule.breakStartTime.toString(),
+                                endBreak:
+                                    schedule.breakEndTime.toString(),
+                                status: isClockIn
+                                    ? 'Clocked In'
+                                    : 'Not clocked in',
+                                scheduleId: schedule.schedId,
+                                staffId: _currentStaff?.staffId ?? 0,
+                              ),
+                            ),
+                          );
+
+                          if (result != null &&
+                              result['refreshDashboard'] == true) {
+                            await _loadStaffData();
+                          }
+                        },
+                        child: Row(
+                          children: [
+                            // ── Left date block (ticket style) ───────────
+                            Container(
+                              width: 80,
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 20),
+                              decoration: BoxDecoration(
+                                color: staffPrimary.withOpacity(0.08),
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(16),
+                                  bottomLeft: Radius.circular(16),
                                 ),
                               ),
-                            );
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    _getMonthName(dateObj.month)
+                                        .toUpperCase(),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: staffPrimary,
+                                    ),
+                                  ),
+                                  Text(
+                                    dateObj.day.toString(),
+                                    style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w900,
+                                      color: staffPrimary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
 
-                            if (result != null && result['refreshDashboard'] == true) {
-                              await _loadStaffData();
-                            }
-                          },
-                          trailing: const Icon(Icons.arrow_forward_ios, size: 30, color: Colors.blue),
+                            // Vertical divider
+                            Container(
+                                width: 1,
+                                height: 60,
+                                color: staffCardBorder),
+
+                            // ── Right content block ───────────────────────
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16.0, vertical: 12.0),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      currentBranch,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF1E293B),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      children: [
+                                        Icon(Icons.access_time_rounded,
+                                            size: 14,
+                                            color: Colors.grey.shade500),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '${schedule.workStartTime} - ${schedule.workEndTime}',
+                                          style: TextStyle(
+                                            color: Colors.grey.shade600,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+
+                            // ── Trailing arrow ────────────────────────────
+                            Padding(
+                              padding: const EdgeInsets.only(right: 16.0),
+                              child: Icon(Icons.arrow_forward_ios_rounded,
+                                  size: 16, color: Colors.grey.shade400),
+                            ),
+                          ],
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                    );
+                  },
                 ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

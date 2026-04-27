@@ -12,6 +12,11 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
   String _selectedMonth = '10';
   List<Map<String, dynamic>> _attendanceData = [];
 
+  // Distinct Staff UI Color Palette (Indigo & Slate)
+  final Color staffPrimary = const Color(0xFF4F46E5); // Deep Indigo
+  final Color staffBg = const Color(0xFFF8FAFC); // Very Light Slate
+  final Color staffCardBorder = const Color(0xFFE2E8F0);
+
   @override
   void initState() {
     super.initState();
@@ -64,64 +69,121 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: staffBg, // Modern Background
       appBar: AppBar(
-        title: const Text('Attendance Summary'),
-        backgroundColor: Colors.blue, // Setting AppBar color to blue
+        elevation: 0,
+        backgroundColor: staffPrimary,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text('ATTENDANCE SUMMARY',
+            style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2)),
+        centerTitle: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(20),
+          ),
+        ),
       ),
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
+          // Modern Filter Section
+          Container(
+            margin: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 // Dropdown for selecting year
-                DropdownButton<String>(
-                  value: _selectedYear,
-                  items: ['2024', '2023', '2022'].map((year) {
-                    return DropdownMenuItem(
-                      value: year,
-                      child: Text(year),
-                    );
-                  }).toList(),
-                  onChanged: (newValue) {
-                    setState(() {
-                      _selectedYear = newValue!;
-                    });
-                  },
+                Expanded(
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      isExpanded: true,
+                      icon: Icon(Icons.keyboard_arrow_down_rounded, color: staffPrimary),
+                      value: _selectedYear,
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                      items: ['2024', '2023', '2022'].map((year) {
+                        return DropdownMenuItem(
+                          value: year,
+                          child: Text(year),
+                        );
+                      }).toList(),
+                      onChanged: (newValue) {
+                        setState(() {
+                          _selectedYear = newValue!;
+                        });
+                      },
+                    ),
+                  ),
                 ),
-                const SizedBox(width: 20),
+                Container(height: 30, width: 1, color: Colors.grey.shade300, margin: const EdgeInsets.symmetric(horizontal: 16)),
                 // Dropdown for selecting month
-                DropdownButton<String>(
-                  value: _selectedMonth,
-                  items: [
-                    {'value': '01', 'label': 'January'},
-                    {'value': '02', 'label': 'February'},
-                    {'value': '03', 'label': 'March'},
-                    {'value': '04', 'label': 'April'},
-                    {'value': '05', 'label': 'May'},
-                    {'value': '06', 'label': 'June'},
-                    {'value': '07', 'label': 'July'},
-                    {'value': '08', 'label': 'August'},
-                    {'value': '09', 'label': 'September'},
-                    {'value': '10', 'label': 'October'},
-                    {'value': '11', 'label': 'November'},
-                    {'value': '12', 'label': 'December'},
-                  ].map((month) {
-                    return DropdownMenuItem(
-                      value: month['value'],
-                      child: Text(month['label']!),
-                    );
-                  }).toList(),
-                  onChanged: (newValue) {
-                    setState(() {
-                      _selectedMonth = newValue!;
-                    });
-                  },
+                Expanded(
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      isExpanded: true,
+                      icon: Icon(Icons.keyboard_arrow_down_rounded, color: staffPrimary),
+                      value: _selectedMonth,
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                      items: [
+                        {'value': '01', 'label': 'January'},
+                        {'value': '02', 'label': 'February'},
+                        {'value': '03', 'label': 'March'},
+                        {'value': '04', 'label': 'April'},
+                        {'value': '05', 'label': 'May'},
+                        {'value': '06', 'label': 'June'},
+                        {'value': '07', 'label': 'July'},
+                        {'value': '08', 'label': 'August'},
+                        {'value': '09', 'label': 'September'},
+                        {'value': '10', 'label': 'October'},
+                        {'value': '11', 'label': 'November'},
+                        {'value': '12', 'label': 'December'},
+                      ].map((month) {
+                        return DropdownMenuItem(
+                          value: month['value'],
+                          child: Text(month['label']!),
+                        );
+                      }).toList(),
+                      onChanged: (newValue) {
+                        setState(() {
+                          _selectedMonth = newValue!;
+                        });
+                      },
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
+          
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+            child: Text(
+              'Summary Report',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1E293B),
+              ),
+            ),
+          ),
+
+          // Data Table Section
           Expanded(
             child: FutureBuilder<List<Map<String, dynamic>>>(
               future: Future.delayed(
@@ -130,43 +192,77 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
               ), // Fetch data
               builder: (ctx, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(),
+                  return Center(
+                    child: CircularProgressIndicator(color: staffPrimary),
                   );
                 } else if (snapshot.hasError) {
-                  return const Center(
-                    child: Text('Error loading data'),
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.error_outline_rounded, size: 48, color: Colors.redAccent),
+                        const SizedBox(height: 16),
+                        const Text('Error loading data', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
                   );
                 } else {
                   final data = snapshot.data ?? [];
 
                   if (data.isEmpty) {
-                    return const Center(
-                      child: Text('No data available'),
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.event_busy_rounded, size: 64, color: Colors.grey.shade300),
+                          const SizedBox(height: 16),
+                          Text('No records found for this period',
+                              style: TextStyle(color: Colors.grey.shade500, fontSize: 16, fontWeight: FontWeight.w500)),
+                        ],
+                      ),
                     );
                   }
 
-                  return SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: DataTable(
-                      columns: const [
-                        DataColumn(label: Text('Month/Year')),
-                        DataColumn(label: Text('Total Days')),
-                        DataColumn(label: Text('Days Present')),
-                        DataColumn(label: Text('Days Absent')),
-                        DataColumn(label: Text('Days On Leave')),
-                        DataColumn(label: Text('Days Late')),
+                  return Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.03),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
                       ],
-                      rows: data.map((item) {
-                        return DataRow(cells: [
-                          DataCell(Text(item['month_year'])),
-                          DataCell(Text(item['total_days'].toString())),
-                          DataCell(Text(item['days_present'].toString())),
-                          DataCell(Text(item['days_absent'].toString())),
-                          DataCell(Text(item['days_on_leave'].toString())),
-                          DataCell(Text(item['days_late'].toString())),
-                        ]);
-                      }).toList(),
+                    ),
+                    clipBehavior: Clip.antiAlias, // Ensures the table corners are rounded
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
+                        headingRowColor: MaterialStateProperty.all(staffPrimary.withOpacity(0.05)),
+                        headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                        dataTextStyle: const TextStyle(color: Color(0xFF334155), fontWeight: FontWeight.w500),
+                        dividerThickness: 1,
+                        columns: const [
+                          DataColumn(label: Text('Period')),
+                          DataColumn(label: Text('Total Days')),
+                          DataColumn(label: Text('Present')),
+                          DataColumn(label: Text('Absent')),
+                          DataColumn(label: Text('On Leave')),
+                          DataColumn(label: Text('Late')),
+                        ],
+                        rows: data.map((item) {
+                          return DataRow(cells: [
+                            DataCell(Text(item['month_year'], style: TextStyle(color: staffPrimary, fontWeight: FontWeight.bold))),
+                            DataCell(Text(item['total_days'].toString())),
+                            DataCell(Text(item['days_present'].toString(), style: const TextStyle(color: Colors.teal))),
+                            DataCell(Text(item['days_absent'].toString(), style: const TextStyle(color: Colors.redAccent))),
+                            DataCell(Text(item['days_on_leave'].toString(), style: const TextStyle(color: Colors.orange))),
+                            DataCell(Text(item['days_late'].toString())),
+                          ]);
+                        }).toList(),
+                      ),
                     ),
                   );
                 }
