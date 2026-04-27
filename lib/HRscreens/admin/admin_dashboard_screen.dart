@@ -3,7 +3,7 @@ import 'package:charms/HRproviders/leaves.dart';
 import 'package:charms/HRproviders/attendances.dart';
 import 'package:charms/HRproviders/payments.dart';
 import 'package:charms/HRproviders/schedules.dart';
-import 'package:charms/HRproviders/claims.dart'; 
+import 'package:charms/HRproviders/claims.dart';
 import 'package:charms/HRscreens/admin/admin_list_screen.dart';
 import 'package:charms/HRscreens/admin/manage_staff_screen.dart';
 import 'package:charms/HRscreens/admin/notification_screen.dart';
@@ -41,6 +41,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   int onLeaveCount = 0;
   int todayAttendance = 0;
   int pendingPayroll = 0;
+  int pendingClaims = 0; // ✅ new
   String lastLoginTime = '';
   bool isLoading = true;
 
@@ -68,13 +69,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final attendancesProvider = Provider.of<Attendances>(context, listen: false);
       final paymentsProvider = Provider.of<Payments>(context, listen: false);
       final schedulesProvider = Provider.of<Schedules>(context, listen: false);
-      final claimsProvider = Provider.of<Claims>(context, listen: false); // ✅ Initialize claims
+      final claimsProvider = Provider.of<Claims>(context, listen: false);
 
       await Future.wait([
         staffsProvider.fetchStaff(),
         leavesProvider.fetchLeaves(),
         schedulesProvider.fetchSchedules(),
-        claimsProvider.fetchClaims(), // ✅ Fetch claims so the badge updates immediately
+        claimsProvider.fetchClaims(),
       ]);
 
       final currentDate = DateTime.now();
@@ -101,6 +102,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     payment.workDate.month == currentDate.month &&
                     payment.workDate.year == currentDate.year)
                 .length;
+
+        // ✅ Count pending claims
+        pendingClaims = claimsProvider.claims
+            .where((c) => c.status == 'Pending')
+            .length;
 
         final schedules = schedulesProvider.schedules;
         locationStaffCounts = {
@@ -146,13 +152,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       case 1:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => ManageStaffScreen(username: widget.username)),
+          MaterialPageRoute(
+              builder: (_) => ManageStaffScreen(username: widget.username)),
         );
         break;
       case 2:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => AdminListScreen(username: widget.username)),
+          MaterialPageRoute(
+              builder: (_) => AdminListScreen(username: widget.username)),
         );
         break;
       case 3:
@@ -175,7 +183,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         centerTitle: true,
         backgroundColor: Colors.blue,
         actions: [
-          // ✅ NEW: Switch to Staff Mode Button
           IconButton(
             icon: const Icon(Icons.swap_horiz),
             tooltip: 'Switch to Staff Mode',
@@ -183,20 +190,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => StaffDashboardScreen(username: widget.username),
+                  builder: (_) =>
+                      StaffDashboardScreen(username: widget.username),
                 ),
               );
             },
           ),
-          
-          //Wrapped in Consumer3 to calculate total pending items
           Consumer3<Leaves, Payments, Claims>(
             builder: (context, leaves, payments, claims, child) {
-              int pendingLeaves = leaves.leaves.where((l) => l.status == 'Pending').length;
-              int pendingPayrolls = payments.payments.where((p) => p.status == 'Pending').length;
-              int pendingClaims = claims.claims.where((c) => c.status == 'Pending').length;
+              int pendingLeaves =
+                  leaves.leaves.where((l) => l.status == 'Pending').length;
+              int pendingPayrolls =
+                  payments.payments.where((p) => p.status == 'Pending').length;
+              int pendingClaimsCount =
+                  claims.claims.where((c) => c.status == 'Pending').length;
 
-              int totalPending = pendingLeaves + pendingPayrolls + pendingClaims;
+              int totalPending =
+                  pendingLeaves + pendingPayrolls + pendingClaimsCount;
 
               return IconButton(
                 icon: totalPending > 0
@@ -209,7 +219,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const NotificationScreen()),
+                    MaterialPageRoute(
+                        builder: (_) => const NotificationScreen()),
                   );
                 },
               );
@@ -246,6 +257,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             Text("Last Login: $lastLoginTime"),
             const SizedBox(height: 10),
 
+            // Row 1 — Total Employees & Leave Pending
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Row(
@@ -270,6 +282,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ),
             ),
 
+            // Row 2 — Today's Attendance & Payroll Pending
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Row(
@@ -294,6 +307,25 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ),
             ),
 
+            // ✅ Row 3 — Claim Pending (Centered)
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Row(
+                children: [
+                  const Spacer(flex: 1), // Takes up 25% empty space on the left
+                  Expanded(
+                    flex: 2, // Takes up 50% space (matches the width of the cards above)
+                    child: SummaryCard(
+                      title: 'Claim Pending',
+                      count: pendingClaims,
+                      icon: Icons.request_page,
+                      iconColor: Colors.orange,
+                    ),
+                  ),
+                  const Spacer(flex: 1), // Takes up 25% empty space on the right
+                ],
+              ),
+            ),
             _buildMovementCards(),
           ],
         ),
@@ -339,10 +371,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
                 title: Text(
                   entry.key,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 subtitle: Text('Staff scheduled today: ${entry.value}'),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 30, color: Colors.blue),
+                trailing: const Icon(Icons.arrow_forward_ios,
+                    size: 30, color: Colors.blue),
                 onTap: () {
                   Navigator.push(
                     context,
@@ -393,7 +427,8 @@ class SummaryCard extends StatelessWidget {
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                    fontSize: 14, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 4),
               Text(
