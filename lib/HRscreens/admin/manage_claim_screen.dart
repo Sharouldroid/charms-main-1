@@ -15,6 +15,7 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   List<int> selectedClaims = [];
+  bool _processing = false;
 
   @override
   void initState() {
@@ -33,11 +34,7 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
       final claimsProvider = Provider.of<Claims>(context, listen: false);
       await claimsProvider.updateClaim(claim.claimId, 'Approved');
       await _fetchClaims();
-      if (mounted) {
-        setState(() {
-          selectedClaims.clear();
-        });
-      }
+      if (mounted) setState(() => selectedClaims.clear());
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -51,16 +48,58 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
       final claimsProvider = Provider.of<Claims>(context, listen: false);
       await claimsProvider.updateClaim(claim.claimId, 'Rejected');
       await _fetchClaims();
-      if (mounted) {
-        setState(() {
-          selectedClaims.clear();
-        });
-      }
+      if (mounted) setState(() => selectedClaims.clear());
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to reject claim: $error')),
       );
+    }
+  }
+
+  // ✅ New delete method
+  Future<void> _deleteClaim(Claim claim) async {
+    if (_processing) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Claim'),
+        content: const Text('Are you sure you want to delete this claim record?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _processing = true);
+    try {
+      await Provider.of<Claims>(context, listen: false).deleteClaim(claim.claimId);
+      await _fetchClaims();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Claim deleted successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to delete claim: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _processing = false);
     }
   }
 
@@ -78,7 +117,6 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-
               for (var claimId in selectedClaims) {
                 final claim = claims.firstWhere((c) => c.claimId == claimId);
                 await _rejectClaim(claim);
@@ -105,7 +143,6 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-
               for (var claimId in selectedClaims) {
                 final claim = claims.firstWhere((c) => c.claimId == claimId);
                 await _approveClaim(claim);
@@ -127,7 +164,6 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
 
   void _showClaimDetails(Claim claim) {
     final hasProof = _hasProof(claim);
-
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -173,28 +209,32 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
     );
   }
 
-  Widget _buildClaimCard(Claim claim) {
+  Widget _buildClaimCard(Claim claim, {bool showDelete = false}) {
     final hasProof = _hasProof(claim);
-
-    // Debug data (remove later)
-    debugPrint(
-      'Claim ${claim.claimId} | url=${claim.proofFileUrl} | path=${claim.proofFilePath} | '
-      'name=${claim.proofFileName} | bytes=${claim.proofFile?.length}',
-    );
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       child: ListTile(
         onTap: () => _showClaimDetails(claim),
-        title: Text('${claim.claimId} - ${claim.claimType}'),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('${claim.claimId} - ${claim.claimType}'),
+            // ✅ Delete button on approved/rejected cards
+            if (showDelete)
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                tooltip: 'Delete',
+                onPressed: _processing ? null : () => _deleteClaim(claim),
+              ),
+          ],
+        ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('RM ${claim.amount.toStringAsFixed(2)}'),
             Text('Date: ${claim.claimDate.toString().split(' ')[0]}'),
             const SizedBox(height: 4),
-
-            // Always visible for UX consistency
             TextButton.icon(
               onPressed: () => _showClaimDetails(claim),
               icon: const Icon(Icons.visibility, size: 18),
@@ -202,29 +242,29 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
             ),
           ],
         ),
-        trailing: Checkbox(
-          value: selectedClaims.contains(claim.claimId),
-          onChanged: (bool? value) {
-            setState(() {
-              if (value == true) {
-                selectedClaims.add(claim.claimId);
-              } else {
-                selectedClaims.remove(claim.claimId);
-              }
-            });
-          },
-        ),
+        trailing: showDelete
+            ? null // ✅ Hide checkbox on approved/rejected
+            : Checkbox(
+                value: selectedClaims.contains(claim.claimId),
+                onChanged: (bool? value) {
+                  setState(() {
+                    if (value == true) {
+                      selectedClaims.add(claim.claimId);
+                    } else {
+                      selectedClaims.remove(claim.claimId);
+                    }
+                  });
+                },
+              ),
       ),
     );
   }
 
-  Widget _buildClaimsList(List<Claim> claims, {bool showActions = false}) {
+  Widget _buildClaimsList(List<Claim> claims,
+      {bool showActions = false, bool showDelete = false}) {
     if (claims.isEmpty) {
       return const Center(
-        child: Text(
-          'No claims found',
-          style: TextStyle(color: Colors.grey),
-        ),
+        child: Text('No claims found', style: TextStyle(color: Colors.grey)),
       );
     }
 
@@ -233,7 +273,8 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
         Expanded(
           child: ListView.builder(
             itemCount: claims.length,
-            itemBuilder: (context, index) => _buildClaimCard(claims[index]),
+            itemBuilder: (context, index) =>
+                _buildClaimCard(claims[index], showDelete: showDelete),
           ),
         ),
         if (showActions && selectedClaims.isNotEmpty)
@@ -293,13 +334,15 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
             children: [
               _buildClaimsList(
                 claimsData.claims.where((c) => c.status == 'Pending').toList(),
-                showActions: true,
+                showActions: true,               // keep approve/reject + checkbox
               ),
               _buildClaimsList(
                 claimsData.claims.where((c) => c.status == 'Approved').toList(),
+                showDelete: true,                // ✅ delete button, no checkbox
               ),
               _buildClaimsList(
                 claimsData.claims.where((c) => c.status == 'Rejected').toList(),
+                showDelete: true,                // ✅ delete button, no checkbox
               ),
             ],
           );

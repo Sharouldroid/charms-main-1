@@ -33,6 +33,7 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int _selectedIndex = 1;
+  bool _processing = false;
 
   final Map<String, Map<String, int>> _leaveBalance = {
     'Annual Leave': {'total': 20, 'taken': 0, 'remaining': 20},
@@ -52,7 +53,7 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
 
     await Future.wait([
       leavesProvider.getLeaveByStaffId(staffId: widget.staffId),
-      claimsProvider.fetchClaims(), // ✅ needed for notification badge
+      claimsProvider.fetchClaims(),
     ]);
 
     _calculateLeaveBalance();
@@ -89,6 +90,52 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
             _leaveBalance['Medical Leave']!['taken']!;
   }
 
+  // ✅ Staff can only cancel/delete their own pending leaves
+  Future<void> _deleteLeave(Leave leave) async {
+    if (_processing) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancel Leave'),
+        content: const Text('Are you sure you want to cancel this leave request?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('No', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Yes, Cancel', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _processing = true);
+    try {
+      await Provider.of<Leaves>(context, listen: false).deleteLeave(leave.leaveId);
+      await _fetchLeaveData();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Leave request cancelled successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to cancel leave: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _processing = false);
+    }
+  }
+
   Widget _buildLeaveBalanceCard(String leaveType) {
     final balance = _leaveBalance[leaveType]!;
     return SizedBox(
@@ -104,8 +151,7 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
             children: [
               Text(
                 leaveType,
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 14),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
               const SizedBox(height: 6),
               Text('Total: ${balance['total']} days'),
@@ -124,7 +170,7 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
     );
   }
 
-  Widget _buildLeaveCard(Leave leave) {
+  Widget _buildLeaveCard(Leave leave, {bool showDelete = false}) {
     final status = leave.status.trim().toLowerCase();
     Color statusColor = Colors.orange;
     if (status == 'approved') statusColor = Colors.green;
@@ -138,23 +184,30 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              "Staff ID: ${leave.staffId}",
-              style: const TextStyle(
-                  fontWeight: FontWeight.bold, fontSize: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "Leave Type: ${leave.leaveType}",
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                // ✅ Only show delete on pending
+                if (showDelete)
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    tooltip: 'Cancel Leave',
+                    onPressed: _processing ? null : () => _deleteLeave(leave),
+                  ),
+              ],
             ),
             const SizedBox(height: 5),
-            Text("Leave Type: ${leave.leaveType}"),
             Text(
               "Duration: ${DateFormat('dd/MM/yyyy').format(leave.startDate)} - ${DateFormat('dd/MM/yyyy').format(leave.endDate)}",
             ),
             Text("Reason: ${leave.reason}"),
             Text(
               "Status: ${leave.status}",
-              style: TextStyle(
-                color: statusColor,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(color: statusColor, fontWeight: FontWeight.bold),
             ),
             ProofAttachmentViewer(
               fileUrl: leave.proofFileUrl,
@@ -167,22 +220,20 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
     );
   }
 
-  Widget _buildLeaveList(List<Leave> leaves) {
+  Widget _buildLeaveList(List<Leave> leaves, {bool showDelete = false}) {
     final staffLeaves =
         leaves.where((leave) => leave.staffId == widget.staffId).toList();
 
     if (staffLeaves.isEmpty) {
       return const Center(
-        child: Text(
-          'No leave records found',
-          style: TextStyle(color: Colors.grey),
-        ),
+        child: Text('No leave records found', style: TextStyle(color: Colors.grey)),
       );
     }
 
     return ListView.builder(
       itemCount: staffLeaves.length,
-      itemBuilder: (context, index) => _buildLeaveCard(staffLeaves[index]),
+      itemBuilder: (context, index) =>
+          _buildLeaveCard(staffLeaves[index], showDelete: showDelete),
     );
   }
 
@@ -253,30 +304,21 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
       appBar: AppBar(
         iconTheme: const IconThemeData(color: Colors.white),
         automaticallyImplyLeading: false,
-        title: const Text("CHARMS STAFF",
-            style: TextStyle(color: Colors.white)),
+        title: const Text("CHARMS STAFF", style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.blue,
         centerTitle: true,
         actions: [
-          // ✅ Notification badge — same as dashboard
           Consumer3<Leaves, Claims, Schedules>(
             builder: (context, leaves, claims, schedules, child) {
               int resolvedLeaves = leaves.leaves
-                  .where((l) =>
-                      l.staffId == widget.staffId &&
-                      l.status != 'Pending')
+                  .where((l) => l.staffId == widget.staffId && l.status != 'Pending')
                   .length;
-
               int resolvedClaims = claims.claims
-                  .where((c) =>
-                      c.staffId == widget.staffId &&
-                      c.status != 'Pending')
+                  .where((c) => c.staffId == widget.staffId && c.status != 'Pending')
                   .length;
-
               int assignedSchedules = schedules.schedules
                   .where((s) => s.staffId == widget.staffId)
                   .length;
-
               int totalNotifications =
                   resolvedLeaves + resolvedClaims + assignedSchedules;
 
@@ -310,15 +352,9 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(
-                child: Text("Pending",
-                    style: TextStyle(color: Colors.white))),
-            Tab(
-                child: Text("Approved",
-                    style: TextStyle(color: Colors.white))),
-            Tab(
-                child: Text("Rejected",
-                    style: TextStyle(color: Colors.white))),
+            Tab(child: Text("Pending", style: TextStyle(color: Colors.white))),
+            Tab(child: Text("Approved", style: TextStyle(color: Colors.white))),
+            Tab(child: Text("Rejected", style: TextStyle(color: Colors.white))),
           ],
         ),
       ),
@@ -331,11 +367,9 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
           final pending = allLeaves
               .where((l) => l.status.trim().toLowerCase() == 'pending')
               .toList();
-
           final approved = allLeaves
               .where((l) => l.status.trim().toLowerCase() == 'approved')
               .toList();
-
           final rejected = allLeaves
               .where((l) => l.status.trim().toLowerCase() == 'rejected')
               .toList();
@@ -357,9 +391,9 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
                 child: TabBarView(
                   controller: _tabController,
                   children: [
-                    _buildLeaveList(pending),
-                    _buildLeaveList(approved),
-                    _buildLeaveList(rejected),
+                    _buildLeaveList(pending, showDelete: true),  // ✅ can cancel pending
+                    _buildLeaveList(approved),                   // no delete on approved
+                    _buildLeaveList(rejected),                   // no delete on rejected
                   ],
                 ),
               ),
@@ -372,8 +406,7 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
           final created = await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) =>
-                  LeaveFormScreen(staffId: widget.staffId),
+              builder: (context) => LeaveFormScreen(staffId: widget.staffId),
             ),
           );
 

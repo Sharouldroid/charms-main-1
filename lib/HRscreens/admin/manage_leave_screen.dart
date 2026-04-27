@@ -74,7 +74,53 @@ class _ManageLeaveScreenState extends State<ManageLeaveScreen>
     }
   }
 
-  Widget _buildLeaveCard(Leave leave) {
+  // ✅ New delete method
+  Future<void> _handleLeaveDelete(Leave leave) async {
+    if (_processing) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Leave'),
+        content: const Text('Are you sure you want to delete this leave record?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _processing = true);
+    try {
+      await Provider.of<Leaves>(context, listen: false).deleteLeave(leave.leaveId);
+      await _fetchLeaves();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Leave record deleted successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to delete leave: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _processing = false);
+    }
+  }
+
+  Widget _buildLeaveCard(Leave leave, {bool showDelete = false}) {
     final status = leave.status.trim().toLowerCase();
     Color statusColor = Colors.orange;
     if (status == 'approved') statusColor = Colors.green;
@@ -87,9 +133,21 @@ class _ManageLeaveScreenState extends State<ManageLeaveScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              "Staff ID: ${leave.staffId}",
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            // ✅ Header row with delete button
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "Staff ID: ${leave.staffId}",
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                if (showDelete)
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    tooltip: 'Delete',
+                    onPressed: _processing ? null : () => _handleLeaveDelete(leave),
+                  ),
+              ],
             ),
             const SizedBox(height: 5),
             Text("Leave Type: ${leave.leaveType}"),
@@ -99,19 +157,13 @@ class _ManageLeaveScreenState extends State<ManageLeaveScreen>
             Text("Reason: ${leave.reason}"),
             Text(
               "Status: ${leave.status}",
-              style: TextStyle(
-                color: statusColor,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(color: statusColor, fontWeight: FontWeight.bold),
             ),
-
-            // NEW: URL/path-based attachment viewer
             ProofAttachmentViewer(
               fileUrl: leave.proofFileUrl,
               fileName: leave.proofFileName,
               fileType: leave.proofFileType,
             ),
-
             if (status == 'pending')
               Padding(
                 padding: const EdgeInsets.only(top: 10),
@@ -122,26 +174,16 @@ class _ManageLeaveScreenState extends State<ManageLeaveScreen>
                       onPressed: _processing
                           ? null
                           : () => _handleLeaveAction(leave, 'approve'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                      ),
-                      child: const Text(
-                        'Approve',
-                        style: TextStyle(color: Colors.white),
-                      ),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                      child: const Text('Approve', style: TextStyle(color: Colors.white)),
                     ),
                     const SizedBox(width: 10),
                     ElevatedButton(
                       onPressed: _processing
                           ? null
                           : () => _handleLeaveAction(leave, 'reject'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                      ),
-                      child: const Text(
-                        'Reject',
-                        style: TextStyle(color: Colors.white),
-                      ),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                      child: const Text('Reject', style: TextStyle(color: Colors.white)),
                     ),
                   ],
                 ),
@@ -152,13 +194,10 @@ class _ManageLeaveScreenState extends State<ManageLeaveScreen>
     );
   }
 
-  Widget _buildStatusList(List<Leave> leaves) {
+  Widget _buildStatusList(List<Leave> leaves, {bool showDelete = false}) {
     if (leaves.isEmpty) {
       return const Center(
-        child: Text(
-          'No leave records found',
-          style: TextStyle(color: Colors.grey),
-        ),
+        child: Text('No leave records found', style: TextStyle(color: Colors.grey)),
       );
     }
 
@@ -166,7 +205,8 @@ class _ManageLeaveScreenState extends State<ManageLeaveScreen>
       onRefresh: _fetchLeaves,
       child: ListView.builder(
         itemCount: leaves.length,
-        itemBuilder: (context, index) => _buildLeaveCard(leaves[index]),
+        itemBuilder: (context, index) =>
+            _buildLeaveCard(leaves[index], showDelete: showDelete),
       ),
     );
   }
@@ -193,11 +233,9 @@ class _ManageLeaveScreenState extends State<ManageLeaveScreen>
           final pending = leavesData.leaves
               .where((l) => l.status.trim().toLowerCase() == 'pending')
               .toList();
-
           final approved = leavesData.leaves
               .where((l) => l.status.trim().toLowerCase() == 'approved')
               .toList();
-
           final rejected = leavesData.leaves
               .where((l) => l.status.trim().toLowerCase() == 'rejected')
               .toList();
@@ -207,9 +245,9 @@ class _ManageLeaveScreenState extends State<ManageLeaveScreen>
               TabBarView(
                 controller: _tabController,
                 children: [
-                  _buildStatusList(pending),
-                  _buildStatusList(approved),
-                  _buildStatusList(rejected),
+                  _buildStatusList(pending),                          // no delete on pending
+                  _buildStatusList(approved, showDelete: true),       // ✅ delete on approved
+                  _buildStatusList(rejected, showDelete: true),       // ✅ delete on rejected
                 ],
               ),
               if (_processing)

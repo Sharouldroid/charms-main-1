@@ -32,6 +32,7 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int _selectedIndex = 3;
+  bool _processing = false;
 
   @override
   void initState() {
@@ -55,6 +56,52 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
       DashboardScreen.routeName,
       (route) => false,
     );
+  }
+
+  // ✅ Staff can only cancel their own pending claims
+  Future<void> _deleteClaim(Claim claim) async {
+    if (_processing) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancel Claim'),
+        content: const Text('Are you sure you want to cancel this claim request?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('No', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Yes, Cancel', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _processing = true);
+    try {
+      await Provider.of<Claims>(context, listen: false).deleteClaim(claim.claimId);
+      await _fetchClaimData();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Claim request cancelled successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to cancel claim: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _processing = false);
+    }
   }
 
   void _onItemTapped(int index) {
@@ -155,7 +202,7 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
     );
   }
 
-  Widget _buildClaimCard(Claim claim) {
+  Widget _buildClaimCard(Claim claim, {bool showDelete = false}) {
     Color statusColor() {
       switch (claim.status) {
         case 'Pending':
@@ -175,7 +222,19 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       child: ListTile(
         onTap: () => _showClaimDetails(claim),
-        title: Text('${claim.claimId} - ${claim.claimType}'),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('${claim.claimId} - ${claim.claimType}'),
+            // ✅ Cancel button only on pending
+            if (showDelete)
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                tooltip: 'Cancel Claim',
+                onPressed: _processing ? null : () => _deleteClaim(claim),
+              ),
+          ],
+        ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -189,27 +248,26 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
             ),
           ],
         ),
-        trailing: Chip(
-          label: Text(claim.status),
-          backgroundColor: statusColor(),
-        ),
+        trailing: showDelete
+            ? null
+            : Chip(
+                label: Text(claim.status),
+                backgroundColor: statusColor(),
+              ),
       ),
     );
   }
 
-  Widget _buildClaimList(List<Claim> claims) {
+  Widget _buildClaimList(List<Claim> claims, {bool showDelete = false}) {
     if (claims.isEmpty) {
       return const Center(
-        child: Text(
-          'No claims found',
-          style: TextStyle(color: Colors.grey),
-        ),
+        child: Text('No claims found', style: TextStyle(color: Colors.grey)),
       );
     }
 
     return ListView.builder(
       itemCount: claims.length,
-      itemBuilder: (_, i) => _buildClaimCard(claims[i]),
+      itemBuilder: (_, i) => _buildClaimCard(claims[i], showDelete: showDelete),
     );
   }
 
@@ -228,16 +286,14 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
               int resolvedLeaves = leaves.leaves
                   .where((l) => l.staffId == widget.staffId && l.status != 'Pending')
                   .length;
-
               int resolvedClaims = claims.claims
                   .where((c) => c.staffId == widget.staffId && c.status != 'Pending')
                   .length;
-
               int assignedSchedules = schedules.schedules
                   .where((s) => s.staffId == widget.staffId)
                   .length;
-
-              int totalNotifications = resolvedLeaves + resolvedClaims + assignedSchedules;
+              int totalNotifications =
+                  resolvedLeaves + resolvedClaims + assignedSchedules;
 
               return IconButton(
                 icon: totalNotifications > 0
@@ -280,6 +336,7 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
           return TabBarView(
             controller: _tabController,
             children: [
+              // ✅ Pending — show delete/cancel button
               Column(
                 children: [
                   Padding(
@@ -289,12 +346,11 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
                         final submitted = await Navigator.push<bool>(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => ApplyClaimScreen(staffId: widget.staffId),
+                            builder: (_) =>
+                                ApplyClaimScreen(staffId: widget.staffId),
                           ),
                         );
-                        if (submitted == true) {
-                          await _fetchClaimData();
-                        }
+                        if (submitted == true) await _fetchClaimData();
                       },
                       icon: const Icon(Icons.add),
                       label: const Text('Apply New Claim'),
@@ -308,10 +364,12 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
                   Expanded(
                     child: _buildClaimList(
                       claimsData.claims.where((c) => c.status == 'Pending').toList(),
+                      showDelete: true, // ✅ can cancel pending
                     ),
                   ),
                 ],
               ),
+              // no delete on approved/rejected for staff
               _buildClaimList(
                 claimsData.claims.where((c) => c.status == 'Approved').toList(),
               ),
