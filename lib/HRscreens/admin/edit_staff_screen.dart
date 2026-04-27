@@ -40,6 +40,11 @@ class _EditStaffScreenState extends State<EditStaffScreen> {
   late TextEditingController emergencyGenderController;
   late TextEditingController emergencyPhoneController;
 
+  // Modern Color Palette Constants
+  final Color bgColor = const Color(0xFFF4F7FA);
+  final Color primaryBlue = const Color(0xFF2563EB);
+  bool _isLoading = false;
+
   @override
   void initState() {
     super.initState();
@@ -70,85 +75,63 @@ class _EditStaffScreenState extends State<EditStaffScreen> {
     emergencyPhoneController = TextEditingController(text: widget.staff.emergencyPhone);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        iconTheme: IconThemeData(color: Colors.white),
-        title: Text('Edit Staff Details', style: TextStyle(color: Colors.white),),
-        backgroundColor: Colors.blue,
-        centerTitle: true,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Personal Details
-                Text("Personal Details", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                buildTextField("Name", nameController),
-                buildTextField("IC Number", icNumberController),
-                buildTextField("Date of Birth", dobController),
-                buildTextField("Nationality", nationalityController),
-                buildTextField("Religion", religionController),
-                buildTextField("Gender", genderController),
-                buildTextField("Marital Status", maritalStatusController),
-                buildTextField("Status", statusController),
-                SizedBox(height: 20),
-                
-                // Address Details
-                Text("Address Details", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                buildTextField("Address", addressController),
-                buildTextField("City", cityController),
-                buildTextField("State", stateController),
-                buildTextField("Country", countryController),
-                buildTextField("Phone", phoneController),
-                buildTextField("Office Phone", officePhoneController),
-                buildTextField("Email", emailController),
-                buildTextField("Occupation", occupationController),
-                
-                SizedBox(height: 20),
-
-                // Emergency Contact Details
-                Text("Emergency Contact Details", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                buildTextField("Emergency Name", emergencyNameController),
-                buildTextField("Emergency IC", emergencyIcController),
-                buildTextField("Emergency Relation", emergencyRelationController),
-                buildTextField("Emergency Gender", emergencyGenderController),
-                buildTextField("Emergency Phone", emergencyPhoneController),
-
-                SizedBox(height: 20),
-                Center(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      if (_formKey.currentState!.validate()) {
-                        // Handle form submission
-                        _updateStaffDetails(context);
-                      }
-                    },
-                    child: Text("Submit"),
-                  ),
-                ),
-              ],
+  // Helper for Section Headers
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0, top: 24.0),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: primaryBlue.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: primaryBlue, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1E293B),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 
-  // Helper function to create a text field with validation
-  Widget buildTextField(String label, TextEditingController controller) {
+  // Modernized helper function to create a text field with validation and icons
+  Widget buildTextField(String label, TextEditingController controller, IconData icon) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.only(bottom: 16.0),
       child: TextFormField(
         controller: controller,
         decoration: InputDecoration(
           labelText: label,
-          border: OutlineInputBorder(),
+          labelStyle: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+          prefixIcon: Icon(icon, color: primaryBlue.withOpacity(0.7), size: 22),
+          filled: true,
+          fillColor: Colors.grey.shade50,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade200),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: primaryBlue, width: 2),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.redAccent),
+          ),
         ),
         validator: (value) {
           if (value == null || value.isEmpty) {
@@ -160,53 +143,191 @@ class _EditStaffScreenState extends State<EditStaffScreen> {
     );
   }
 
-  // Update staff details using the provider
-  Future<void> _updateStaffDetails(BuildContext context) async {
-  final staffProvider = Provider.of<Staffs>(context, listen: false);
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: bgColor, // Modern Background
+      appBar: AppBar(
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text('EDIT STAFF', 
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.2
+          ),
+        ),
+        backgroundColor: primaryBlue,
+        centerTitle: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(20),
+          ),
+        ),
+      ),
+      body: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16.0),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 15,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  
+                  // Profile Header Indicator
+                  Center(
+                    child: Column(
+                      children: [
+                        CircleAvatar(
+                          radius: 40,
+                          backgroundColor: primaryBlue.withOpacity(0.1),
+                          child: Icon(Icons.person_rounded, size: 40, color: primaryBlue),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          "ID: ${widget.staff.staffId}",
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
 
-  final updatedStaff = Staff(
-    staffId: widget.staff.staffId,
-    userId: widget.staff.userId,
-    username: widget.staff.username,
-    email: emailController.text,
-    usertype: widget.staff.usertype,
-    firstname: nameController.text.split(' ')[0],
-    lastname: nameController.text.split(' ')[1],
-    occupation: occupationController.text,
-    phone: phoneController.text,
-    category: widget.staff.category,
-    nationality: nationalityController.text,
-    religion: religionController.text,
-    maritalStatus: maritalStatusController.text == "Single" ? 1 : 2,
-    officePhone: officePhoneController.text,
-    emergencyName: emergencyNameController.text,
-    emergencyIc: emergencyIcController.text,
-    emergencyRelation: emergencyRelationController.text,
-    emergencyGender: emergencyGenderController.text == "Male" ? 1 : 2,
-    emergencyPhone: emergencyPhoneController.text,
-    idNum: icNumberController.text,
-    dob: dobController.text,
-    address1: addressController.text.split(',')[0].trim(),
-    address2: addressController.text.split(',')[1].trim(),
-    city: cityController.text,
-    postcode: widget.staff.postcode,
-    state: stateController.text,
-    country: countryController.text,
-  );
+                  // Personal Details
+                  _buildSectionHeader("Personal Details", Icons.badge_rounded),
+                  buildTextField("Name", nameController, Icons.person_outline_rounded),
+                  buildTextField("IC Number", icNumberController, Icons.credit_card_rounded),
+                  buildTextField("Date of Birth", dobController, Icons.calendar_today_rounded),
+                  buildTextField("Nationality", nationalityController, Icons.flag_rounded),
+                  buildTextField("Religion", religionController, Icons.mosque_rounded),
+                  buildTextField("Gender", genderController, Icons.wc_rounded),
+                  buildTextField("Marital Status", maritalStatusController, Icons.family_restroom_rounded),
+                  buildTextField("Status", statusController, Icons.info_outline_rounded),
+                  
+                  // Address Details
+                  _buildSectionHeader("Contact & Address", Icons.location_on_rounded),
+                  buildTextField("Phone", phoneController, Icons.phone_android_rounded),
+                  buildTextField("Office Phone", officePhoneController, Icons.phone_in_talk_rounded),
+                  buildTextField("Email", emailController, Icons.email_rounded),
+                  buildTextField("Occupation", occupationController, Icons.work_outline_rounded),
+                  buildTextField("Address", addressController, Icons.home_rounded),
+                  buildTextField("City", cityController, Icons.location_city_rounded),
+                  buildTextField("State", stateController, Icons.map_rounded),
+                  buildTextField("Country", countryController, Icons.public_rounded),
+                  
+                  // Emergency Contact Details
+                  _buildSectionHeader("Emergency Contact", Icons.health_and_safety_rounded),
+                  buildTextField("Emergency Name", emergencyNameController, Icons.person_rounded),
+                  buildTextField("Emergency IC", emergencyIcController, Icons.credit_card_rounded),
+                  buildTextField("Emergency Relation", emergencyRelationController, Icons.diversity_1_rounded),
+                  buildTextField("Emergency Gender", emergencyGenderController, Icons.wc_rounded),
+                  buildTextField("Emergency Phone", emergencyPhoneController, Icons.phone_rounded),
 
-  try {
-await staffProvider.updateStaffDetails(widget.staff.staffId, updatedStaff); //    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Staff details updated successfully!")),
-    );
-    
-    Navigator.pop(context);
-  } catch (error) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Failed to update staff details: $error")),
+                  const SizedBox(height: 32),
+
+                  // Submit Button
+                  if (_isLoading)
+                    Center(child: CircularProgressIndicator(color: primaryBlue))
+                  else
+                    ElevatedButton(
+                      onPressed: () {
+                        if (_formKey.currentState!.validate()) {
+                          _updateStaffDetails(context);
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryBlue,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: const Text(
+                        "Update Staff Details",
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.0),
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
-}
+
+  // Update staff details using the provider
+  Future<void> _updateStaffDetails(BuildContext context) async {
+    setState(() => _isLoading = true);
+    final staffProvider = Provider.of<Staffs>(context, listen: false);
+
+    final updatedStaff = Staff(
+      staffId: widget.staff.staffId,
+      userId: widget.staff.userId,
+      username: widget.staff.username,
+      email: emailController.text,
+      usertype: widget.staff.usertype,
+      firstname: nameController.text.split(' ').isNotEmpty ? nameController.text.split(' ')[0] : '',
+      lastname: nameController.text.split(' ').length > 1 ? nameController.text.split(' ').sublist(1).join(' ') : '',
+      occupation: occupationController.text,
+      phone: phoneController.text,
+      category: widget.staff.category,
+      nationality: nationalityController.text,
+      religion: religionController.text,
+      maritalStatus: maritalStatusController.text == "Single" ? 1 : 2,
+      officePhone: officePhoneController.text,
+      emergencyName: emergencyNameController.text,
+      emergencyIc: emergencyIcController.text,
+      emergencyRelation: emergencyRelationController.text,
+      emergencyGender: emergencyGenderController.text == "Male" ? 1 : 2,
+      emergencyPhone: emergencyPhoneController.text,
+      idNum: icNumberController.text,
+      dob: dobController.text,
+      address1: addressController.text.split(',').isNotEmpty ? addressController.text.split(',')[0].trim() : '',
+      address2: addressController.text.split(',').length > 1 ? addressController.text.split(',').sublist(1).join(',').trim() : '',
+      city: cityController.text,
+      postcode: widget.staff.postcode,
+      state: stateController.text,
+      country: countryController.text,
+    );
+
+    try {
+      await staffProvider.updateStaffDetails(widget.staff.staffId, updatedStaff);     
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Staff details updated successfully!"), backgroundColor: Colors.teal),
+        );
+        Navigator.pop(context);
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to update staff details: $error"), backgroundColor: Colors.redAccent),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   void dispose() {

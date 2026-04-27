@@ -25,6 +25,10 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
   String? _selectedBranch;
   String? _selectedSlot;
 
+  // Modern Color Palette Constants
+  final Color bgColor = const Color(0xFFF4F7FA);
+  final Color primaryBlue = const Color(0xFF2563EB);
+
   final List<String> _branches = ['Chagar Hutang', 'Turtle Lab', 'UMT'];
   final List<String> _slots = ['Slot 1', 'Slot 2', 'Slot 3', 'Slot 4'];
 
@@ -118,8 +122,7 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: isError ? Colors.red : Colors.green,
-        duration: const Duration(seconds: 3),
+        backgroundColor: isError ? Colors.redAccent : Colors.teal,
       ),
     );
   }
@@ -147,50 +150,84 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: bgColor, // Modern Background
       appBar: AppBar(
+        elevation: 0,
         leading: const BackButton(color: Colors.white),
-        title: const Text('Schedule Form', style: TextStyle(color: Colors.white)),
-        backgroundColor: Colors.blue,
+        title: const Text('ASSIGN SHIFT',
+            style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2)),
+        backgroundColor: primaryBlue,
         centerTitle: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(20),
+          ),
+        ),
       ),
       body: FutureBuilder(
         future: _staffFuture,
         builder: (ctx, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return Center(child: CircularProgressIndicator(color: primaryBlue));
           }
           return Padding(
             padding: const EdgeInsets.all(16.0),
             child: Form(
               key: _formKey,
               child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    
+                    // Calendar Section
+                    _buildSectionTitle('Select Dates'),
                     _buildCalendar(),
                     const SizedBox(height: 16),
                     _buildSelectedDatesDisplay(),
-                    const SizedBox(height: 16),
-                    _buildDropdown('Select Branch', _branches, _selectedBranch,
-                        (value) {
-                      setState(() => _selectedBranch = value);
-                    }),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Intern Slot Details:',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                    const SizedBox(height: 24),
+
+                    // Shift Details Section
+                    _buildSectionTitle('Shift Details'),
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.03),
+                            blurRadius: 15,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildDropdown('Select Branch', _branches, _selectedBranch, (value) {
+                            setState(() => _selectedBranch = value);
+                          }, Icons.location_on_rounded),
+                          const SizedBox(height: 20),
+                          _buildDropdown('Select Slot', _slots, _selectedSlot, (value) {
+                            setState(() => _selectedSlot = value);
+                          }, Icons.access_time_rounded),
+                        ],
+                      ),
                     ),
+                    const SizedBox(height: 24),
+
+                    // Slot Information Panel
+                    _buildSectionTitle('Slot Information'),
                     _buildSlotExplanation(),
-                    const SizedBox(height: 16),
-                    _buildDropdown(
-                      'Select Slot',
-                      _slots,
-                      _selectedSlot,
-                      (value) => setState(() => _selectedSlot = value),
-                    ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 32),
+
+                    // Submit Button
                     _buildSubmitButton(),
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),
@@ -201,57 +238,103 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
     );
   }
 
-  Widget _buildSlotExplanation() {
-    return Table(
-      columnWidths: const {
-        0: FixedColumnWidth(70),
-        1: FlexColumnWidth(2),
-      },
-      border: TableBorder.all(
-        color: Colors.grey.shade300,
-        borderRadius: BorderRadius.circular(8),
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0, left: 8.0),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF1E293B),
+        ),
       ),
-      children: _slotDetails.entries.map((entry) {
-        return _buildTableRow(entry.key, entry.value);
-      }).toList(),
     );
   }
 
-  TableRow _buildTableRow(String slotNumber, TimeSlot timeSlot) {
-    return TableRow(
-      decoration: const BoxDecoration(color: Colors.white),
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Text(
-            slotNumber,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
+  Widget _buildSlotExplanation() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        children: _slotDetails.entries.map((entry) {
+          final isLast = entry.key == _slotDetails.entries.last.key;
+          return Column(
+            children: [
+              _buildTableRow(entry.key, entry.value),
+              if (!isLast) Divider(height: 1, color: Colors.grey.shade200),
+            ],
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildTableRow(String slotNumber, TimeSlot timeSlot) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: primaryBlue.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              slotNumber,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: primaryBlue,
+              ),
             ),
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Working Hours: ${timeSlot.startTime} - ${timeSlot.endTime}',
-                style: const TextStyle(fontSize: 15),
-              ),
-              const SizedBox(height: 4),
-              ...timeSlot.breaks.map((break_) => Text(
-                    '• Break: $break_',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.work_rounded, size: 14, color: Colors.grey.shade600),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Work: ${timeSlot.startTime} - ${timeSlot.endTime}',
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
                     ),
-                  )),
-            ],
+                  ],
+                ),
+                const SizedBox(height: 6),
+                ...timeSlot.breaks.map((break_) => Row(
+                  children: [
+                    Icon(Icons.coffee_rounded, size: 14, color: Colors.grey.shade500),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Break: $break_',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                )),
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -259,34 +342,50 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: TableCalendar(
-        focusedDay: _focusedDay,
-        firstDay: DateTime.now().subtract(const Duration(days: 365)),
-        lastDay: DateTime(2100),
-        calendarFormat: CalendarFormat.month,
-        selectedDayPredicate: (day) => _selectedDays.any((d) => isSameDay(d, day)),
-        enabledDayPredicate: _isDateSelectable,
-        onDaySelected: (selectedDay, focusedDay) {
-          setState(() {
-            bool exists = _selectedDays.any((d) => isSameDay(d, selectedDay));
-            if (exists) {
-              _selectedDays.removeWhere((d) => isSameDay(d, selectedDay));
-            } else {
-              _selectedDays.add(selectedDay);
-            }
-            _focusedDay = focusedDay;
-          });
-        },
-        calendarStyle: CalendarStyle(
-          selectedDecoration: BoxDecoration(
-            color: Colors.red[300],
-            shape: BoxShape.circle,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
           ),
-          todayDecoration: BoxDecoration(
-            color: Colors.blueAccent.withOpacity(0.5),
-            shape: BoxShape.circle,
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: TableCalendar(
+          focusedDay: _focusedDay,
+          firstDay: DateTime.now().subtract(const Duration(days: 365)),
+          lastDay: DateTime(2100),
+          calendarFormat: CalendarFormat.month,
+          selectedDayPredicate: (day) => _selectedDays.any((d) => isSameDay(d, day)),
+          enabledDayPredicate: _isDateSelectable,
+          headerStyle: const HeaderStyle(
+            formatButtonVisible: false,
+            titleCentered: true,
+            titleTextStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          onDaySelected: (selectedDay, focusedDay) {
+            setState(() {
+              bool exists = _selectedDays.any((d) => isSameDay(d, selectedDay));
+              if (exists) {
+                _selectedDays.removeWhere((d) => isSameDay(d, selectedDay));
+              } else {
+                _selectedDays.add(selectedDay);
+              }
+              _focusedDay = focusedDay;
+            });
+          },
+          calendarStyle: CalendarStyle(
+            selectedDecoration: BoxDecoration(
+              color: primaryBlue,
+              shape: BoxShape.circle,
+            ),
+            todayDecoration: BoxDecoration(
+              color: primaryBlue.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            todayTextStyle: TextStyle(color: primaryBlue, fontWeight: FontWeight.bold),
           ),
         ),
       ),
@@ -298,49 +397,94 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
 
     final List<DateTime> sortedDates = _selectedDays.toList()..sort();
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
+        color: primaryBlue.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: primaryBlue.withOpacity(0.2)),
       ),
-      child: Text(
-        'Selected Dates: ${sortedDates.map((date) => '${date.day}/${date.month}/${date.year}').join(", ")}',
-        style: const TextStyle(color: Colors.black, fontSize: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.event_available_rounded, size: 18, color: primaryBlue),
+              const SizedBox(width: 8),
+              Text(
+                'Selected Dates (${sortedDates.length})',
+                style: TextStyle(color: primaryBlue, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: sortedDates.map((date) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 2, offset: const Offset(0, 1)),
+                ],
+              ),
+              child: Text(
+                '${date.day}/${date.month}/${date.year}',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+            )).toList(),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildDropdown(String hint, List<String> items, String? selectedValue,
-      ValueChanged<String?> onChanged) {
+  Widget _buildDropdown(String hint, List<String> items, String? selectedValue, ValueChanged<String?> onChanged, IconData icon) {
     return DropdownButtonFormField<String>(
       decoration: InputDecoration(
+        labelText: hint,
+        labelStyle: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+        prefixIcon: Icon(icon, color: primaryBlue.withOpacity(0.7), size: 22),
         filled: true,
-        fillColor: Colors.blue[300],
-        hintText: hint,
-        hintStyle: const TextStyle(color: Colors.white),
-        border: const OutlineInputBorder(),
+        fillColor: Colors.grey.shade50,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade200),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: primaryBlue, width: 2),
+        ),
       ),
-      initialValue: selectedValue,
-      items: items
-          .map((item) => DropdownMenuItem(
-                value: item,
-                child: Text(item, style: const TextStyle(color: Colors.black)),
-              ))
-          .toList(),
+      icon: Icon(Icons.keyboard_arrow_down_rounded, color: primaryBlue),
+      value: selectedValue,
+      items: items.map((item) => DropdownMenuItem(
+        value: item,
+        child: Text(item, style: const TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.w500)),
+      )).toList(),
       onChanged: onChanged,
       validator: (value) => value == null ? '$hint is required' : null,
     );
   }
 
   Widget _buildSubmitButton() {
-    return ElevatedButton(
+    return ElevatedButton.icon(
       onPressed: _onSubmit,
       style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.green,
+        backgroundColor: Colors.teal, // Modernized publish color
+        foregroundColor: Colors.white,
+        elevation: 0,
         padding: const EdgeInsets.symmetric(vertical: 16.0),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
-      child: const Text('Publish', style: TextStyle(color: Colors.white, fontSize: 16)),
+      icon: const Icon(Icons.send_rounded),
+      label: const Text('Publish Schedule', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
     );
   }
 }

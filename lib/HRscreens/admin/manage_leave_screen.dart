@@ -17,6 +17,10 @@ class _ManageLeaveScreenState extends State<ManageLeaveScreen>
   late TabController _tabController;
   bool _processing = false;
 
+  // Modern Color Palette Constants
+  final Color bgColor = const Color(0xFFF4F7FA);
+  final Color primaryBlue = const Color(0xFF2563EB);
+
   @override
   void initState() {
     super.initState();
@@ -62,6 +66,7 @@ class _ManageLeaveScreenState extends State<ManageLeaveScreen>
                 ? 'Leave approved successfully'
                 : 'Leave rejected successfully',
           ),
+          backgroundColor: action == 'approve' ? Colors.teal : Colors.redAccent,
         ),
       );
     } catch (e) {
@@ -74,23 +79,29 @@ class _ManageLeaveScreenState extends State<ManageLeaveScreen>
     }
   }
 
-  // ✅ New delete method
+  // ✅ New delete method (Logic kept the same, slightly modernized dialog)
   Future<void> _handleLeaveDelete(Leave leave) async {
     if (_processing) return;
 
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Leave'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Delete Leave', style: TextStyle(fontWeight: FontWeight.bold)),
         content: const Text('Are you sure you want to delete this leave record?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
             child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
           ),
-          TextButton(
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -107,7 +118,7 @@ class _ManageLeaveScreenState extends State<ManageLeaveScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Leave record deleted successfully'),
-          backgroundColor: Colors.green,
+          backgroundColor: Colors.teal,
         ),
       );
     } catch (e) {
@@ -122,68 +133,195 @@ class _ManageLeaveScreenState extends State<ManageLeaveScreen>
 
   Widget _buildLeaveCard(Leave leave, {bool showDelete = false}) {
     final status = leave.status.trim().toLowerCase();
+    
+    // Modern Status Colors
     Color statusColor = Colors.orange;
-    if (status == 'approved') statusColor = Colors.green;
-    if (status == 'rejected') statusColor = Colors.red;
+    Color statusBgColor = Colors.orange.withOpacity(0.1);
+    IconData statusIcon = Icons.pending_actions_rounded;
+    
+    if (status == 'approved') {
+      statusColor = Colors.teal;
+      statusBgColor = Colors.teal.withOpacity(0.1);
+      statusIcon = Icons.check_circle_rounded;
+    }
+    if (status == 'rejected') {
+      statusColor = Colors.redAccent;
+      statusBgColor = Colors.redAccent.withOpacity(0.1);
+      statusIcon = Icons.cancel_rounded;
+    }
 
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 15),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16.0, left: 16.0, right: 16.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ✅ Header row with delete button
+            // Header: Icon + Staff ID + Delete Action
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  "Staff ID: ${leave.staffId}",
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                if (showDelete)
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    tooltip: 'Delete',
-                    onPressed: _processing ? null : () => _handleLeaveDelete(leave),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    shape: BoxShape.circle,
                   ),
+                  child: const Icon(Icons.person_rounded, color: Colors.blue, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Staff ID",
+                        style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        leave.staffId.toString(),
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1E293B)),
+                      ),
+                    ],
+                  ),
+                ),
+                // Modern Status Pill
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: statusBgColor,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(statusIcon, size: 14, color: statusColor),
+                      const SizedBox(width: 4),
+                      Text(
+                        leave.status,
+                        style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+                if (showDelete) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
+                      tooltip: 'Delete',
+                      constraints: const BoxConstraints(),
+                      padding: const EdgeInsets.all(8),
+                      onPressed: _processing ? null : () => _handleLeaveDelete(leave),
+                    ),
+                  ),
+                ],
               ],
             ),
-            const SizedBox(height: 5),
-            Text("Leave Type: ${leave.leaveType}"),
-            Text(
-              "Duration: ${DateFormat('dd/MM/yyyy').format(leave.startDate)} - ${DateFormat('dd/MM/yyyy').format(leave.endDate)}",
+            
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12.0),
+              child: Divider(color: Colors.grey.shade200, height: 1),
             ),
-            Text("Reason: ${leave.reason}"),
-            Text(
-              "Status: ${leave.status}",
-              style: TextStyle(color: statusColor, fontWeight: FontWeight.bold),
+
+            // Content details
+            Row(
+              children: [
+                const Icon(Icons.category_rounded, size: 16, color: Colors.grey),
+                const SizedBox(width: 8),
+                Text("Type: ", style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+                Text(leave.leaveType, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF334155))),
+              ],
             ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.calendar_today_rounded, size: 16, color: Colors.grey),
+                const SizedBox(width: 8),
+                Text("Date: ", style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+                Text(
+                  "${DateFormat('dd MMM yyyy').format(leave.startDate)} - ${DateFormat('dd MMM yyyy').format(leave.endDate)}",
+                  style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF334155)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.subject_rounded, size: 16, color: Colors.grey),
+                const SizedBox(width: 8),
+                Text("Reason: ", style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+                Expanded(
+                  child: Text(
+                    leave.reason,
+                    style: const TextStyle(color: Color(0xFF334155)),
+                  ),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 12),
+            
+            // Retained Custom Widget
             ProofAttachmentViewer(
               fileUrl: leave.proofFileUrl,
               fileName: leave.proofFileName,
               fileType: leave.proofFileType,
             ),
+            
+            // Actions (Approve / Reject) for Pending only
             if (status == 'pending')
               Padding(
-                padding: const EdgeInsets.only(top: 10),
+                padding: const EdgeInsets.only(top: 16),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    ElevatedButton(
-                      onPressed: _processing
-                          ? null
-                          : () => _handleLeaveAction(leave, 'approve'),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                      child: const Text('Approve', style: TextStyle(color: Colors.white)),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _processing
+                            ? null
+                            : () => _handleLeaveAction(leave, 'reject'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red.shade50,
+                          foregroundColor: Colors.redAccent,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        icon: const Icon(Icons.close_rounded, size: 18),
+                        label: const Text('Reject', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
                     ),
-                    const SizedBox(width: 10),
-                    ElevatedButton(
-                      onPressed: _processing
-                          ? null
-                          : () => _handleLeaveAction(leave, 'reject'),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                      child: const Text('Reject', style: TextStyle(color: Colors.white)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _processing
+                            ? null
+                            : () => _handleLeaveAction(leave, 'approve'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.teal,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        icon: const Icon(Icons.check_rounded, size: 18),
+                        label: const Text('Approve', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
                     ),
                   ],
                 ),
@@ -196,14 +334,25 @@ class _ManageLeaveScreenState extends State<ManageLeaveScreen>
 
   Widget _buildStatusList(List<Leave> leaves, {bool showDelete = false}) {
     if (leaves.isEmpty) {
-      return const Center(
-        child: Text('No leave records found', style: TextStyle(color: Colors.grey)),
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.inbox_rounded, size: 64, color: Colors.grey.shade300),
+            const SizedBox(height: 16),
+            Text('No leave records found',
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 16, fontWeight: FontWeight.w500)),
+          ],
+        ),
       );
     }
 
     return RefreshIndicator(
+      color: primaryBlue,
       onRefresh: _fetchLeaves,
       child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(top: 16, bottom: 32),
         itemCount: leaves.length,
         itemBuilder: (context, index) =>
             _buildLeaveCard(leaves[index], showDelete: showDelete),
@@ -214,13 +363,28 @@ class _ManageLeaveScreenState extends State<ManageLeaveScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: bgColor, // Modern light grey background
       appBar: AppBar(
+        elevation: 0,
+        backgroundColor: primaryBlue,
         iconTheme: const IconThemeData(color: Colors.white),
-        backgroundColor: Colors.blue,
-        title: const Text("Manage Leave", style: TextStyle(color: Colors.white)),
+        title: const Text("MANAGE LEAVE",
+            style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2)),
         centerTitle: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(20),
+          ),
+        ),
         bottom: TabBar(
           controller: _tabController,
+          indicatorColor: Colors.white,
+          indicatorWeight: 3,
+          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal),
           tabs: const [
             Tab(child: Text("Pending", style: TextStyle(color: Colors.white))),
             Tab(child: Text("Approved", style: TextStyle(color: Colors.white))),
@@ -252,8 +416,8 @@ class _ManageLeaveScreenState extends State<ManageLeaveScreen>
               ),
               if (_processing)
                 Container(
-                  color: Colors.black12,
-                  child: const Center(child: CircularProgressIndicator()),
+                  color: Colors.black.withOpacity(0.1),
+                  child: Center(child: CircularProgressIndicator(color: primaryBlue)),
                 ),
             ],
           );

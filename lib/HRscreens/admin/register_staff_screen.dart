@@ -10,15 +10,29 @@ import 'package:charms/HRproviders/staffs.dart';
 class RegisterStaffScreen extends StatelessWidget {
   const RegisterStaffScreen({super.key});
 
+  // Modern Color Palette Constants
+  final Color bgColor = const Color(0xFFF4F7FA);
+  final Color primaryBlue = const Color(0xFF2563EB);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: bgColor,
       appBar: AppBar(
-        title: const Text('Register Staff'),
-        centerTitle: true,
-        backgroundColor: Colors.blue,
+        elevation: 0,
+        backgroundColor: primaryBlue,
         iconTheme: const IconThemeData(color: Colors.white),
-        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 20),
+        title: const Text('REGISTER STAFF',
+            style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2)),
+        centerTitle: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(20),
+          ),
+        ),
       ),
       body: const RegisterStaffForm(),
     );
@@ -72,17 +86,20 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
   final ImagePicker _picker = ImagePicker();
 
   late String _tempPassword; // ✅ ADD THIS
-    String _generateTempPassword() {
-      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#!';
-      final rand = Random.secure();
-      return List.generate(10, (i) => chars[rand.nextInt(chars.length)]).join();
-    }
+  String _generateTempPassword() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#!';
+    final rand = Random.secure();
+    return List.generate(10, (i) => chars[rand.nextInt(chars.length)]).join();
+  }
 
-    @override
-      void initState() {
-        super.initState();
-        _tempPassword = _generateTempPassword(); //auto-generate once
-      }
+  // Modern Color Constants
+  final Color primaryBlue = const Color(0xFF2563EB);
+
+  @override
+  void initState() {
+    super.initState();
+    _tempPassword = _generateTempPassword(); //auto-generate once
+  }
 
   Future<void> _pickImage() async {
     final picked = await _picker.pickImage(
@@ -117,13 +134,13 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Staff registered successfully!')),
+        const SnackBar(content: Text('Staff registered successfully!'), backgroundColor: Colors.teal),
       );
       Navigator.of(context).pop(true);
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Registration failed: $error')),
+        SnackBar(content: Text('Registration failed: $error'), backgroundColor: Colors.redAccent),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -136,6 +153,18 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
       initialDate: DateTime(2000),
       firstDate: DateTime(1900),
       lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: primaryBlue,
+              onPrimary: Colors.white,
+              onSurface: const Color(0xFF1E293B),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (pickedDate != null) {
@@ -146,87 +175,174 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
     }
   }
 
+  // Helper for modern input decoration
+  InputDecoration _buildInputDecoration(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+      prefixIcon: Icon(icon, color: primaryBlue.withOpacity(0.7), size: 22),
+      filled: true,
+      fillColor: Colors.grey.shade50,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.shade200),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: primaryBlue, width: 2),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.redAccent),
+      ),
+    );
+  }
+
+  // Helper for Section Headers
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0, top: 24.0),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: primaryBlue.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: primaryBlue, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1E293B),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      child: Card(
-        margin: const EdgeInsets.all(16),
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(16.0),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(24.0),
           child: Form(
             key: _formKey,
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                const SizedBox(height: 8),
-                GestureDetector(
-                  onTap: _pickImage,
-                  child: CircleAvatar(
-                    radius: 55,
-                    backgroundColor: Colors.grey[300],
-                    // ✅ Web-safe background image logic
-                    backgroundImage: _profileImage != null
-                        ? (kIsWeb
-                            ? NetworkImage(_profileImage!.path) as ImageProvider
-                            : FileImage(File(_profileImage!.path)))
-                        : null,
-                    child: _profileImage == null
-                        ? const Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.add_a_photo, size: 30, color: Colors.grey),
-                              SizedBox(height: 4),
-                              Text('Add Photo', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                            ],
-                          )
-                        : null,
+                
+                // Profile Picture Section
+                Center(
+                  child: Stack(
+                    alignment: Alignment.bottomRight,
+                    children: [
+                      GestureDetector(
+                        onTap: _pickImage,
+                        child: CircleAvatar(
+                          radius: 60,
+                          backgroundColor: Colors.blue.shade50,
+                          // ✅ Web-safe background image logic
+                          backgroundImage: _profileImage != null
+                              ? (kIsWeb
+                                  ? NetworkImage(_profileImage!.path) as ImageProvider
+                                  : FileImage(File(_profileImage!.path)))
+                              : null,
+                          child: _profileImage == null
+                              ? Icon(Icons.person_rounded, size: 60, color: Colors.blue.shade200)
+                              : null,
+                        ),
+                      ),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: primaryBlue,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 3),
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.camera_alt_rounded, size: 20, color: Colors.white),
+                          onPressed: _pickImage,
+                          constraints: const BoxConstraints(),
+                          padding: const EdgeInsets.all(8),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
+                Center(
+                  child: Text('Profile Photo', style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+                ),
+
+                // Account Details
+                _buildSectionHeader('Account Details', Icons.manage_accounts_rounded),
                 TextFormField(
-                  decoration: const InputDecoration(labelText: 'Username'),
+                  decoration: _buildInputDecoration('Username', Icons.alternate_email_rounded),
                   textInputAction: TextInputAction.next,
                   validator: (value) => value == null || value.trim().isEmpty ? 'Please enter a username' : null,
                   onSaved: (value) => _staffData['username'] = value!,
                 ),
-                // TextFormField(
-                //   decoration: const InputDecoration(labelText: 'Password'),
-                //   obscureText: true,
-                //   onSaved: (value) {
-                //     _staffData['passkey'] = value ?? '';
-                //     _staffData['password'] = value ?? '';
-                //   },
-                // ),
+                const SizedBox(height: 16),
+
+                // Personal Information
+                _buildSectionHeader('Personal Information', Icons.badge_rounded),
                 TextFormField(
-                  decoration: const InputDecoration(labelText: 'First Name'),
+                  decoration: _buildInputDecoration('First Name', Icons.person_outline_rounded),
+                  textInputAction: TextInputAction.next,
                   validator: (value) => value == null || value.trim().isEmpty ? 'Please enter a first name' : null,
                   onSaved: (value) => _staffData['firstname'] = value!,
                 ),
+                const SizedBox(height: 16),
                 TextFormField(
-                  decoration: const InputDecoration(labelText: 'Last Name'),
+                  decoration: _buildInputDecoration('Last Name', Icons.person_outline_rounded),
+                  textInputAction: TextInputAction.next,
                   validator: (value) => value == null || value.trim().isEmpty ? 'Please enter a last name' : null,
                   onSaved: (value) => _staffData['lastname'] = value!,
                 ),
+                const SizedBox(height: 16),
                 TextFormField(
-                  decoration: const InputDecoration(labelText: 'ID Number'),
-                  validator: (value) => value == null || value.trim().isEmpty ? 'Please enter your identity card number' : null,
+                  decoration: _buildInputDecoration('ID Number', Icons.credit_card_rounded),
+                  textInputAction: TextInputAction.next,
+                  validator: (value) => value == null || value.trim().isEmpty ? 'Please enter identity card number' : null,
                   onSaved: (value) => _staffData['id_num'] = value!,
                 ),
+                const SizedBox(height: 16),
                 TextFormField(
                   readOnly: true,
-                  decoration: InputDecoration(
-                    labelText: 'Date of Birth',
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.calendar_today),
-                      onPressed: () => _pickDate(context),
-                    ),
-                  ),
+                  decoration: _buildInputDecoration('Date of Birth', Icons.calendar_today_rounded),
                   onTap: () => _pickDate(context),
                   controller: TextEditingController(
                     text: _selectedDate == null ? '' : "${_selectedDate!.toLocal()}".split(' ')[0],
                   ),
                 ),
+                const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(labelText: 'Gender'),
+                  decoration: _buildInputDecoration('Gender', Icons.wc_rounded),
+                  icon: Icon(Icons.keyboard_arrow_down_rounded, color: primaryBlue),
                   items: const [
                     DropdownMenuItem(value: '1', child: Text('Male')),
                     DropdownMenuItem(value: '2', child: Text('Female')),
@@ -234,48 +350,106 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
                   onChanged: (value) => setState(() => _staffData['gender'] = value!),
                   validator: (value) => value == null ? 'Please choose a gender' : null,
                 ),
+                const SizedBox(height: 16),
                 TextFormField(
-                  decoration: const InputDecoration(labelText: 'Occupation'),
-                  onSaved: (value) => _staffData['occupation'] = value!,
+                  decoration: _buildInputDecoration('Nationality', Icons.flag_rounded),
+                  textInputAction: TextInputAction.next,
+                  validator: (value) => value == null || value.trim().isEmpty ? 'Please enter nationality' : null,
+                  onSaved: (value) => _staffData['nationality'] = value!,
                 ),
+                const SizedBox(height: 16),
                 TextFormField(
-                  decoration: const InputDecoration(labelText: 'Phone'),
+                  decoration: _buildInputDecoration('Religion', Icons.mosque_rounded),
+                  textInputAction: TextInputAction.next,
+                  validator: (value) => value == null || value.trim().isEmpty ? 'Please enter religion' : null,
+                  onSaved: (value) => _staffData['religion'] = value!,
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  decoration: _buildInputDecoration('Marital Status', Icons.family_restroom_rounded),
+                  icon: Icon(Icons.keyboard_arrow_down_rounded, color: primaryBlue),
+                  items: const [
+                    DropdownMenuItem(value: '1', child: Text('Single')),
+                    DropdownMenuItem(value: '2', child: Text('Married')),
+                  ],
+                  onChanged: (value) => setState(() => _staffData['marital_status'] = value!),
+                ),
+
+                // Contact Information
+                _buildSectionHeader('Contact Information', Icons.contact_mail_rounded),
+                TextFormField(
+                  decoration: _buildInputDecoration('Phone', Icons.phone_android_rounded),
                   keyboardType: TextInputType.phone,
+                  textInputAction: TextInputAction.next,
                   onSaved: (value) => _staffData['phone'] = value!,
                 ),
+                const SizedBox(height: 16),
                 TextFormField(
-                  decoration: const InputDecoration(labelText: 'Email'),
+                  decoration: _buildInputDecoration('Email', Icons.email_rounded),
                   keyboardType: TextInputType.emailAddress,
-                  validator: (value) => value == null || !value.contains('@') ? 'Please enter a valid email address' : null,
+                  textInputAction: TextInputAction.next,
+                  validator: (value) => value == null || !value.contains('@') ? 'Please enter a valid email' : null,
                   onSaved: (value) => _staffData['email'] = value!,
                 ),
+                const SizedBox(height: 16),
                 TextFormField(
-                  decoration: const InputDecoration(labelText: 'Address Line 1'),
+                  decoration: _buildInputDecoration('Address Line 1', Icons.home_rounded),
+                  textInputAction: TextInputAction.next,
                   onSaved: (value) => _staffData['address1'] = value!,
                 ),
+                const SizedBox(height: 16),
                 TextFormField(
-                  decoration: const InputDecoration(labelText: 'Address Line 2 (optional)'),
+                  decoration: _buildInputDecoration('Address Line 2 (Optional)', Icons.home_work_rounded),
+                  textInputAction: TextInputAction.next,
                   onSaved: (value) => _staffData['address2'] = value!,
                 ),
-                TextFormField(
-                  decoration: const InputDecoration(labelText: 'City'),
-                  onSaved: (value) => _staffData['city'] = value!,
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        decoration: _buildInputDecoration('City', Icons.location_city_rounded),
+                        textInputAction: TextInputAction.next,
+                        onSaved: (value) => _staffData['city'] = value!,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextFormField(
+                        decoration: _buildInputDecoration('Zip Code', Icons.markunread_mailbox_rounded),
+                        keyboardType: TextInputType.number,
+                        textInputAction: TextInputAction.next,
+                        onSaved: (value) => _staffData['postcode'] = value!,
+                      ),
+                    ),
+                  ],
                 ),
-                TextFormField(
-                  decoration: const InputDecoration(labelText: 'Zip Code'),
-                  keyboardType: TextInputType.number,
-                  onSaved: (value) => _staffData['postcode'] = value!,
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        decoration: _buildInputDecoration('State', Icons.map_rounded),
+                        textInputAction: TextInputAction.next,
+                        onSaved: (value) => _staffData['state'] = value!,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextFormField(
+                        decoration: _buildInputDecoration('Country', Icons.public_rounded),
+                        textInputAction: TextInputAction.next,
+                        onSaved: (value) => _staffData['country'] = value!,
+                      ),
+                    ),
+                  ],
                 ),
-                TextFormField(
-                  decoration: const InputDecoration(labelText: 'State'),
-                  onSaved: (value) => _staffData['state'] = value!,
-                ),
-                TextFormField(
-                  decoration: const InputDecoration(labelText: 'Country'),
-                  onSaved: (value) => _staffData['country'] = value!,
-                ),
+
+                // Employment Details
+                _buildSectionHeader('Employment Details', Icons.work_rounded),
                 DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(labelText: 'Category'),
+                  decoration: _buildInputDecoration('Category', Icons.corporate_fare_rounded),
+                  icon: Icon(Icons.keyboard_arrow_down_rounded, color: primaryBlue),
                   items: const [
                     DropdownMenuItem(value: '1', child: Text('SEATRU')),
                     DropdownMenuItem(value: '2', child: Text('CMS')),
@@ -285,8 +459,10 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
                   onSaved: (value) => _staffData['category'] = value!,
                   validator: (value) => value == null ? 'Please select a category' : null,
                 ),
+                const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(labelText: 'Role'),
+                  decoration: _buildInputDecoration('Role', Icons.admin_panel_settings_rounded),
+                  icon: Icon(Icons.keyboard_arrow_down_rounded, color: primaryBlue),
                   items: const [
                     DropdownMenuItem(value: '6', child: Text('Staff Admin')),
                     DropdownMenuItem(value: '7', child: Text('Staff')),
@@ -297,64 +473,80 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
                   onChanged: (value) => setState(() => _staffData['usertype'] = value!),
                   validator: (value) => value == null ? 'Please select a role' : null,
                 ),
+                const SizedBox(height: 16),
                 TextFormField(
-                  decoration: const InputDecoration(labelText: 'Nationality'),
-                  validator: (value) => value == null || value.trim().isEmpty ? 'Please enter nationality' : null,
-                  onSaved: (value) => _staffData['nationality'] = value!,
+                  decoration: _buildInputDecoration('Occupation', Icons.work_outline_rounded),
+                  textInputAction: TextInputAction.next,
+                  onSaved: (value) => _staffData['occupation'] = value!,
                 ),
+                const SizedBox(height: 16),
                 TextFormField(
-                  decoration: const InputDecoration(labelText: 'Religion'),
-                  validator: (value) => value == null || value.trim().isEmpty ? 'Please enter religion' : null,
-                  onSaved: (value) => _staffData['religion'] = value!,
-                ),
-                DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(labelText: 'Marital Status'),
-                  items: const [
-                    DropdownMenuItem(value: '1', child: Text('Single')),
-                    DropdownMenuItem(value: '2', child: Text('Married')),
-                  ],
-                  onChanged: (value) => setState(() => _staffData['marital_status'] = value!),
-                ),
-                TextFormField(
-                  decoration: const InputDecoration(labelText: 'Office Phone'),
+                  decoration: _buildInputDecoration('Office Phone', Icons.phone_in_talk_rounded),
                   keyboardType: TextInputType.phone,
+                  textInputAction: TextInputAction.next,
                   onSaved: (value) => _staffData['office_phone'] = value!,
                 ),
+
+                // Emergency Contact
+                _buildSectionHeader('Emergency Contact', Icons.health_and_safety_rounded),
                 TextFormField(
-                  decoration: const InputDecoration(labelText: 'Emergency Contact Name'),
-                  validator: (value) => value == null || value.trim().isEmpty ? 'Please enter emergency contact name' : null,
+                  decoration: _buildInputDecoration('Contact Name', Icons.person_rounded),
+                  textInputAction: TextInputAction.next,
+                  validator: (value) => value == null || value.trim().isEmpty ? 'Please enter contact name' : null,
                   onSaved: (value) => _staffData['emergency_name'] = value!,
                 ),
+                const SizedBox(height: 16),
                 TextFormField(
-                  decoration: const InputDecoration(labelText: 'Emergency Contact IC Number'),
+                  decoration: _buildInputDecoration('Contact IC Number', Icons.credit_card_rounded),
+                  textInputAction: TextInputAction.next,
                   onSaved: (value) => _staffData['emergency_ic'] = value!,
                 ),
+                const SizedBox(height: 16),
                 TextFormField(
-                  decoration: const InputDecoration(labelText: 'Relation'),
+                  decoration: _buildInputDecoration('Relation', Icons.diversity_1_rounded),
+                  textInputAction: TextInputAction.next,
                   validator: (value) => value == null || value.trim().isEmpty ? 'Please enter relation' : null,
                   onSaved: (value) => _staffData['emergency_relation'] = value!,
                 ),
+                const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(labelText: 'Emergency Gender'),
+                  decoration: _buildInputDecoration('Contact Gender', Icons.wc_rounded),
+                  icon: Icon(Icons.keyboard_arrow_down_rounded, color: primaryBlue),
                   items: const [
                     DropdownMenuItem(value: '1', child: Text('Male')),
                     DropdownMenuItem(value: '2', child: Text('Female')),
                   ],
                   onChanged: (value) => setState(() => _staffData['emergency_gender'] = value!),
                 ),
+                const SizedBox(height: 16),
                 TextFormField(
-                  decoration: const InputDecoration(labelText: 'Emergency Contact Phone'),
+                  decoration: _buildInputDecoration('Contact Phone', Icons.phone_rounded),
                   keyboardType: TextInputType.phone,
-                  validator: (value) => value == null || value.trim().isEmpty ? 'Please enter emergency contact phone' : null,
+                  textInputAction: TextInputAction.done,
+                  validator: (value) => value == null || value.trim().isEmpty ? 'Please enter contact phone' : null,
                   onSaved: (value) => _staffData['emergency_phone'] = value!,
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 32),
+
+                // Submit Button
                 if (_isLoading)
-                  const CircularProgressIndicator()
+                  Center(child: CircularProgressIndicator(color: primaryBlue))
                 else
                   ElevatedButton(
                     onPressed: _submit,
-                    child: const Text('Register Staff'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryBlue,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: const Text(
+                      'Register Staff',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.0),
+                    ),
                   ),
                 const SizedBox(height: 16),
               ],

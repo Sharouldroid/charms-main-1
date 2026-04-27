@@ -22,20 +22,14 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
   late int selectedYear;
   late String selectedMonth;
   final List<String> months = [
-    'January',
-    'February',
-    'March',
-    'April',
-    'May',
-    'June',
-    'July',
-    'August',
-    'September',
-    'October',
-    'November',
-    'December'
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
   ];
   late List<String> years;
+
+  // Modern Color Palette Constants
+  final Color bgColor = const Color(0xFFF4F7FA);
+  final Color primaryBlue = const Color(0xFF2563EB);
 
   @override
   void initState() {
@@ -104,7 +98,7 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
               await _loadInitialData();
 
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Payroll added successfully!')),
+                const SnackBar(content: Text('Payroll added successfully!')),
               );
             } catch (error) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -171,7 +165,7 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
               await _loadInitialData();
 
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Payroll updated successfully!')),
+                const SnackBar(content: Text('Payroll updated successfully!')),
               );
             } catch (error) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -191,7 +185,7 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
       await _loadInitialData();
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Payroll deleted successfully!')),
+        const SnackBar(content: Text('Payroll deleted successfully!')),
       );
     } catch (error) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -201,37 +195,67 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
   }
 
   Widget _buildFilterSection() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          DropdownButton<int>(
-            value: selectedYear,
-            items: years.map((year) {
-              return DropdownMenuItem(
-                value: int.parse(year),
-                child: Text(year),
-              );
-            }).toList(),
-            onChanged: (value) async {
-              setState(() => selectedYear = value!);
-              await _loadInitialData();
-            },
+    return Container(
+      margin: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
-          SizedBox(width: 20),
-          DropdownButton<String>(
-            value: selectedMonth,
-            items: months.map((month) {
-              return DropdownMenuItem(
-                value: month,
-                child: Text(month),
-              );
-            }).toList(),
-            onChanged: (value) async {
-              setState(() => selectedMonth = value!);
-              await _loadInitialData();
-            },
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          // Year Dropdown
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<int>(
+                isExpanded: true,
+                icon: Icon(Icons.keyboard_arrow_down_rounded, color: primaryBlue),
+                value: selectedYear,
+                style: const TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                items: years.map((year) {
+                  return DropdownMenuItem(
+                    value: int.parse(year),
+                    child: Text(year),
+                  );
+                }).toList(),
+                onChanged: (value) async {
+                  setState(() => selectedYear = value!);
+                  await _loadInitialData();
+                },
+              ),
+            ),
+          ),
+          Container(height: 30, width: 1, color: Colors.grey.shade300, margin: const EdgeInsets.symmetric(horizontal: 16)),
+          // Month Dropdown
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                isExpanded: true,
+                icon: Icon(Icons.keyboard_arrow_down_rounded, color: primaryBlue),
+                value: selectedMonth,
+                style: const TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                items: months.map((month) {
+                  return DropdownMenuItem(
+                    value: month,
+                    child: Text(month),
+                  );
+                }).toList(),
+                onChanged: (value) async {
+                  setState(() => selectedMonth = value!);
+                  await _loadInitialData();
+                },
+              ),
+            ),
           ),
         ],
       ),
@@ -255,24 +279,83 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
                 (staff) => !publishedPaymentsForMonth.contains(staff.staffId))
             .toList();
 
+        if (pendingStaff.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.check_circle_outline_rounded, size: 64, color: Colors.grey.shade300),
+                const SizedBox(height: 16),
+                Text('All payrolls published for this month',
+                    style: TextStyle(color: Colors.grey.shade500, fontSize: 16, fontWeight: FontWeight.w500)),
+              ],
+            ),
+          );
+        }
+
         return ListView.builder(
-          padding: EdgeInsets.all(16),
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.only(bottom: 24),
           itemCount: pendingStaff.length,
           itemBuilder: (context, index) {
             final staff = pendingStaff[index];
-            return Card(
-              elevation: 2,
-              margin: EdgeInsets.only(bottom: 12),
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12.0, left: 16.0, right: 16.0),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
               child: ListTile(
-                title: Text('${staff.firstname} ${staff.lastname}'),
-                subtitle: Text('ID: ${staff.staffId} | ${staff.occupation}'),
-                trailing: ElevatedButton(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.pending_actions_rounded,
+                    size: 24,
+                    color: Colors.orange,
+                  ),
+                ),
+                title: Text(
+                  '${staff.firstname} ${staff.lastname}',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF334155),
+                  ),
+                ),
+                subtitle: Padding(
+                  padding: const EdgeInsets.only(top: 4.0),
+                  child: Text(
+                    'ID: ${staff.staffId} • ${staff.occupation}',
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                trailing: ElevatedButton.icon(
                   onPressed: () => _addPayroll(staff),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
+                    backgroundColor: primaryBlue,
                     foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
-                  child: Text('Add Payroll'),
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text('Add', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),
             );
@@ -287,44 +370,158 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
       builder: (ctx, paymentsData, child) {
         final publishedPayments = paymentsData.payments;
 
-        return publishedPayments.isEmpty
-            ? Center(child: Text('No published payrolls yet'))
-            : ListView.builder(
-                padding: EdgeInsets.all(16),
-                itemCount: publishedPayments.length,
-                itemBuilder: (context, index) {
-                  final payment = publishedPayments[index];
-                  return Card(
-                    elevation: 2,
-                    margin: EdgeInsets.only(bottom: 12),
-                    child: ListTile(
-                      title: Text('Staff ID: ${payment.staffId}'),
-                      subtitle: Text(
-                        'Basic Pay: RM ${payment.basicPay.toStringAsFixed(2)}\n'
-                        'Total Salary: RM ${payment.totalSalary.toStringAsFixed(2)}',
+        if (publishedPayments.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.receipt_long_rounded, size: 64, color: Colors.grey.shade300),
+                const SizedBox(height: 16),
+                Text('No published payrolls yet',
+                    style: TextStyle(color: Colors.grey.shade500, fontSize: 16, fontWeight: FontWeight.w500)),
+              ],
+            ),
+          );
+        }
+
+        return ListView.builder(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.only(bottom: 24),
+          itemCount: publishedPayments.length,
+          itemBuilder: (context, index) {
+            final payment = publishedPayments[index];
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12.0, left: 16.0, right: 16.0),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    // Leading Icon
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.teal.withOpacity(0.1),
+                        shape: BoxShape.circle,
                       ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
+                      child: const Icon(
+                        Icons.check_circle_outline_rounded,
+                        size: 24,
+                        color: Colors.teal,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    
+                    // Middle Content
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          IconButton(
-                            icon: Icon(Icons.visibility),
-                            onPressed: () => _viewPayroll(payment),
+                          Text(
+                            'Staff ID: ${payment.staffId}',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF334155),
+                            ),
                           ),
-                          IconButton(
-                            icon: Icon(Icons.edit),
-                            onPressed: () => _editPayroll(payment),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Basic Pay: RM ${payment.basicPay.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
-                          IconButton(
-                            icon: Icon(Icons.delete),
-                            color: Colors.red,
-                            onPressed: () => _deletePayroll(payment),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Total Salary: RM ${payment.totalSalary.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              color: Colors.teal,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ],
                       ),
                     ),
-                  );
-                },
-              );
+
+                    // Right Actions
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: IconButton(
+                            icon: const Icon(Icons.visibility_rounded, size: 20, color: Colors.blue),
+                            tooltip: 'View',
+                            padding: const EdgeInsets.all(8),
+                            constraints: const BoxConstraints(),
+                            onPressed: () => _viewPayroll(payment),
+                          ),
+                        ),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: PopupMenuButton<String>(
+                            icon: Icon(Icons.more_horiz_rounded, color: Colors.grey.shade700),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            onSelected: (value) async {
+                              if (value == 'edit') {
+                                _editPayroll(payment);
+                              } else if (value == 'delete') {
+                                _deletePayroll(payment);
+                              }
+                            },
+                            itemBuilder: (BuildContext context) => [
+                              const PopupMenuItem(
+                                value: 'edit',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.edit_rounded, color: Colors.blue, size: 20),
+                                    SizedBox(width: 8),
+                                    Text('Edit', style: TextStyle(fontWeight: FontWeight.w500)),
+                                  ],
+                                ),
+                              ),
+                              const PopupMenuItem(
+                                value: 'delete',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.delete_outline_rounded, color: Colors.red, size: 20),
+                                    SizedBox(width: 8),
+                                    Text('Delete', style: TextStyle(fontWeight: FontWeight.w500)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
       },
     );
   }
@@ -332,34 +529,51 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: bgColor, // Modern background color
       appBar: AppBar(
-        iconTheme: IconThemeData(color: Colors.white),
-        backgroundColor: Colors.blue,
-        title: Text('Manage Payroll', style: TextStyle(color: Colors.white)),
+        elevation: 0,
+        backgroundColor: primaryBlue,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text(
+          'MANAGE PAYROLL',
+          style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2),
+        ),
         centerTitle: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(20),
+          ),
+        ),
         actions: [
           IconButton(
-            icon: Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
             onPressed: () => _loadInitialData(), // Refresh button action
           ),
+          const SizedBox(width: 8),
         ],
         bottom: TabBar(
           controller: _tabController,
-          tabs: [
+          indicatorColor: Colors.white,
+          indicatorWeight: 3,
+          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal),
+          tabs: const [
             Tab(child: Text('Pending', style: TextStyle(color: Colors.white))),
-            Tab(
-                child: Text('Published', style: TextStyle(color: Colors.white))),
+            Tab(child: Text('Published', style: TextStyle(color: Colors.white))),
           ],
         ),
       ),
       body: Column(
         children: [
-          _buildFilterSection(), // Filter Section
+          _buildFilterSection(), // Modernized Filter Section
           Expanded(
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildPendingTab(), // Pending Tab
+                _buildPendingTab(),   // Pending Tab
                 _buildPublishedTab(), // Published Tab
               ],
             ),

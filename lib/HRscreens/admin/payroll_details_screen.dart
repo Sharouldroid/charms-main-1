@@ -28,6 +28,10 @@ class _PayrollDetailsScreenState extends State<PayrollDetailsScreen> {
   bool _publishing = false;
   bool _downloading = false;
 
+  // Modern Color Palette Constants
+  final Color bgColor = const Color(0xFFF4F7FA);
+  final Color primaryBlue = const Color(0xFF2563EB);
+
   @override
   void initState() {
     super.initState();
@@ -109,6 +113,7 @@ class _PayrollDetailsScreenState extends State<PayrollDetailsScreen> {
           content: Text(
             'Payroll published for ${widget.payrollRecord['staffName'] ?? 'staff'}',
           ),
+          backgroundColor: Colors.teal,
         ),
       );
 
@@ -116,7 +121,7 @@ class _PayrollDetailsScreenState extends State<PayrollDetailsScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to publish payroll: $e')),
+        SnackBar(content: Text('Failed to publish payroll: $e'), backgroundColor: Colors.redAccent),
       );
     } finally {
       if (mounted) setState(() => _publishing = false);
@@ -252,12 +257,12 @@ class _PayrollDetailsScreenState extends State<PayrollDetailsScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('PDF ready for download/print')),
+        const SnackBar(content: Text('PDF ready for download/print'), backgroundColor: Colors.teal),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to generate/download PDF: $e')),
+        SnackBar(content: Text('Failed to generate/download PDF: $e'), backgroundColor: Colors.redAccent),
       );
     } finally {
       if (mounted) setState(() => _downloading = false);
@@ -271,145 +276,249 @@ class _PayrollDetailsScreenState extends State<PayrollDetailsScreen> {
     final month = widget.payrollRecord['month'] ?? '-';
 
     return Scaffold(
+      backgroundColor: bgColor, // Modern Background
       appBar: AppBar(
-        title:
-            const Text('Payroll Details', style: TextStyle(color: Colors.white)),
-        backgroundColor: Colors.blue,
+        elevation: 0,
+        title: const Text('PAYROLL DETAILS',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+        backgroundColor: primaryBlue,
         iconTheme: const IconThemeData(color: Colors.white),
         centerTitle: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(20),
+          ),
+        ),
       ),
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
-          child: Card(
-            elevation: 3,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  _buildInfoRow('Staff Name', '$staffName'),
-                  _buildInfoRow('Staff ID', '$staffId'),
-                  _buildInfoRow('Payroll Month', '$month'),
-                  const Divider(height: 28),
-                  TextFormField(
-                    controller: basicPayController,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(
-                      labelText: 'Basic Pay',
-                      border: OutlineInputBorder(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              
+              // Header Info Card
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.03),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
                     ),
-                    validator: (v) => _validateNumber(v, 'Basic Pay'),
-                    onChanged: (_) => _recalculateFromBasic(),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: bonusController,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(
-                      labelText: 'Bonus',
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (v) => _validateNumber(v, 'Bonus'),
-                    onChanged: (_) => _recalculateFromBasic(),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: deductionController,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(
-                      labelText: 'Deduction',
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (v) => _validateNumber(v, 'Deduction'),
-                    onChanged: (_) => _recalculateFromBasic(),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: grossPayController,
-                    readOnly: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Gross Pay (Auto)',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: netSalaryController,
-                    readOnly: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Net Salary (Auto)',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _publishing ? null : _publishPayroll,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: primaryBlue.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.receipt_long_rounded, size: 32, color: primaryBlue),
                       ),
-                      icon: _publishing
-                          ? const SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Icon(Icons.publish, color: Colors.white),
-                      label: Text(
-                        _publishing ? 'Publishing...' : 'Publish to Staff',
-                        style: const TextStyle(color: Colors.white),
+                      const SizedBox(height: 12),
+                      Text(
+                        staffName,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E293B),
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Staff ID: $staffId',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12.0),
+                        child: Divider(),
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.calendar_month_rounded, size: 18, color: Colors.grey.shade500),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Period: $month',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF334155),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: _downloading ? null : _downloadPdf,
-                      icon: _downloading
-                          ? const SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.download),
-                      label:
-                          Text(_downloading ? 'Preparing PDF...' : 'Download PDF'),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
+              const SizedBox(height: 24),
+
+              const Padding(
+                padding: EdgeInsets.only(left: 8.0, bottom: 12.0),
+                child: Text(
+                  'Earnings & Deductions',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+              ),
+
+              // Inputs Group
+              _buildTextField('Basic Pay', basicPayController, Icons.attach_money_rounded, isReadOnly: false),
+              const SizedBox(height: 12),
+              
+              _buildTextField('Bonus', bonusController, Icons.add_circle_outline_rounded, isAddition: true),
+              const SizedBox(height: 12),
+              
+              _buildTextField('Deduction', deductionController, Icons.remove_circle_outline_rounded, isDeduction: true),
+              const SizedBox(height: 24),
+
+              const Padding(
+                padding: EdgeInsets.only(left: 8.0, bottom: 12.0),
+                child: Text(
+                  'Calculated Totals',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+              ),
+
+              _buildTextField('Gross Pay (Auto)', grossPayController, Icons.account_balance_wallet_rounded, isReadOnly: true),
+              const SizedBox(height: 12),
+              
+              _buildTextField('Net Salary (Auto)', netSalaryController, Icons.account_balance_rounded, isReadOnly: true, isHighlight: true),
+              
+              const SizedBox(height: 32),
+
+              // Action Buttons
+              ElevatedButton.icon(
+                onPressed: _publishing ? null : _publishPayroll,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.teal, // Modern green
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: _publishing
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.publish_rounded),
+                label: Text(
+                  _publishing ? 'Publishing...' : 'Publish to Staff',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(height: 12),
+              
+              OutlinedButton.icon(
+                onPressed: _downloading ? null : _downloadPdf,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: primaryBlue,
+                  side: BorderSide(color: primaryBlue, width: 2),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: _downloading
+                    ? SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: primaryBlue),
+                      )
+                    : const Icon(Icons.download_rounded),
+                label: Text(
+                  _downloading ? 'Preparing PDF...' : 'Download PDF',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 110,
-            child: Text(
-              '$label:',
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-          ),
-          Expanded(child: Text(value)),
-        ],
+  // Modernized helper function to create text fields
+  Widget _buildTextField(
+    String label, 
+    TextEditingController controller, 
+    IconData icon,
+    {bool isReadOnly = false, bool isAddition = false, bool isDeduction = false, bool isHighlight = false}
+  ) {
+    
+    // Determine icon and text color based on field type
+    Color iconColor = primaryBlue.withOpacity(0.7);
+    if (isAddition) iconColor = Colors.teal;
+    if (isDeduction) iconColor = Colors.redAccent;
+    if (isReadOnly) iconColor = Colors.grey.shade500;
+    if (isHighlight) iconColor = Colors.teal;
+
+    return TextFormField(
+      controller: controller,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      readOnly: isReadOnly,
+      style: TextStyle(
+        fontSize: 16,
+        fontWeight: isReadOnly ? FontWeight.bold : FontWeight.normal,
+        color: isHighlight ? Colors.teal : (isReadOnly ? primaryBlue : const Color(0xFF1E293B)),
       ),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(
+          color: Colors.grey.shade600, 
+          fontSize: 14,
+          fontWeight: isReadOnly ? FontWeight.bold : FontWeight.normal,
+        ),
+        prefixIcon: Icon(icon, color: iconColor, size: 22),
+        filled: true,
+        fillColor: isHighlight 
+          ? Colors.teal.withOpacity(0.05) 
+          : (isReadOnly ? primaryBlue.withOpacity(0.05) : Colors.white),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: isReadOnly ? primaryBlue.withOpacity(0.3) : Colors.grey.shade200,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: primaryBlue, width: 2),
+        ),
+      ),
+      validator: (v) => _validateNumber(v, label),
+      onChanged: (_) => _recalculateFromBasic(),
     );
   }
 }

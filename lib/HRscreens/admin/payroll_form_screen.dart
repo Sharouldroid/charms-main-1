@@ -8,7 +8,8 @@ class PayrollFormScreen extends StatefulWidget {
   final int year;
   final Function(Map<String, dynamic>) onSubmit;
 
-  const PayrollFormScreen({super.key, 
+  const PayrollFormScreen({
+    super.key,
     required this.staffId,
     required this.staffName,
     required this.workingDays,
@@ -26,6 +27,10 @@ class _PayrollFormScreenState extends State<PayrollFormScreen> {
   late TextEditingController bonusController;
   late TextEditingController deductionController;
   late TextEditingController totalSalaryController;
+
+  // Modern Color Palette Constants
+  final Color bgColor = const Color(0xFFF4F7FA);
+  final Color primaryBlue = const Color(0xFF2563EB);
 
   @override
   void initState() {
@@ -78,7 +83,10 @@ class _PayrollFormScreenState extends State<PayrollFormScreen> {
         bonusController.text.isEmpty ||
         deductionController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please fill in all fields')),
+        const SnackBar(
+          content: Text('Please fill in all fields'),
+          backgroundColor: Colors.redAccent,
+        ),
       );
       return false;
     }
@@ -88,81 +96,222 @@ class _PayrollFormScreenState extends State<PayrollFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: bgColor, // Modern light grey background
       appBar: AppBar(
-        title: Text('Payroll Form - ${widget.staffName}', style: TextStyle(color: Colors.white),),
-        iconTheme: IconThemeData(color: Colors.white),
+        elevation: 0,
+        backgroundColor: primaryBlue,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text(
+          'PAYROLL FORM',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.2,
+          ),
+        ),
         centerTitle: true,
-        backgroundColor: Colors.blue,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(20),
+          ),
+        ),
       ),
       body: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Card(
-              elevation: 4,
+            
+            // Header Info Card
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(20.0),
                 child: Column(
                   children: [
-                    Text(
-                      'Period: ${widget.month} ${widget.year}',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: primaryBlue.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.receipt_long_rounded, size: 32, color: primaryBlue),
                     ),
-                    SizedBox(height: 8),
-                    Text('Staff ID: ${widget.staffId}'),
+                    const SizedBox(height: 12),
+                    Text(
+                      widget.staffName,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1E293B),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Staff ID: ${widget.staffId}',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12.0),
+                      child: Divider(),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.calendar_month_rounded, size: 18, color: Colors.grey.shade500),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Period: ${widget.month} ${widget.year}',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF334155),
+                          ),
+                        ),
+                      ],
+                    ),
                     //Text('Working Days: ${widget.workingDays}'),
                   ],
                 ),
               ),
             ),
-            SizedBox(height: 20),
-            _buildTextField('Basic Pay (RM)', basicPayController),
-            SizedBox(height: 12),
-            _buildTextField('Total Bonus (RM)', bonusController),
-            SizedBox(height: 12),
-            _buildTextField('Total Deduction (RM)', deductionController),
-            SizedBox(height: 20),
-            _buildTextField('Total Salary (RM)', totalSalaryController,
-                isReadOnly: true),
-            SizedBox(height: 24),
-            ElevatedButton(
+            const SizedBox(height: 24),
+
+            // Form Fields
+            const Padding(
+              padding: EdgeInsets.only(left: 8.0, bottom: 12.0),
+              child: Text(
+                'Earnings & Deductions',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1E293B),
+                ),
+              ),
+            ),
+            
+            _buildTextField('Basic Pay (RM)', basicPayController, Icons.attach_money_rounded),
+            const SizedBox(height: 16),
+            
+            _buildTextField('Total Bonus (RM)', bonusController, Icons.add_circle_outline_rounded, isAddition: true),
+            const SizedBox(height: 16),
+            
+            _buildTextField('Total Deduction (RM)', deductionController, Icons.remove_circle_outline_rounded, isDeduction: true),
+            const SizedBox(height: 24),
+
+            // Total Salary Field (Styled distinctly)
+            _buildTextField('Total Salary (RM)', totalSalaryController, Icons.account_balance_wallet_rounded, isReadOnly: true),
+            
+            const SizedBox(height: 32),
+
+            // Action Buttons
+            ElevatedButton.icon(
               onPressed: _calculateTotal,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                padding: EdgeInsets.symmetric(vertical: 16),
+                backgroundColor: primaryBlue.withOpacity(0.1),
+                foregroundColor: primaryBlue,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-              child: Text('Calculate Total',
-                  style: TextStyle(color: Colors.white)),
+              icon: const Icon(Icons.calculate_rounded),
+              label: const Text(
+                'Calculate Total',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
             ),
-            SizedBox(height: 12),
-            ElevatedButton(
+            const SizedBox(height: 12),
+            
+            ElevatedButton.icon(
               onPressed: _submitForm,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                padding: EdgeInsets.symmetric(vertical: 16),
+                backgroundColor: Colors.teal, // Modern green replacement
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-              child:
-                  Text('Submit Payroll', style: TextStyle(color: Colors.white)),
+              icon: const Icon(Icons.check_circle_rounded),
+              label: const Text(
+                'Submit Payroll',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+              ),
             ),
+            const SizedBox(height: 24), // Bottom padding
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller,
-      {bool isReadOnly = false}) {
-    return TextField(
+  // Modernized helper function to create text fields
+  Widget _buildTextField(
+    String label, 
+    TextEditingController controller, 
+    IconData icon,
+    {bool isReadOnly = false, bool isAddition = false, bool isDeduction = false}
+  ) {
+    
+    // Determine icon color based on field type
+    Color iconColor = primaryBlue.withOpacity(0.7);
+    if (isAddition) iconColor = Colors.teal;
+    if (isDeduction) iconColor = Colors.redAccent;
+    if (isReadOnly) iconColor = Colors.grey.shade600;
+
+    return TextFormField(
       controller: controller,
-      keyboardType: TextInputType.number,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
       readOnly: isReadOnly,
+      style: TextStyle(
+        fontSize: 16,
+        fontWeight: isReadOnly ? FontWeight.bold : FontWeight.normal,
+        color: isReadOnly ? primaryBlue : const Color(0xFF1E293B),
+      ),
       decoration: InputDecoration(
         labelText: label,
-        border: OutlineInputBorder(),
-        filled: isReadOnly,
-        fillColor: isReadOnly ? Colors.grey[200] : null,
+        labelStyle: TextStyle(
+          color: Colors.grey.shade600, 
+          fontSize: 14,
+          fontWeight: isReadOnly ? FontWeight.bold : FontWeight.normal,
+        ),
+        prefixIcon: Icon(icon, color: iconColor, size: 22),
+        filled: true,
+        fillColor: isReadOnly ? primaryBlue.withOpacity(0.05) : Colors.white,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: isReadOnly ? primaryBlue.withOpacity(0.3) : Colors.grey.shade200,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: primaryBlue, width: 2),
+        ),
       ),
     );
   }

@@ -19,6 +19,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
+  // Modern Color Palette Constants
+  final Color bgColor = const Color(0xFFF4F7FA);
+  final Color primaryBlue = const Color(0xFF2563EB);
+
   @override
   void initState() {
     super.initState();
@@ -94,11 +98,24 @@ class _NotificationScreenState extends State<NotificationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: bgColor, // Modern Background
       appBar: AppBar(
-        title: Text('Notifications', style: TextStyle(color: Colors.white),),
+        elevation: 0,
+        backgroundColor: primaryBlue,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text('NOTIFICATIONS', 
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.2
+          )
+        ),
         centerTitle: true,
-        iconTheme: IconThemeData(color: Colors.white),
-        backgroundColor: Colors.blue,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(20),
+          ),
+        ),
       ),
       body: Consumer3<Leaves, Payments, Claims>(
         builder: (context, leaves, payments, claims, child) {
@@ -109,27 +126,54 @@ class _NotificationScreenState extends State<NotificationScreen> {
           final pendingClaims =
               claims.claims.where((c) => c.status == 'Pending').toList();
 
+          if (pendingLeaves.isEmpty &&
+              pendingPayrolls.isEmpty &&
+              pendingClaims.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.notifications_off_rounded, size: 64, color: Colors.grey.shade300),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No pending notifications',
+                    style: TextStyle(
+                      color: Colors.grey.shade500, 
+                      fontSize: 16, 
+                      fontWeight: FontWeight.w600
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
           return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16.0),
             children: [
-              if (pendingLeaves.isEmpty &&
-                  pendingPayrolls.isEmpty &&
-                  pendingClaims.isEmpty)
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Text('No pending notifications'),
+              const Padding(
+                padding: EdgeInsets.only(left: 8.0, bottom: 16.0, top: 8.0),
+                child: Text(
+                  'Action Required',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E293B),
                   ),
                 ),
+              ),
               ...pendingLeaves.map(
                 (leave) => NotificationItem(
                   title: 'Leave Request Pending',
-                  subtitle:
-                      'Staff ID: ${leave.staffId} - Type: ${leave.leaveType}',
+                  subtitle: 'Staff ID: ${leave.staffId} • Type: ${leave.leaveType}',
+                  iconData: Icons.beach_access_rounded,
+                  iconColor: Colors.redAccent,
                   onTap: () async {
                     await Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => ManageLeaveScreen(),
+                        builder: (context) => const ManageLeaveScreen(),
                       ),
                     );
                     setState(() {});
@@ -140,11 +184,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 (payroll) => NotificationItem(
                   title: 'Payroll Pending',
                   subtitle: 'Staff ID: ${payroll.staffId}',
+                  iconData: Icons.receipt_long_rounded,
+                  iconColor: Colors.teal,
                   onTap: () async {
                     await Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => ManagePayrollScreen(),
+                        builder: (context) => const ManagePayrollScreen(),
                       ),
                     );
                     setState(() {});
@@ -154,13 +200,14 @@ class _NotificationScreenState extends State<NotificationScreen> {
               ...pendingClaims.map(
                 (claim) => NotificationItem(
                   title: 'Claim Request Pending',
-                  subtitle:
-                      'Staff ID: ${claim.staffId} - Amount: RM${claim.amount}',
+                  subtitle: 'Staff ID: ${claim.staffId} • Amount: RM${claim.amount}',
+                  iconData: Icons.request_page_rounded,
+                  iconColor: Colors.orange,
                   onTap: () async {
                     await Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => ManageClaimScreen(),
+                        builder: (context) => const ManageClaimScreen(),
                       ),
                     );
                     setState(() {});
@@ -175,26 +222,96 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 }
 
+// Modernized Notification Item
 class NotificationItem extends StatelessWidget {
   final String title;
   final String subtitle;
+  final IconData iconData;
+  final Color iconColor;
   final VoidCallback onTap;
 
-  const NotificationItem({super.key, 
+  const NotificationItem({
+    super.key,
     required this.title,
     required this.subtitle,
+    required this.iconData,
+    required this.iconColor,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: ListTile(
-        title: Text(title),
-        subtitle: Text(subtitle),
-        trailing: Icon(Icons.arrow_forward_ios),
-        onTap: onTap,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: iconColor.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(iconData, color: iconColor, size: 24),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E293B),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 16,
+                    color: Colors.grey.shade400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
