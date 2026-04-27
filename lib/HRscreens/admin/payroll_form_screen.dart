@@ -112,7 +112,7 @@ class _PayrollFormScreenState extends State<PayrollFormScreen> {
                     ),
                     SizedBox(height: 8),
                     Text('Staff ID: ${widget.staffId}'),
-                    Text('Working Days: ${widget.workingDays}'),
+                    //Text('Working Days: ${widget.workingDays}'),
                   ],
                 ),
               ),
