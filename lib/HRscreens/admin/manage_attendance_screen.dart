@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:charms/HRproviders/attendances.dart';
+import 'package:charms/HRproviders/staffs.dart';
+import 'package:charms/HRmodels/staff.dart';
 
 class ManageAttendanceScreen extends StatefulWidget {
   const ManageAttendanceScreen({super.key});
@@ -30,7 +32,11 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
     try {
       final attendanceProvider =
           Provider.of<Attendances>(context, listen: false);
+      final staffsProvider = Provider.of<Staffs>(context, listen: false);
+
+      await staffsProvider.fetchStaff();
       final records = await attendanceProvider.getAllAttendances();
+
       setState(() {
         attendanceRecords = records;
         isLoading = false;
@@ -45,9 +51,21 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
     }
   }
 
-  Widget _buildAttendanceCard(Map<String, dynamic> record) {
+  String _getStaffName(int staffId, List<Staff> staffList) {
+    final Staff? staff = staffList.cast<Staff?>().firstWhere(
+          (s) => s?.staffId == staffId,
+          orElse: () => null,
+        );
+    return staff != null
+        ? '${staff.firstname} ${staff.lastname}'
+        : 'Staff ID: $staffId';
+  }
+
+  Widget _buildAttendanceCard(Map<String, dynamic> record, List<Staff> staffList) {
     final String? imageUrl = record['clock_in_image_url'];
     final int? status = record['attendance_status'];
+    final int staffId = record['staff_id'];
+    final String staffName = _getStaffName(staffId, staffList);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12.0, left: 16.0, right: 16.0),
@@ -81,14 +99,14 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
               ),
             ),
             const SizedBox(width: 16),
-            
+
             // Middle Content
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Staff ID: ${record['staff_id']}',
+                    staffName, // Staff Name instead of Staff ID
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -126,7 +144,7 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  
+
                   // Modern Status Pill
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -159,7 +177,8 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: IconButton(
-                      icon: const Icon(Icons.visibility_rounded, size: 20, color: Colors.blue),
+                      icon: const Icon(Icons.visibility_rounded,
+                          size: 20, color: Colors.blue),
                       tooltip: 'View Proof',
                       constraints: const BoxConstraints(),
                       padding: const EdgeInsets.all(8),
@@ -177,8 +196,10 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: PopupMenuButton<String>(
-                    icon: Icon(Icons.more_horiz_rounded, color: Colors.grey.shade700),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    icon: Icon(Icons.more_horiz_rounded,
+                        color: Colors.grey.shade700),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                     onSelected: (value) async {
                       if (value == 'edit') {
                         await _editAttendance(context, record);
@@ -193,7 +214,8 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
                           children: [
                             Icon(Icons.edit_rounded, color: Colors.blue, size: 20),
                             SizedBox(width: 8),
-                            Text('Edit', style: TextStyle(fontWeight: FontWeight.w500)),
+                            Text('Edit',
+                                style: TextStyle(fontWeight: FontWeight.w500)),
                           ],
                         ),
                       ),
@@ -201,9 +223,11 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
                         value: 'delete',
                         child: Row(
                           children: [
-                            Icon(Icons.delete_outline_rounded, color: Colors.red, size: 20),
+                            Icon(Icons.delete_outline_rounded,
+                                color: Colors.red, size: 20),
                             SizedBox(width: 8),
-                            Text('Delete', style: TextStyle(fontWeight: FontWeight.w500)),
+                            Text('Delete',
+                                style: TextStyle(fontWeight: FontWeight.w500)),
                           ],
                         ),
                       ),
@@ -230,7 +254,10 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
             AppBar(
               elevation: 0,
               title: const Text('Proof Image',
-                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold)),
               backgroundColor: primaryBlue,
               automaticallyImplyLeading: false,
               actions: [
@@ -248,9 +275,11 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
                   padding: EdgeInsets.all(32),
                   child: Column(
                     children: [
-                      Icon(Icons.broken_image_rounded, size: 48, color: Colors.grey),
+                      Icon(Icons.broken_image_rounded,
+                          size: 48, color: Colors.grey),
                       SizedBox(height: 8),
-                      Text('Failed to load image', style: TextStyle(color: Colors.grey)),
+                      Text('Failed to load image',
+                          style: TextStyle(color: Colors.grey)),
                     ],
                   ),
                 ),
@@ -265,7 +294,7 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: bgColor, // Modern light grey background
+      backgroundColor: bgColor,
       appBar: AppBar(
         elevation: 0,
         backgroundColor: primaryBlue,
@@ -289,93 +318,103 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: Column(
-        children: [
-          // Row 1 — Date Picker Card
-          Container(
-            margin: const EdgeInsets.all(16.0),
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Selected Date',
-                      style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600),
-                    ),
-                    Text(
-                      DateFormat('dd MMM yyyy').format(selectedDate),
-                      style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B)),
+      body: Consumer<Staffs>(
+        builder: (ctx, staffsData, child) {
+          final staffList = staffsData.staffList;
+          return Column(
+            children: [
+              // Date Picker Card
+              Container(
+                margin: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 20.0, vertical: 16.0),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.03),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue.shade50,
-                    foregroundColor: primaryBlue,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Selected Date',
+                          style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600),
+                        ),
+                        Text(
+                          DateFormat('dd MMM yyyy').format(selectedDate),
+                          style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1E293B)),
+                        ),
+                      ],
                     ),
-                  ),
-                  onPressed: () => _pickDate(context),
-                  icon: const Icon(Icons.calendar_month_rounded, size: 20),
-                  label: const Text('Change', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ],
-            ),
-          ),
-          
-          // Row 2 — List of Attendances
-          Expanded(
-            child: isLoading
-                ? Center(child: CircularProgressIndicator(color: primaryBlue))
-                : attendanceRecords.isNotEmpty
-                    ? ListView.builder(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.only(bottom: 24),
-                        itemCount: attendanceRecords.length,
-                        itemBuilder: (ctx, i) =>
-                            _buildAttendanceCard(attendanceRecords[i]),
-                      )
-                    : Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.event_note_rounded, size: 64, color: Colors.grey.shade300),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No records for this date',
-                              style: TextStyle(
-                                  color: Colors.grey.shade500,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500),
-                            ),
-                          ],
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue.shade50,
+                        foregroundColor: primaryBlue,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-          ),
-        ],
+                      onPressed: () => _pickDate(context),
+                      icon: const Icon(Icons.calendar_month_rounded, size: 20),
+                      label: const Text('Change',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Attendance List
+              Expanded(
+                child: isLoading
+                    ? Center(
+                        child: CircularProgressIndicator(color: primaryBlue))
+                    : attendanceRecords.isNotEmpty
+                        ? ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.only(bottom: 24),
+                            itemCount: attendanceRecords.length,
+                            itemBuilder: (ctx, i) => _buildAttendanceCard(
+                                attendanceRecords[i], staffList),
+                          )
+                        : Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.event_note_rounded,
+                                    size: 64, color: Colors.grey.shade300),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'No records for this date',
+                                  style: TextStyle(
+                                      color: Colors.grey.shade500,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                              ],
+                            ),
+                          ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -396,7 +435,7 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
       case 1:
         return Colors.redAccent;
       case 2:
-        return Colors.teal; // Softer, more modern green
+        return Colors.teal;
       default:
         return Colors.grey.shade600;
     }
@@ -460,8 +499,10 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Edit Attendance', style: TextStyle(fontWeight: FontWeight.bold)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Edit Attendance',
+              style: TextStyle(fontWeight: FontWeight.bold)),
           content: Form(
             key: formKey,
             child: Column(
@@ -471,8 +512,10 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
                   initialValue: status,
                   decoration: InputDecoration(
                     labelText: 'Status',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
                   ),
                   items: const [
                     DropdownMenuItem(value: 1, child: Text('Not Clocked In')),
@@ -486,12 +529,14 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+              child:
+                  const Text('Cancel', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: primaryBlue,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
               ),
               onPressed: () async {
                 if (formKey.currentState!.validate()) {
@@ -516,13 +561,15 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                            content: Text('Error updating attendance: $error')),
+                            content:
+                                Text('Error updating attendance: $error')),
                       );
                     }
                   }
                 }
               },
-              child: const Text('Save', style: TextStyle(color: Colors.white)),
+              child:
+                  const Text('Save', style: TextStyle(color: Colors.white)),
             ),
           ],
         );

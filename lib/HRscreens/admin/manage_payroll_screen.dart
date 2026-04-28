@@ -366,8 +366,8 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
   }
 
   Widget _buildPublishedTab() {
-    return Consumer<Payments>(
-      builder: (ctx, paymentsData, child) {
+    return Consumer2<Staffs, Payments>(
+      builder: (ctx, staffsData, paymentsData, child) {
         final publishedPayments = paymentsData.payments;
 
         if (publishedPayments.isEmpty) {
@@ -390,6 +390,16 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
           itemCount: publishedPayments.length,
           itemBuilder: (context, index) {
             final payment = publishedPayments[index];
+
+            // Look up the staff name using staffId
+            final Staff? staff = staffsData.staffList.cast<Staff?>().firstWhere(
+              (s) => s?.staffId == payment.staffId,
+              orElse: () => null,
+            );
+            final displayName = staff != null
+                ? '${staff.firstname} ${staff.lastname}'
+                : 'Staff ID: ${payment.staffId}'; // fallback if staff not found
+
             return Container(
               margin: const EdgeInsets.only(bottom: 12.0, left: 16.0, right: 16.0),
               decoration: BoxDecoration(
@@ -421,14 +431,14 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
                       ),
                     ),
                     const SizedBox(width: 16),
-                    
+
                     // Middle Content
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Staff ID: ${payment.staffId}',
+                            displayName, // Staff Name instead of Staff ID
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -529,7 +539,7 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: bgColor, // Modern background color
+      backgroundColor: bgColor,
       appBar: AppBar(
         elevation: 0,
         backgroundColor: primaryBlue,
@@ -550,7 +560,7 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: Colors.white),
-            onPressed: () => _loadInitialData(), // Refresh button action
+            onPressed: () => _loadInitialData(),
           ),
           const SizedBox(width: 8),
         ],
@@ -568,13 +578,13 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
       ),
       body: Column(
         children: [
-          _buildFilterSection(), // Modernized Filter Section
+          _buildFilterSection(),
           Expanded(
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildPendingTab(),   // Pending Tab
-                _buildPublishedTab(), // Published Tab
+                _buildPendingTab(),
+                _buildPublishedTab(),
               ],
             ),
           ),

@@ -14,6 +14,8 @@ import 'package:charms/screens/dashboard_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:charms/providers/auth.dart' as app_auth;
+import 'package:charms/screens/auth_screen.dart';
 
 class LeaveDashboardScreen extends StatefulWidget {
   final String username;
@@ -376,12 +378,17 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
   }
 
   Future<void> _logout() async {
-    Navigator.of(context).pushNamedAndRemoveUntil(
-      DashboardScreen.routeName,
-      (route) => false,
-    );
-  }
+  // Clear auth state
+  await Provider.of<app_auth.Auth>(context, listen: false).logout();
 
+  if (!mounted) return;
+
+  // Navigate to auth screen and remove all routes
+  Navigator.of(context).pushAndRemoveUntil(
+    MaterialPageRoute(builder: (_) => const AuthScreen()),
+    (route) => false,
+  );
+}
   void _onItemTapped(int index) {
     setState(() => _selectedIndex = index);
 

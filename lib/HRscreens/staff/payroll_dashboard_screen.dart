@@ -15,6 +15,8 @@ import 'package:charms/HRwidgets/staff/bottom_nav_staff.dart';
 import 'package:charms/screens/dashboard_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:charms/providers/auth.dart' as app_auth;
+import 'package:charms/screens/auth_screen.dart';
 
 class PayrollDashboardScreen extends StatefulWidget {
   final String username;
@@ -25,10 +27,10 @@ class PayrollDashboardScreen extends StatefulWidget {
   });
 
   @override
-  _PayrollScreenState createState() => _PayrollScreenState();
+  _PayrollDashboardScreenState createState() => _PayrollDashboardScreenState();
 }
 
-class _PayrollScreenState extends State<PayrollDashboardScreen> {
+class _PayrollDashboardScreenState extends State<PayrollDashboardScreen> {
   int selectedYear = DateTime.now().year;
   bool _isLoading = true;
   List<Payment> _monthlyPayments = [];
@@ -142,11 +144,17 @@ class _PayrollScreenState extends State<PayrollDashboardScreen> {
   }
 
   Future<void> _logout() async {
-    Navigator.of(context).pushNamedAndRemoveUntil(
-      DashboardScreen.routeName,
-      (route) => false,
-    );
-  }
+  // Clear auth state
+  await Provider.of<app_auth.Auth>(context, listen: false).logout();
+
+  if (!mounted) return;
+
+  // Navigate to auth screen and remove all routes
+  Navigator.of(context).pushAndRemoveUntil(
+    MaterialPageRoute(builder: (_) => const AuthScreen()),
+    (route) => false,
+  );
+}
 
   void _onItemTapped(int index) {
     if (index == _selectedIndex) return;

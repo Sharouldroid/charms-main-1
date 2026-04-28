@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:charms/HRproviders/claims.dart';
+import 'package:charms/HRproviders/staffs.dart';
 import 'package:charms/HRmodels/claim.dart';
+import 'package:charms/HRmodels/staff.dart';
 import 'package:charms/HRwidgets/staff/proof_attachment.dart';
 
 class ManageClaimScreen extends StatefulWidget {
@@ -29,8 +31,18 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
   }
 
   Future<void> _fetchClaims() async {
-    final claimsProvider = Provider.of<Claims>(context, listen: false);
-    await claimsProvider.fetchClaims();
+    await Provider.of<Staffs>(context, listen: false).fetchStaff();
+    await Provider.of<Claims>(context, listen: false).fetchClaims();
+  }
+
+  String _getStaffName(int staffId, List<Staff> staffList) {
+    final Staff? staff = staffList.cast<Staff?>().firstWhere(
+          (s) => s?.staffId == staffId,
+          orElse: () => null,
+        );
+    return staff != null
+        ? '${staff.firstname} ${staff.lastname}'
+        : 'Staff ID: $staffId';
   }
 
   Future<void> _approveClaim(Claim claim) async {
@@ -67,22 +79,28 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Delete Claim', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: const Text('Are you sure you want to delete this claim record?'),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Delete Claim',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        content:
+            const Text('Are you sure you want to delete this claim record?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            child:
+                const Text('Cancel', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.redAccent,
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+            child:
+                const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -92,7 +110,8 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
 
     setState(() => _processing = true);
     try {
-      await Provider.of<Claims>(context, listen: false).deleteClaim(claim.claimId);
+      await Provider.of<Claims>(context, listen: false)
+          .deleteClaim(claim.claimId);
       await _fetchClaims();
 
       if (!mounted) return;
@@ -116,28 +135,35 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Reject Claims', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Text('Are you sure you want to reject the ${selectedClaims.length} selected claims?'),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Reject Claims',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text(
+            'Are you sure you want to reject the ${selectedClaims.length} selected claims?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            child:
+                const Text('Cancel', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.redAccent,
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () async {
               Navigator.pop(context);
               for (var claimId in selectedClaims) {
-                final claim = claims.firstWhere((c) => c.claimId == claimId);
+                final claim =
+                    claims.firstWhere((c) => c.claimId == claimId);
                 await _rejectClaim(claim);
               }
             },
-            child: const Text('Reject', style: TextStyle(color: Colors.white)),
+            child:
+                const Text('Reject', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -148,28 +174,35 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Approve Claims', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Text('Are you sure you want to approve the ${selectedClaims.length} selected claims?'),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Approve Claims',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text(
+            'Are you sure you want to approve the ${selectedClaims.length} selected claims?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            child:
+                const Text('Cancel', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.teal,
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () async {
               Navigator.pop(context);
               for (var claimId in selectedClaims) {
-                final claim = claims.firstWhere((c) => c.claimId == claimId);
+                final claim =
+                    claims.firstWhere((c) => c.claimId == claimId);
                 await _approveClaim(claim);
               }
             },
-            child: const Text('Approve', style: TextStyle(color: Colors.white)),
+            child: const Text('Approve',
+                style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -183,34 +216,49 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
         (claim.proofFileName?.trim().isNotEmpty ?? false);
   }
 
-  void _showClaimDetails(Claim claim) {
+  void _showClaimDetails(Claim claim, List<Staff> staffList) {
     final hasProof = _hasProof(claim);
+    final String staffName = _getStaffName(claim.staffId, staffList);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Claim Details', style: TextStyle(fontWeight: FontWeight.bold)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Claim Details',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
               _detailRow('Claim ID', claim.claimId.toString()),
-              _detailRow('Staff ID', claim.staffId.toString()),
+              _detailRow('Staff', staffName), // Staff Name instead of ID
               _detailRow('Type', claim.claimType),
-              _detailRow('Amount', 'RM ${claim.amount.toStringAsFixed(2)}', isHighlight: true),
-              _detailRow('Date', claim.claimDate.toString().split(' ')[0]),
+              _detailRow('Amount',
+                  'RM ${claim.amount.toStringAsFixed(2)}',
+                  isHighlight: true),
+              _detailRow(
+                  'Date', claim.claimDate.toString().split(' ')[0]),
               const SizedBox(height: 8),
-              const Text('Description:', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w600)),
+              const Text('Description:',
+                  style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600)),
               const SizedBox(height: 4),
-              Text(claim.description, style: const TextStyle(fontSize: 14, color: Color(0xFF334155))),
+              Text(claim.description,
+                  style: const TextStyle(
+                      fontSize: 14, color: Color(0xFF334155))),
               const SizedBox(height: 16),
               Divider(color: Colors.grey.shade200),
               const SizedBox(height: 8),
               if (hasProof) ...[
                 Text(
                   'Attachment: ${claim.proofFileName ?? 'Proof File'}',
-                  style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1E293B)),
                 ),
                 const SizedBox(height: 8),
                 ProofAttachmentViewer(
@@ -221,7 +269,8 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
               ] else
                 Row(
                   children: [
-                    Icon(Icons.attachment_rounded, size: 16, color: Colors.grey.shade400),
+                    Icon(Icons.attachment_rounded,
+                        size: 16, color: Colors.grey.shade400),
                     const SizedBox(width: 8),
                     Text(
                       'No proof attached.',
@@ -237,17 +286,18 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
             style: ElevatedButton.styleFrom(
               backgroundColor: primaryBlue,
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close', style: TextStyle(color: Colors.white)),
+            child:
+                const Text('Close', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
   }
 
-  // Helper widget for dialog rows
   Widget _detailRow(String label, String value, {bool isHighlight = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
@@ -256,15 +306,22 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
         children: [
           SizedBox(
             width: 80,
-            child: Text('$label:', style: const TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.w600)),
+            child: Text('$label:',
+                style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600)),
           ),
           Expanded(
             child: Text(
               value,
               style: TextStyle(
                 fontSize: 14,
-                fontWeight: isHighlight ? FontWeight.bold : FontWeight.w500,
-                color: isHighlight ? Colors.teal : const Color(0xFF334155),
+                fontWeight:
+                    isHighlight ? FontWeight.bold : FontWeight.w500,
+                color: isHighlight
+                    ? Colors.teal
+                    : const Color(0xFF334155),
               ),
             ),
           ),
@@ -273,9 +330,11 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
     );
   }
 
-  Widget _buildClaimCard(Claim claim, {bool showDelete = false}) {
+  Widget _buildClaimCard(Claim claim, List<Staff> staffList,
+      {bool showDelete = false}) {
     final hasProof = _hasProof(claim);
     final isSelected = selectedClaims.contains(claim.claimId);
+    final String staffName = _getStaffName(claim.staffId, staffList);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12.0, left: 16.0, right: 16.0),
@@ -301,7 +360,6 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
           borderRadius: BorderRadius.circular(16),
           onTap: () {
             if (!showDelete) {
-              // If in pending, tapping card toggles selection
               setState(() {
                 if (isSelected) {
                   selectedClaims.remove(claim.claimId);
@@ -310,8 +368,7 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
                 }
               });
             } else {
-              // If in approved/rejected, tapping shows details
-              _showClaimDetails(claim);
+              _showClaimDetails(claim, staffList);
             }
           },
           child: Padding(
@@ -326,10 +383,11 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
                     color: Colors.orange.withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.receipt_long_rounded, size: 24, color: Colors.orange),
+                  child: const Icon(Icons.receipt_long_rounded,
+                      size: 24, color: Colors.orange),
                 ),
                 const SizedBox(width: 16),
-                
+
                 // Middle Content
                 Expanded(
                   child: Column(
@@ -343,7 +401,16 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
                           color: Color(0xFF1E293B),
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
+                      Text(
+                        staffName, // Staff Name instead of Staff ID
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
                       Text(
                         'RM ${claim.amount.toStringAsFixed(2)}',
                         style: const TextStyle(
@@ -355,7 +422,8 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
                       const SizedBox(height: 2),
                       Row(
                         children: [
-                          const Icon(Icons.calendar_today_rounded, size: 12, color: Colors.grey),
+                          const Icon(Icons.calendar_today_rounded,
+                              size: 12, color: Colors.grey),
                           const SizedBox(width: 4),
                           Text(
                             claim.claimDate.toString().split(' ')[0],
@@ -368,13 +436,13 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
                         ],
                       ),
                       const SizedBox(height: 8),
-                      // View Details button mapped exactly as original
                       GestureDetector(
-                        onTap: () => _showClaimDetails(claim),
+                        onTap: () => _showClaimDetails(claim, staffList),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.visibility_rounded, size: 16, color: primaryBlue),
+                            Icon(Icons.visibility_rounded,
+                                size: 16, color: primaryBlue),
                             const SizedBox(width: 4),
                             Text(
                               hasProof ? 'View Proof' : 'View Details',
@@ -399,18 +467,22 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: IconButton(
-                      icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
+                      icon: const Icon(Icons.delete_outline_rounded,
+                          color: Colors.redAccent, size: 20),
                       tooltip: 'Delete',
                       padding: const EdgeInsets.all(8),
                       constraints: const BoxConstraints(),
-                      onPressed: _processing ? null : () => _deleteClaim(claim),
+                      onPressed: _processing
+                          ? null
+                          : () => _deleteClaim(claim),
                     ),
                   )
                 else
                   Checkbox(
                     value: isSelected,
                     activeColor: primaryBlue,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4)),
                     onChanged: (bool? value) {
                       setState(() {
                         if (value == true) {
@@ -429,17 +501,21 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
     );
   }
 
-  Widget _buildClaimsList(List<Claim> claims,
+  Widget _buildClaimsList(List<Claim> claims, List<Staff> staffList,
       {bool showActions = false, bool showDelete = false}) {
     if (claims.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.request_quote_rounded, size: 64, color: Colors.grey.shade300),
+            Icon(Icons.request_quote_rounded,
+                size: 64, color: Colors.grey.shade300),
             const SizedBox(height: 16),
             Text('No claims found',
-                style: TextStyle(color: Colors.grey.shade500, fontSize: 16, fontWeight: FontWeight.w500)),
+                style: TextStyle(
+                    color: Colors.grey.shade500,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500)),
           ],
         ),
       );
@@ -454,13 +530,14 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
             padding: EdgeInsets.only(bottom: showActions ? 80 : 24),
             itemCount: claims.length,
             itemBuilder: (context, index) =>
-                _buildClaimCard(claims[index], showDelete: showDelete),
+                _buildClaimCard(claims[index], staffList, showDelete: showDelete),
           ),
         ),
-        // Modernized Action Bar at the bottom
+        // Action Bar at the bottom
         if (showActions && selectedClaims.isNotEmpty)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 16.0, vertical: 12.0),
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
@@ -480,12 +557,17 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
                         backgroundColor: Colors.red.shade50,
                         foregroundColor: Colors.redAccent,
                         elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding:
+                            const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                       onPressed: () => _showRejectDialog(claims),
-                      icon: const Icon(Icons.close_rounded, size: 18),
-                      label: const Text('Reject', style: TextStyle(fontWeight: FontWeight.bold)),
+                      icon:
+                          const Icon(Icons.close_rounded, size: 18),
+                      label: const Text('Reject',
+                          style:
+                              TextStyle(fontWeight: FontWeight.bold)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -495,12 +577,17 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
                         backgroundColor: Colors.teal,
                         foregroundColor: Colors.white,
                         elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding:
+                            const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                       onPressed: () => _showApproveDialog(claims),
-                      icon: const Icon(Icons.check_rounded, size: 18),
-                      label: const Text('Approve', style: TextStyle(fontWeight: FontWeight.bold)),
+                      icon:
+                          const Icon(Icons.check_rounded, size: 18),
+                      label: const Text('Approve',
+                          style:
+                              TextStyle(fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],
@@ -520,7 +607,7 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: bgColor, // Modern background
+      backgroundColor: bgColor,
       appBar: AppBar(
         elevation: 0,
         backgroundColor: primaryBlue,
@@ -540,31 +627,50 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
           controller: _tabController,
           indicatorColor: Colors.white,
           indicatorWeight: 3,
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal),
+          labelStyle:
+              const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          unselectedLabelStyle:
+              const TextStyle(fontWeight: FontWeight.normal),
           tabs: const [
-            Tab(child: Text('Pending', style: TextStyle(color: Colors.white))),
-            Tab(child: Text('Approved', style: TextStyle(color: Colors.white))),
-            Tab(child: Text('Rejected', style: TextStyle(color: Colors.white))),
+            Tab(
+                child: Text('Pending',
+                    style: TextStyle(color: Colors.white))),
+            Tab(
+                child: Text('Approved',
+                    style: TextStyle(color: Colors.white))),
+            Tab(
+                child: Text('Rejected',
+                    style: TextStyle(color: Colors.white))),
           ],
         ),
       ),
-      body: Consumer<Claims>(
-        builder: (context, claimsData, child) {
+      body: Consumer2<Staffs, Claims>(
+        builder: (context, staffsData, claimsData, child) {
+          final staffList = staffsData.staffList;
+
           return TabBarView(
             controller: _tabController,
             children: [
               _buildClaimsList(
-                claimsData.claims.where((c) => c.status == 'Pending').toList(),
-                showActions: true,               // keep approve/reject + checkbox
+                claimsData.claims
+                    .where((c) => c.status == 'Pending')
+                    .toList(),
+                staffList,
+                showActions: true,
               ),
               _buildClaimsList(
-                claimsData.claims.where((c) => c.status == 'Approved').toList(),
-                showDelete: true,                // ✅ delete button, no checkbox
+                claimsData.claims
+                    .where((c) => c.status == 'Approved')
+                    .toList(),
+                staffList,
+                showDelete: true,
               ),
               _buildClaimsList(
-                claimsData.claims.where((c) => c.status == 'Rejected').toList(),
-                showDelete: true,                // ✅ delete button, no checkbox
+                claimsData.claims
+                    .where((c) => c.status == 'Rejected')
+                    .toList(),
+                staffList,
+                showDelete: true,
               ),
             ],
           );

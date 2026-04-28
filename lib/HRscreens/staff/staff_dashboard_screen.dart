@@ -288,7 +288,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                "Hello , ${widget.username} !",
+                "Hello, ${widget.username} !",
                 style: const TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
