@@ -14,6 +14,10 @@ import 'package:url_launcher/url_launcher.dart';
 import 'auth_constants.dart';
 import 'package:flutter/services.dart';
 import 'auth_utils.dart';
+import 'package:charms/constants/user_roles.dart';
+import 'package:charms/HRproviders/auth.dart' as hr_auth;
+import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
+//import 'package:charms/HRscreens/admin/admin_dashboard_screen.dart';
 
 enum AuthMode { Signup, Login }
 
@@ -32,7 +36,7 @@ class AuthCardState extends State<AuthCard> {
   bool _useBiometrics = false;
   bool _isLoading = false;
   bool _obscurePassword = true;
-  bool _acceptedTerms = false; // Terms acceptance for registration
+  bool _acceptedTerms = false;
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   DateTime? _selectedDate;
@@ -100,7 +104,6 @@ class AuthCardState extends State<AuthCard> {
   }
 
   // --- HELPER FOR RESPONSIVE TEXT LABELS ---
-  // This automatically shrinks text to fit the box
   Widget _responsiveLabel(String text) {
     final textStyle = Theme.of(context).textTheme.bodyMedium;
     return FittedBox(
@@ -110,8 +113,19 @@ class AuthCardState extends State<AuthCard> {
     );
   }
 
+  // --- HELPER FOR ROLE DROPDOWN ITEMS ---
+  DropdownMenuItem<int> _roleItem(int value, String label) {
+    return DropdownMenuItem<int>(
+      value: value,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
+      ),
+    );
+  }
+
   Future<void> _loadSavedPreferences() async {
-    // Load remember me and biometrics preferences from secure storage
     final rememberMe = await SecureStorageService.getRememberMe();
     final useBiometrics = await SecureStorageService.getBiometricsPreference();
 
@@ -136,10 +150,10 @@ class AuthCardState extends State<AuthCard> {
       }
     }
 
-    // Check for lockout before allowing biometric login
     if (_rememberMe && _useBiometrics && mounted) {
       if (await LoginRateLimiter.isLockedOut()) {
-        final remainingMinutes = await LoginRateLimiter.getRemainingLockoutMinutes();
+        final remainingMinutes =
+            await LoginRateLimiter.getRemainingLockoutMinutes();
         if (mounted) {
           LoginRateLimiter.showLockoutDialog(context, remainingMinutes);
         }
@@ -151,7 +165,21 @@ class AuthCardState extends State<AuthCard> {
         final success = await _tryAutoLogin();
         if (success && mounted) {
           await LoginRateLimiter.resetAttempts();
-          Navigator.of(context).pushReplacementNamed('/dashboard');
+
+          final usertype =
+              Provider.of<Auth>(context, listen: false).usertype;
+          final username =
+              Provider.of<Auth>(context, listen: false).username;
+
+          if (UserRoles.staffMember.contains(usertype)) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => StaffDashboardScreen(username: username),
+              ),
+            );
+          } else {
+            Navigator.of(context).pushReplacementNamed('/dashboard');
+          }
         }
       }
     }
@@ -162,15 +190,29 @@ class AuthCardState extends State<AuthCard> {
     final username = credentials['username'];
     final passkey = credentials['passkey'];
 
-    if (username == null || passkey == null || username.isEmpty || passkey.isEmpty) {
+    if (username == null ||
+        passkey == null ||
+        username.isEmpty ||
+        passkey.isEmpty) {
       return false;
     }
 
     try {
-      await Provider.of<Auth>(
-        context,
-        listen: false,
-      ).authenticate(username, passkey);
+      final authProvider = Provider.of<Auth>(context, listen: false);
+      await authProvider.authenticate(username, passkey);
+
+      // Seed HR auth silently
+      final usertype = authProvider.usertype;
+      if (UserRoles.hrAdmin.contains(usertype) ||
+          UserRoles.staffMember.contains(usertype)) {
+        try {
+          await Provider.of<hr_auth.Auth>(context, listen: false)
+              .authenticate(username, passkey, saveSession: false);
+        } catch (e) {
+          debugPrint('HR silent auth failed: $e');
+        }
+      }
+
       return true;
     } catch (e) {
       return false;
@@ -178,18 +220,15 @@ class AuthCardState extends State<AuthCard> {
   }
 
   Future<void> _savePreferences() async {
-    // Save remember me and biometrics preferences
     await SecureStorageService.saveRememberMe(_rememberMe);
     await SecureStorageService.saveBiometricsPreference(_useBiometrics);
 
     if (_rememberMe) {
-      // Save credentials securely
       await SecureStorageService.saveCredentials(
         username: _authData['username']!,
         password: _authData['passkey']!,
       );
     } else {
-      // Clear credentials if remember me is disabled
       await SecureStorageService.clearCredentials();
       await SecureStorageService.saveBiometricsPreference(false);
     }
@@ -211,7 +250,6 @@ class AuthCardState extends State<AuthCard> {
     setState(() => _isLoading = true);
 
     try {
-      // Check network connectivity (non-blocking - just a warning)
       try {
         final isConnected = await ConnectivityService().checkConnectivity();
         if (!isConnected && mounted) {
@@ -220,15 +258,14 @@ class AuthCardState extends State<AuthCard> {
           return;
         }
       } catch (e) {
-        // Connectivity check failed, continue anyway
         debugPrint('Connectivity check failed: $e');
       }
 
-      // Check for lockout before login attempt
       if (_authMode == AuthMode.Login) {
         try {
           if (await LoginRateLimiter.isLockedOut()) {
-            final remainingMinutes = await LoginRateLimiter.getRemainingLockoutMinutes();
+            final remainingMinutes =
+                await LoginRateLimiter.getRemainingLockoutMinutes();
             if (mounted) {
               LoginRateLimiter.showLockoutDialog(context, remainingMinutes);
             }
@@ -236,13 +273,11 @@ class AuthCardState extends State<AuthCard> {
             return;
           }
 
-          // Apply progressive delay if there have been failed attempts
           final delay = await LoginRateLimiter.getProgressiveDelay();
           if (delay > 0) {
             await Future.delayed(Duration(seconds: delay));
           }
         } catch (e) {
-          // Rate limiter check failed, continue anyway
           debugPrint('Rate limiter check failed: $e');
         }
       }
@@ -261,57 +296,93 @@ class AuthCardState extends State<AuthCard> {
 
   Future<void> _handleLogin() async {
     try {
-      await Provider.of<Auth>(
-        context,
-        listen: false,
-      ).authenticate(_authData['username']!, _authData['passkey']!);
+      final authProvider = Provider.of<Auth>(context, listen: false);
 
-      // Reset rate limiter on successful login
-      try {
-        await LoginRateLimiter.resetAttempts();
-      } catch (e) {
-        debugPrint('Failed to reset rate limiter: $e');
-      }
+      await authProvider.authenticate(
+        _authData['username']!,
+        _authData['passkey']!,
+      );
+
+      await LoginRateLimiter.resetAttempts();
       await _savePreferences();
 
-      if (mounted) {
+      if (!mounted) return;
+
+      final usertype = authProvider.usertype;
+      final username = authProvider.username;
+      final passkey = _authData['passkey']!;
+
+      // ── DEBUG: after authenticate() resolves ─────────────────────
+      debugPrint('=== HANDLE LOGIN ===');
+      debugPrint('usertype: $usertype');
+      debugPrint('username: $username');
+      debugPrint('hrAdmin check: ${UserRoles.hrAdmin.contains(usertype)}');
+      debugPrint('staffMember check: ${UserRoles.staffMember.contains(usertype)}');
+      // ─────────────────────────────────────────────────────────────
+
+      // ── Seed HR Auth silently for staff/admin roles ──────────────
+      if (UserRoles.hrAdmin.contains(usertype) ||
+          UserRoles.staffMember.contains(usertype)) {
+        try {
+          await Provider.of<hr_auth.Auth>(context, listen: false)
+              .authenticate(username, passkey);
+        } catch (e) {
+          debugPrint('HR silent auth failed: $e');
+        }
+      }
+
+      if (!mounted) return;
+
+      // ── Route ────────────────────────────────────────────────────
+      // Staff → Staff Dashboard
+      if (UserRoles.staffMember.contains(usertype)) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => StaffDashboardScreen(username: username),
+          ),
+        );
+      } 
+      // EVERYONE ELSE → CHARMS Dashboard (INCLUDING HR ADMIN)
+      else {
         Navigator.of(context).pushReplacementNamed('/dashboard');
       }
     } on HttpException catch (e) {
-      // Record failed attempt for rate limiting
       try {
         final result = await LoginRateLimiter.recordFailedAttempt();
-
         if (result.isLockedOut && mounted) {
           LoginRateLimiter.showLockoutDialog(context, result.remainingMinutes);
           return;
-        } else if (result.attemptsRemaining > 0 && result.attemptsRemaining < 3 && mounted) {
-          LoginRateLimiter.showAttemptsWarning(context, result.attemptsRemaining);
+        } else if (result.attemptsRemaining > 0 &&
+            result.attemptsRemaining < 3 &&
+            mounted) {
+          LoginRateLimiter.showAttemptsWarning(
+              context, result.attemptsRemaining);
         }
       } catch (limiterError) {
         debugPrint('Rate limiter error: $limiterError');
       }
 
-      // --- START ADDED HANDLING FOR PENDING/REJECTED ---
       final errorString = e.toString();
       if (errorString.contains('account_pending')) {
         AuthUtils.showPendingApprovalDialog(context);
         return;
       } else if (errorString.contains('account_rejected')) {
-        AuthUtils.showErrorDialog(context, message: 'Your account has been rejected. Please contact support.');
+        AuthUtils.showErrorDialog(
+          context,
+          message: 'Your account has been rejected. Please contact support.',
+        );
         return;
       }
-      // --- END ADDED HANDLING ---
 
       String message = 'Authentication failed';
-      if (e.toString().contains('invalid_credentials')) {
+      if (errorString.contains('invalid_credentials')) {
         message = 'Invalid username or password';
-      } else if (e.toString().contains('user_not_found')) {
-        message = 'User not found. Please check your credentials or register.';
+      } else if (errorString.contains('user_not_found')) {
+        message =
+            'User not found. Please check your credentials or register.';
       }
       throw HttpException(message);
     } catch (e) {
-      // Record failed attempt for rate limiting
       try {
         await LoginRateLimiter.recordFailedAttempt();
       } catch (limiterError) {
@@ -336,15 +407,13 @@ class AuthCardState extends State<AuthCard> {
           _newUser.usertype == 10 || _newUser.usertype == 11;
 
       if (needsApproval) {
-        // Show "waiting for approval" dialog
         AuthUtils.showPendingApprovalDialog(
           context,
           onDismiss: () {
-            _switchAuthMode(); // go back to login
+            _switchAuthMode();
           },
         );
       } else {
-        // Normal success
         AuthUtils.showErrorDialog(
           context,
           message:
@@ -354,12 +423,10 @@ class AuthCardState extends State<AuthCard> {
         );
       }
     } else {
-      String errorMessage =
-          response['message'] ?? 'Registration failed';
+      String errorMessage = response['message'] ?? 'Registration failed';
 
       if (errorMessage.contains('username_taken')) {
-        errorMessage =
-            'Username already exists. Please choose another.';
+        errorMessage = 'Username already exists. Please choose another.';
       } else if (errorMessage.contains('email_taken')) {
         errorMessage =
             'Email already registered. Please use another email.';
@@ -385,18 +452,17 @@ class AuthCardState extends State<AuthCard> {
   }
 
   Future<DateTime?> _pickDate() => showDatePicker(
-    context: context,
-    initialDate: DateTime.now(),
-    firstDate: DateTime(1900),
-    lastDate: DateTime.now(),
-  );
+        context: context,
+        initialDate: DateTime.now(),
+        firstDate: DateTime(1900),
+        lastDate: DateTime.now(),
+      );
 
   Widget _buildLoginForm() {
     return Column(
       children: [
         TextFormField(
           decoration: InputDecoration(
-            // Changed labelText to label + _responsiveLabel
             label: _responsiveLabel('Username'),
             prefixIcon: const Icon(Icons.person),
           ),
@@ -421,7 +487,6 @@ class AuthCardState extends State<AuthCard> {
         const SizedBox(height: 16),
         TextFormField(
           decoration: InputDecoration(
-            // Changed labelText to label + _responsiveLabel
             label: _responsiveLabel('Password'),
             prefixIcon: const Icon(Icons.lock),
             suffixIcon: IconButton(
@@ -481,10 +546,9 @@ class AuthCardState extends State<AuthCard> {
   Widget _buildRegistrationForm() {
     return Column(
       children: [
-        _buildLoginForm(), // Reuse username/password fields
+        _buildLoginForm(),
         TextFormField(
           decoration: InputDecoration(
-            // Changed labelText to label + _responsiveLabel
             label: _responsiveLabel('Confirm Password'),
             prefixIcon: const Icon(Icons.lock_outline),
           ),
@@ -506,7 +570,6 @@ class AuthCardState extends State<AuthCard> {
             Expanded(
               child: TextFormField(
                 decoration: InputDecoration(
-                  // Changed labelText to label + _responsiveLabel
                   label: _responsiveLabel('First Name'),
                   prefixIcon: const Icon(Icons.person_outline),
                 ),
@@ -527,7 +590,6 @@ class AuthCardState extends State<AuthCard> {
             Expanded(
               child: TextFormField(
                 decoration: InputDecoration(
-                  // Changed labelText to label + _responsiveLabel
                   label: _responsiveLabel('Last Name'),
                   prefixIcon: const Icon(Icons.person_outline),
                 ),
@@ -549,7 +611,6 @@ class AuthCardState extends State<AuthCard> {
         const SizedBox(height: 16),
         TextFormField(
           decoration: InputDecoration(
-            // Changed labelText to label + _responsiveLabel
             label: _responsiveLabel('I/C @ Passport'),
             prefixIcon: const Icon(Icons.credit_card),
           ),
@@ -565,14 +626,13 @@ class AuthCardState extends State<AuthCard> {
           onSaved: (value) => _newUser.idnum = value!,
         ),
         const SizedBox(height: 16),
-        
-        // --- UPDATED DATE & GENDER ROW ---
+
+        // --- DATE & GENDER ROW ---
         Row(
           children: [
             Expanded(
               child: InputDecorator(
                 decoration: InputDecoration(
-                  // Changed labelText to label + _responsiveLabel
                   label: _responsiveLabel('D.O.B'),
                   prefixIcon: const Icon(Icons.calendar_today),
                   floatingLabelBehavior: FloatingLabelBehavior.never,
@@ -608,7 +668,6 @@ class AuthCardState extends State<AuthCard> {
               child: DropdownButtonFormField<int>(
                 isExpanded: true,
                 decoration: InputDecoration(
-                  // Changed labelText to label + _responsiveLabel
                   label: _responsiveLabel('Gender'),
                   prefixIcon: const Icon(Icons.person_outline),
                   contentPadding:
@@ -628,22 +687,20 @@ class AuthCardState extends State<AuthCard> {
                   );
                 }).toList(),
                 onChanged: (value) => _newUser.gender = value!,
-                validator:
-                    (value) =>
-                        value == null ? 'Please choose your gender' : null,
+                validator: (value) =>
+                    value == null ? 'Please choose your gender' : null,
               ),
             ),
           ],
         ),
-        // --- END UPDATED ROW ---
-        
+        // --- END DATE & GENDER ROW ---
+
         const SizedBox(height: 16),
         Row(
           children: [
             Expanded(
               child: TextFormField(
                 decoration: InputDecoration(
-                  // Changed labelText to label + _responsiveLabel
                   label: _responsiveLabel('Occupation'),
                   prefixIcon: const Icon(Icons.work_outline),
                 ),
@@ -664,31 +721,25 @@ class AuthCardState extends State<AuthCard> {
             Expanded(
               child: TextFormField(
                 decoration: InputDecoration(
-                  // Changed labelText to label + _responsiveLabel
                   label: _responsiveLabel('Phone'),
                   prefixIcon: const Icon(Icons.phone),
                 ),
                 textInputAction: TextInputAction.next,
                 keyboardType: TextInputType.phone,
                 focusNode: _phoneFocus,
-                
                 inputFormatters: [
                   FilteringTextInputFormatter.digitsOnly,
                   LengthLimitingTextInputFormatter(15),
                 ],
-                
                 onFieldSubmitted: (_) =>
                     FocusScope.of(context).requestFocus(_emailFocus),
-                
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter your phone number';
                   }
-                  
                   if (value.length < 9) {
                     return 'Phone number is too short';
                   }
-
                   return null;
                 },
                 onSaved: (value) => _newUser.phone = value!,
@@ -699,7 +750,6 @@ class AuthCardState extends State<AuthCard> {
         const SizedBox(height: 16),
         TextFormField(
           decoration: InputDecoration(
-            // Changed labelText to label + _responsiveLabel
             label: _responsiveLabel('Email'),
             prefixIcon: const Icon(Icons.email),
           ),
@@ -708,18 +758,14 @@ class AuthCardState extends State<AuthCard> {
           focusNode: _emailFocus,
           onFieldSubmitted:
               (_) => FocusScope.of(context).requestFocus(_address1Focus),
-          
           validator: (value) {
             if (value == null || value.trim().isEmpty) {
               return 'Please enter an email address';
             }
-
             final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
-
             if (!emailRegex.hasMatch(value)) {
               return 'Invalid email format. (Example: user@domain.my)';
             }
-            
             return null;
           },
           onSaved: (value) => _newUser.email = value!,
@@ -728,80 +774,73 @@ class AuthCardState extends State<AuthCard> {
         DropdownButtonFormField<String>(
           isExpanded: true,
           decoration: InputDecoration(
-            // Changed labelText to label + _responsiveLabel
             label: _responsiveLabel('Country'),
             prefixIcon: const Icon(Icons.public),
           ),
           initialValue: _selectedCountry,
-          items:
-              AuthConstants.countries.map((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      value,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ),
-                );
-              }).toList(),
+          items: AuthConstants.countries.map((String value) {
+            return DropdownMenuItem<String>(
+              value: value,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  value,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+            );
+          }).toList(),
           onChanged: (value) {
             setState(() => _selectedCountry = value!);
             _newUser.country = value!;
           },
-          validator:
-              (value) => value == null ? 'Please specify your country' : null,
+          validator: (value) =>
+              value == null ? 'Please specify your country' : null,
         ),
         const SizedBox(height: 16),
         _selectedCountry == 'Malaysia'
             ? DropdownButtonFormField<String>(
-              isExpanded: true,
-              decoration: InputDecoration(
-                // Changed labelText to label + _responsiveLabel
-                label: _responsiveLabel('State'),
-                prefixIcon: const Icon(Icons.map),
-              ),
-              initialValue: AuthConstants.statesOfMalaysia[0],
-              items:
-                  AuthConstants.statesOfMalaysia.map((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          value,
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
+                isExpanded: true,
+                decoration: InputDecoration(
+                  label: _responsiveLabel('State'),
+                  prefixIcon: const Icon(Icons.map),
+                ),
+                initialValue: AuthConstants.statesOfMalaysia[0],
+                items: AuthConstants.statesOfMalaysia.map((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        value,
+                        style: Theme.of(context).textTheme.bodyMedium,
                       ),
-                    );
-                  }).toList(),
-              onChanged: (value) => _newUser.state = value!,
-              validator:
-                  (value) =>
-                      value == null ? 'Please specify your state' : null,
-            )
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) => _newUser.state = value!,
+                validator: (value) =>
+                    value == null ? 'Please specify your state' : null,
+              )
             : TextFormField(
-              decoration: InputDecoration(
-                // Changed labelText to label + _responsiveLabel
-                label: _responsiveLabel('State'),
-                prefixIcon: const Icon(Icons.map),
+                decoration: InputDecoration(
+                  label: _responsiveLabel('State'),
+                  prefixIcon: const Icon(Icons.map),
+                ),
+                textInputAction: TextInputAction.next,
+                validator: (value) {
+                  if (value!.isEmpty) {
+                    return 'Please specify your state';
+                  }
+                  return null;
+                },
+                onSaved: (value) => _newUser.state = value!,
               ),
-              textInputAction: TextInputAction.next,
-              validator: (value) {
-                if (value!.isEmpty) {
-                  return 'Please specify your state';
-                }
-                return null;
-              },
-              onSaved: (value) => _newUser.state = value!,
-            ),
         const SizedBox(height: 16),
         TextFormField(
           decoration: InputDecoration(
-            // Changed labelText to label + _responsiveLabel
             label: _responsiveLabel('Address Line 1'),
             prefixIcon: const Icon(Icons.home),
           ),
@@ -820,7 +859,6 @@ class AuthCardState extends State<AuthCard> {
         const SizedBox(height: 16),
         TextFormField(
           decoration: InputDecoration(
-            // Changed labelText to label + _responsiveLabel
             label: _responsiveLabel('Address Line 2'),
             prefixIcon: const Icon(Icons.home_outlined),
           ),
@@ -836,29 +874,23 @@ class AuthCardState extends State<AuthCard> {
             Expanded(
               child: TextFormField(
                 decoration: InputDecoration(
-                  // Changed labelText to label + _responsiveLabel
                   label: _responsiveLabel('City'),
                   prefixIcon: const Icon(Icons.location_city),
                 ),
                 textInputAction: TextInputAction.next,
                 focusNode: _cityFocus,
-                
                 inputFormatters: [
                   FilteringTextInputFormatter.deny(RegExp(r'[0-9]')),
                 ],
-
                 onFieldSubmitted:
                     (_) => FocusScope.of(context).requestFocus(_postcodeFocus),
-                
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return 'Please enter your city';
                   }
-                  
                   if (value.contains(RegExp(r'[0-9]'))) {
                     return 'City name cannot contain numbers';
                   }
-                  
                   return null;
                 },
                 onSaved: (value) => _newUser.city = value!,
@@ -868,7 +900,6 @@ class AuthCardState extends State<AuthCard> {
             Expanded(
               child: TextFormField(
                 decoration: InputDecoration(
-                  // Changed labelText to label + _responsiveLabel
                   label: _responsiveLabel(
                     _selectedCountry == 'Malaysia' ? 'Postcode' : 'Zip Code',
                   ),
@@ -877,22 +908,18 @@ class AuthCardState extends State<AuthCard> {
                 textInputAction: TextInputAction.next,
                 keyboardType: TextInputType.number,
                 focusNode: _postcodeFocus,
-                
                 onFieldSubmitted: (_) =>
                     FocusScope.of(context).requestFocus(_address1Focus),
-                
                 inputFormatters: [
                   FilteringTextInputFormatter.digitsOnly,
                   LengthLimitingTextInputFormatter(
                     _selectedCountry == 'Malaysia' ? 5 : 10,
                   ),
                 ],
-
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter zip code';
                   }
-
                   if (_selectedCountry == 'Malaysia') {
                     if (value.length != 5) {
                       return 'Format must be 5 digits (e.g. 50450)';
@@ -904,13 +931,14 @@ class AuthCardState extends State<AuthCard> {
                   }
                   return null;
                 },
-                
                 onSaved: (value) => _newUser.postcode = int.parse(value!),
               ),
             ),
           ],
         ),
         const SizedBox(height: 16),
+
+        // --- ROLE DROPDOWN ---
         DropdownButtonFormField<int>(
           isExpanded: true,
           decoration: InputDecoration(
@@ -918,34 +946,23 @@ class AuthCardState extends State<AuthCard> {
             prefixIcon: const Icon(Icons.people_outline),
           ),
           items: [
-            ...AuthConstants.userRoles.map((role) {
-              return DropdownMenuItem<int>(
-                value: role['value'],
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    role['label'],
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ),
-              );
-            }),
-            // Add manager and marine biologist roles
-            const DropdownMenuItem<int>(
-              value: 5,
-              child: Text("Manager"),
-            ),
-            const DropdownMenuItem<int>(
-              value: 9,
-              child: Text("Marine Biologist"),
-            ),
+            _roleItem(UserRoles.volunteer, 'Volunteer'),
+            _roleItem(UserRoles.boatOwner, 'Boat Owner'),
+            _roleItem(UserRoles.researcher, 'Researcher'),
+            _roleItem(UserRoles.staff, 'Staff'),
+            _roleItem(UserRoles.manager, 'Manager'),
+            _roleItem(UserRoles.centralLabOfficer, 'Central Lab Officer'),
+            _roleItem(UserRoles.marineBiologist, 'Marine Biologist'),
+            _roleItem(UserRoles.trainee, 'Intern / Trainee'),
+            _roleItem(UserRoles.turtleRanger, 'Turtle Ranger'),
+            // Note: superID (1) and staffAdmin (6) are not self-registerable
           ],
           onChanged: (value) => _newUser.usertype = value!,
-          validator: (value) => value == null ? 'Please choose your role' : null,
+          validator: (value) =>
+              value == null ? 'Please choose your role' : null,
         ),
-        
-        // Terms and Privacy Policy Acceptance (Required for App Store)
+        // --- END ROLE DROPDOWN ---
+
         const SizedBox(height: 16),
         FormField<bool>(
           initialValue: _acceptedTerms,
@@ -969,7 +986,8 @@ class AuthCardState extends State<AuthCard> {
                   contentPadding: EdgeInsets.zero,
                   title: Wrap(
                     children: [
-                      const Text('I agree to the ', style: TextStyle(fontSize: 13)),
+                      const Text('I agree to the ',
+                          style: TextStyle(fontSize: 13)),
                       GestureDetector(
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
@@ -987,7 +1005,8 @@ class AuthCardState extends State<AuthCard> {
                       ),
                       const Text(' and ', style: TextStyle(fontSize: 13)),
                       GestureDetector(
-                        onTap: () => _openUrl('http://conservems.my/PrivacyPolicyCHARMs/PrivacyPolicy.html'),
+                        onTap: () => _openUrl(
+                            'http://conservems.my/PrivacyPolicyCHARMs/PrivacyPolicy.html'),
                         child: Text(
                           'Privacy Policy',
                           style: TextStyle(
@@ -1006,7 +1025,9 @@ class AuthCardState extends State<AuthCard> {
                     padding: const EdgeInsets.only(left: 12),
                     child: Text(
                       state.errorText!,
-                      style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12),
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                          fontSize: 12),
                     ),
                   ),
               ],
@@ -1016,7 +1037,7 @@ class AuthCardState extends State<AuthCard> {
       ],
     );
   }
-  
+
   Future<void> _openUrl(String urlString) async {
     final url = Uri.parse(urlString);
     if (await canLaunchUrl(url)) {
@@ -1067,7 +1088,7 @@ class AuthCardState extends State<AuthCard> {
           ],
         ),
       );
-      
+
       return;
     }
 

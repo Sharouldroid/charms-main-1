@@ -11,10 +11,10 @@ import 'package:charms/HRscreens/admin/admin_list_screen.dart';
 import 'package:charms/HRscreens/admin/manage_staff_screen.dart';
 import 'package:charms/HRscreens/staff/change_pass_screen.dart';
 import 'package:charms/HRwidgets/admin/bottom_nav_bar.dart';
-import 'package:charms/screens/dashboard_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:charms/utils/logout_helper.dart'; // ← replaces inline logout
 
 class MySelfScreen extends StatefulWidget {
   const MySelfScreen({super.key});
@@ -270,9 +270,9 @@ class _MySelfScreenState extends State<MySelfScreen> {
     }
   }
 
+  /// Full logout — clears both app_auth and hr_auth via LogoutHelper.
   Future<void> _logout() async {
-    Navigator.of(context)
-        .pushNamedAndRemoveUntil(DashboardScreen.routeName, (route) => false);
+    await LogoutHelper.fullLogout(context);
   }
 
   void _onItemTapped(int index) {
@@ -403,8 +403,8 @@ class _MySelfScreenState extends State<MySelfScreen> {
             ),
           if (!_isEditing)
             IconButton(
-              icon: const Icon(Icons.logout_rounded, color: Colors.white),
-              tooltip: 'Back to Dashboard',
+              icon: const Icon(Icons.logout_rounded),
+              tooltip: 'Back to Login',
               onPressed: _logout,
             ),
           const SizedBox(width: 8),
@@ -485,9 +485,10 @@ class _MySelfScreenState extends State<MySelfScreen> {
                           const SizedBox(height: 14),
                           Text(
                             '${_firstNameController.text} ${_lastNameController.text}'
-                                .trim()
-                                .isNotEmpty
-                                ? '${_firstNameController.text} ${_lastNameController.text}'.trim()
+                                    .trim()
+                                    .isNotEmpty
+                                ? '${_firstNameController.text} ${_lastNameController.text}'
+                                    .trim()
                                 : 'My Profile',
                             style: const TextStyle(
                                 fontSize: 22,

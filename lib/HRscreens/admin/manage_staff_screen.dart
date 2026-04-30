@@ -9,12 +9,13 @@ import 'package:charms/HRscreens/admin/notification_screen.dart';
 import 'package:charms/HRscreens/admin/plan_schedule_screen.dart';
 import 'package:charms/HRscreens/admin/staff_list_screen.dart';
 import 'package:charms/HRwidgets/admin/bottom_nav_bar.dart';
-import 'package:charms/screens/dashboard_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:charms/HRproviders/claims.dart';
 import 'package:charms/HRproviders/leaves.dart';
 import 'package:charms/HRproviders/payments.dart';
+//import 'package:charms/HRproviders/auth.dart' as hr_auth;
+import 'package:charms/utils/logout_helper.dart'; // ← replaces inline logout
 
 class ManageStaffScreen extends StatefulWidget {
   final String username;
@@ -33,19 +34,17 @@ class _ManageStaffScreenState extends State<ManageStaffScreen> {
 
   // ── Menu items ───────────────────────────────────────────────────────────────
   static const List<_MenuItem> _items = [
-    _MenuItem('Staff List',     Icons.people_alt_rounded,       Colors.blue,   null),
-    _MenuItem('Plan Schedule',  Icons.calendar_today_rounded,   Colors.orange, null),
-    _MenuItem('Attendance',     Icons.timer_rounded,            Colors.green,  null),
-    _MenuItem('Payroll',        Icons.receipt_long_rounded,     Colors.purple, null),
-    _MenuItem('Leave',          Icons.beach_access_rounded,     Colors.red,    null),
-    _MenuItem('Claim',          Icons.request_page_rounded,     Colors.teal,   null),
+    _MenuItem('Staff List',    Icons.people_alt_rounded,     Colors.blue,   null),
+    _MenuItem('Plan Schedule', Icons.calendar_today_rounded, Colors.orange, null),
+    _MenuItem('Attendance',    Icons.timer_rounded,          Colors.green,  null),
+    _MenuItem('Payroll',       Icons.receipt_long_rounded,   Colors.purple, null),
+    _MenuItem('Leave',         Icons.beach_access_rounded,   Colors.red,    null),
+    _MenuItem('Claim',         Icons.request_page_rounded,   Colors.teal,   null),
   ];
 
+  /// Full logout — clears both app_auth and hr_auth via LogoutHelper.
   Future<void> _logout() async {
-    Navigator.of(context).pushNamedAndRemoveUntil(
-      DashboardScreen.routeName,
-      (route) => false,
-    );
+    await LogoutHelper.fullLogout(context);
   }
 
   void _onItemTapped(int index) {
@@ -121,7 +120,7 @@ class _ManageStaffScreenState extends State<ManageStaffScreen> {
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
         ),
         actions: [
-          // ── Notification badge (same Consumer3 logic as before) ────────────
+          // ── Notification badge ─────────────────────────────────────────────
           Consumer3<Leaves, Payments, Claims>(
             builder: (context, leaves, payments, claims, child) {
               int pendingLeaves =
@@ -130,7 +129,8 @@ class _ManageStaffScreenState extends State<ManageStaffScreen> {
                   payments.payments.where((p) => p.status == 'Pending').length;
               int pendingClaims =
                   claims.claims.where((c) => c.status == 'Pending').length;
-              int totalPending = pendingLeaves + pendingPayrolls + pendingClaims;
+              int totalPending =
+                  pendingLeaves + pendingPayrolls + pendingClaims;
 
               return IconButton(
                 icon: totalPending > 0
@@ -153,7 +153,7 @@ class _ManageStaffScreenState extends State<ManageStaffScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.logout_rounded),
-            tooltip: 'Back to Dashboard',
+            tooltip: 'Back to Login',
             onPressed: _logout,
           ),
           const SizedBox(width: 8),
@@ -219,7 +219,7 @@ class _ManageStaffScreenState extends State<ManageStaffScreen> {
                 },
               ),
 
-              const SizedBox(height: 80), // breathing room above bottom nav
+              const SizedBox(height: 80),
             ],
           ),
         ),
@@ -242,7 +242,7 @@ class _MenuItem {
   const _MenuItem(this.title, this.icon, this.color, this.destination);
 }
 
-// ── Module card — mirrors SummaryCard's soft shadow + rounded style ───────────
+// ── Module card ───────────────────────────────────────────────────────────────
 class _ModuleCard extends StatelessWidget {
   final String title;
   final IconData icon;
@@ -280,7 +280,6 @@ class _ModuleCard extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Tinted circular icon — same as SummaryCard
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(

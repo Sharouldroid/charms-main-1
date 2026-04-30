@@ -10,12 +10,13 @@ import 'package:charms/HRscreens/staff/staff_myself_screen.dart';
 import 'package:charms/HRscreens/staff/staff_notification_screen.dart';
 import 'package:charms/HRwidgets/staff/bottom_nav_staff.dart';
 import 'package:charms/HRwidgets/staff/proof_attachment.dart';
-import 'package:charms/screens/dashboard_screen.dart';
+//import 'package:charms/screens/dashboard_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:charms/providers/auth.dart' as app_auth;
-import 'package:charms/screens/auth_screen.dart';
+//import 'package:charms/providers/auth.dart' as app_auth;
+//import 'package:charms/screens/auth_screen.dart';
+import 'package:charms/utils/logout_helper.dart';
 
 class LeaveDashboardScreen extends StatefulWidget {
   final String username;
@@ -378,16 +379,7 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
   }
 
   Future<void> _logout() async {
-  // Clear auth state
-  await Provider.of<app_auth.Auth>(context, listen: false).logout();
-
-  if (!mounted) return;
-
-  // Navigate to auth screen and remove all routes
-  Navigator.of(context).pushAndRemoveUntil(
-    MaterialPageRoute(builder: (_) => const AuthScreen()),
-    (route) => false,
-  );
+  await LogoutHelper.fullLogout(context);
 }
   void _onItemTapped(int index) {
     setState(() => _selectedIndex = index);
@@ -486,7 +478,7 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
           ),
           IconButton(
             icon: const Icon(Icons.logout_rounded),
-            tooltip: 'Logout',
+            tooltip: 'Back to Login',
             onPressed: _logout,
           ),
           const SizedBox(width: 8),

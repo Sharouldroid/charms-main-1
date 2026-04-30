@@ -7,12 +7,15 @@ import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/staff_myself_screen.dart';
 import 'package:charms/HRwidgets/staff/bottom_nav_staff.dart';
 import 'package:charms/HRwidgets/staff/proof_attachment.dart';
-import 'package:charms/screens/dashboard_screen.dart';
+//import 'package:charms/screens/dashboard_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:charms/HRscreens/staff/staff_notification_screen.dart';
 import 'package:charms/HRproviders/leaves.dart';
 import 'package:charms/HRproviders/schedules.dart';
+//import 'package:charms/providers/auth.dart' as app_auth;
+//import 'package:charms/screens/auth_screen.dart';
+import 'package:charms/utils/logout_helper.dart';
 
 class ClaimDashboardScreen extends StatefulWidget {
   final String username;
@@ -57,11 +60,8 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
   }
 
   Future<void> _logout() async {
-    Navigator.of(context).pushNamedAndRemoveUntil(
-      DashboardScreen.routeName,
-      (route) => false,
-    );
-  }
+  await LogoutHelper.fullLogout(context);
+}
 
   // ✅ Staff can only cancel their own pending claims
   Future<void> _deleteClaim(Claim claim) async {
@@ -483,7 +483,7 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
           ),
           IconButton(
             icon: const Icon(Icons.logout_rounded),
-            tooltip: 'Logout',
+            tooltip: 'Back to Login',
             onPressed: _logout,
           ),
           const SizedBox(width: 8),

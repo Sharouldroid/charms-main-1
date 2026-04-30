@@ -8,6 +8,7 @@ import 'package:flutter/widgets.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:charms/constants/user_roles.dart';
 
 import '../models/user.dart';
 
@@ -37,18 +38,22 @@ class Auth with ChangeNotifier {
   Timer _authTimer = Timer(const Duration(hours: 0), () {});
   String _username = '';
 
+  // Flag: true when the user authenticated via HR DB fallback.
+  // DashboardScreen checks this to skip main-DB fetches that would 404.
+  bool _isHRUser = false;
+
   // normalized host (no trailing slash)
   String get _host => AppConfig.hostname.replaceAll(RegExp(r'\/+$'), '');
 
   String get hostname => _host;
-
   String get username => _username;
-
   bool get isAuth => token != null;
-
   String? get token => _token;
-
   int get usertype => _usertype;
+
+  /// True when the current session was authenticated via the HR DB fallback.
+  /// Use this in DashboardScreen to skip `fetchIndividual` (main DB only).
+  bool get isHRUser => UserRoles.hrAdmin.contains(_usertype);
 
   int? get userId {
     if (_token == null) return null;
@@ -56,12 +61,11 @@ class Auth with ChangeNotifier {
   }
 
   Future<void> authenticate(String username, String passkey) async {
-    final url = Uri.parse('$_host/api/users/login');
-    print('LOGIN URL: $url');
+    final mainUrl = Uri.parse('$_host/api/users/login');
 
     try {
-      final response = await http.post(
-        url,
+      final mainResponse = await http.post(
+        mainUrl,
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
@@ -69,12 +73,12 @@ class Auth with ChangeNotifier {
         body: jsonEncode({'username': username, 'passkey': passkey}),
       );
 
-      print('LOGIN STATUS: ${response.statusCode}');
-      print('LOGIN BODY: ${response.body}');
+      print('MAIN LOGIN STATUS: ${mainResponse.statusCode}');
+      print('MAIN LOGIN BODY: ${mainResponse.body}');
 
-      final responseData = jsonDecode(response.body);
-
-      if (response.statusCode == 200) {
+      // ── Main DB success ──────────────────────────────────────────
+      if (mainResponse.statusCode == 200) {
+        final responseData = jsonDecode(mainResponse.body);
         final userData = responseData['user'];
         final status = userData['status'] ?? 'approved';
 
@@ -84,36 +88,95 @@ class Auth with ChangeNotifier {
           throw HttpException('account_status_unknown');
         }
 
-        _token = responseData['user']['userid'].toString();
-        _username = responseData['user']['username'];
-        _usertype = responseData['user']['usertype'];
+        _token = userData['userid'].toString();
+        _username = userData['username'];
+        _usertype = userData['usertype'];
+        _isHRUser = false; // main DB user — normal dashboard fetches apply
         _expiryDate = DateTime.now().add(const Duration(minutes: 30));
+
+        // ── DEBUG: main DB login ──────────────────────────────────
+        debugPrint('=== AUTH SUCCESS (MAIN DB) ===');
+        debugPrint('username: $_username');
+        debugPrint('usertype: $_usertype');
+        debugPrint('token: $_token');
+        debugPrint('isHRUser: $_isHRUser');
+        // ─────────────────────────────────────────────────────────
 
         _autoLogout();
         notifyListeners();
-
-        final prefs = await SharedPreferences.getInstance();
-        final userData2 = json.encode({
-          'token': _token,
-          'usertype': _usertype,
-          'username': _username,
-          'expiryDate': _expiryDate.toIso8601String(),
-        });
-        await prefs.setString('userData', userData2);
-      } else {
-        if (response.statusCode == 401) {
-          throw HttpException('invalid_credentials');
-        } else if (response.statusCode == 404) {
-          throw HttpException('user_not_found');
-        } else {
-          throw HttpException(responseData['message'] ?? 'Authentication failed');
-        }
+        await _savePrefs();
+        return;
       }
+
+      // ── Main DB failed with 401 → try HR DB ──────────────────────
+      if (mainResponse.statusCode == 401) {
+        final hrUrl =
+            Uri.parse('https://devcms.com.my/charmsAPI/api/user/auth');
+        final hrResponse = await http.post(
+          hrUrl,
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+          },
+          body: jsonEncode({'username': username, 'password': passkey}),
+        );
+
+        print('HR LOGIN STATUS: ${hrResponse.statusCode}');
+        print('HR LOGIN BODY: ${hrResponse.body}');
+
+        if (hrResponse.statusCode == 200) {
+          final hrData = jsonDecode(hrResponse.body);
+          if (hrData['success'] == true) {
+            final data = hrData['data'];
+            _token = (data['id'] ?? data['userid']).toString();
+            _username = data['username'] ?? username;
+            _usertype = int.tryParse(data['usertype'].toString()) ?? 2;
+            _isHRUser = true; // HR DB user — skip main-DB-only fetches
+            _expiryDate = DateTime.now().add(const Duration(minutes: 30));
+
+            // ── DEBUG: HR DB login ──────────────────────────────────
+            debugPrint('=== AUTH SUCCESS (HR DB) ===');
+            debugPrint('username: $_username');
+            debugPrint('usertype: $_usertype');
+            debugPrint('token: $_token');
+            debugPrint('isHRUser: $_isHRUser');
+            // ─────────────────────────────────────────────────────────
+
+            _autoLogout();
+            notifyListeners();
+            await _savePrefs();
+            return;
+          }
+        }
+
+        // HR DB also failed
+        throw HttpException('invalid_credentials');
+      }
+
+      // ── Other error codes ────────────────────────────────────────
+      if (mainResponse.statusCode == 404) throw HttpException('user_not_found');
+      final responseData = jsonDecode(mainResponse.body);
+      throw HttpException(responseData['message'] ?? 'Authentication failed');
     } on http.ClientException catch (e) {
       throw SocketException('Network error: ${e.message}');
     } catch (e) {
       rethrow;
     }
+  }
+
+  // ── Save prefs helper ────────────────────────────────────────────
+  Future<void> _savePrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      'userData',
+      json.encode({
+        'token': _token,
+        'usertype': _usertype,
+        'username': _username,
+        'expiryDate': _expiryDate.toIso8601String(),
+        'isHRUser': _isHRUser, // persisted so it survives app restarts
+      }),
+    );
   }
 
   Future<Map<String, dynamic>?> register(User newUser) async {
@@ -170,6 +233,7 @@ class Auth with ChangeNotifier {
     _token = null;
     _usertype = 0;
     _username = '';
+    _isHRUser = false; // reset HR flag on logout
     _expiryDate = DateTime.now();
 
     if (_authTimer.isActive) {
@@ -183,7 +247,25 @@ class Auth with ChangeNotifier {
   }
 
   Future<bool> tryAutoLogin() async {
-    return false;
+    final prefs = await SharedPreferences.getInstance();
+
+    if (!prefs.containsKey('userData')) return false;
+
+    final extractedData =
+        json.decode(prefs.getString('userData')!) as Map<String, dynamic>;
+
+    final expiryDate = DateTime.parse(extractedData['expiryDate'] as String);
+    if (expiryDate.isBefore(DateTime.now())) return false;
+
+    _token = extractedData['token'] as String?;
+    _usertype = extractedData['usertype'] as int? ?? 2;
+    _username = extractedData['username'] as String? ?? '';
+    _isHRUser = extractedData['isHRUser'] == true; // restore HR flag
+    _expiryDate = expiryDate;
+
+    _autoLogout();
+    notifyListeners();
+    return true;
   }
 
   void _autoLogout() {
@@ -236,6 +318,7 @@ class Auth with ChangeNotifier {
       _token = responseData['user']['userid'].toString();
       _username = responseData['user']['username'];
       _usertype = responseData['user']['usertype'];
+      _isHRUser = false; // social login goes through main DB
       _expiryDate = DateTime.now().add(const Duration(minutes: 30));
 
       _autoLogout();
@@ -256,6 +339,7 @@ class Auth with ChangeNotifier {
         'username': _username,
         'expiryDate': _expiryDate.toIso8601String(),
         'isSocial': true,
+        'isHRUser': _isHRUser, // always false for social, but kept consistent
       }),
     );
   }

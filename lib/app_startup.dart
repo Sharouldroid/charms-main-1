@@ -6,6 +6,7 @@ import 'package:charms/providers/auth.dart';
 import 'package:charms/services/connectivity_service.dart';
 import 'package:charms/services/version_service.dart';
 import 'package:charms/services/app_config.dart';
+import 'package:http/http.dart' as http;
 
 class AppStartup {
   static Future<void> initialize(Auth auth) async {
@@ -16,7 +17,7 @@ class AppStartup {
       _initConfig(),
       _initStripe(),
       _initOrientation(),
-      _initVersionService(),
+      _initVersionService(auth),
       auth.tryAutoLogin(),
     ]);
   }
@@ -28,7 +29,7 @@ class AppStartup {
   static Future<void> _initStripe() async {
     try {
       // This uses the key from consts.dart
-      Stripe.publishableKey = stripePublishableKey; 
+      Stripe.publishableKey = stripePublishableKey;
       await Stripe.instance.applySettings();
       debugPrint('🚀 Stripe initialized in background.');
     } catch (e) {
@@ -43,20 +44,36 @@ class AppStartup {
     ]);
   }
 
-  static Future<void> _initVersionService() async {
-    try {
-      await VersionService().initialize();
-    } catch (e) {
-      debugPrint('⚠️ Version service initialization warning: $e');
+  static Future<void> _initVersionService(Auth auth) async {
+  try {
+    final hostname = auth.hostname;
+    if (hostname != null && hostname.isNotEmpty) {
+      final response = await http
+          .get(Uri.parse('$hostname/api/app-version'))
+          .timeout(const Duration(seconds: 3)); // ← reduce from 10 to 3
+
+      if (response.statusCode == 404) {
+        debugPrint('Version check skipped: 404');
+        return;
+      }
     }
+  } catch (e) {
+    debugPrint('Version check skipped: $e');
   }
+
+  try {
+    await VersionService().initialize();
+  } catch (e) {
+    debugPrint('Version service warning: $e');
+  }
+}
 
   // Check for updates and show dialog if needed
   static Future<void> checkForUpdates(BuildContext context) async {
     try {
       final versionService = VersionService();
       final hasUpdate = await versionService.checkForUpdate();
-      
+
       if (hasUpdate && context.mounted) {
         await VersionService.showUpdateDialog(
           context,

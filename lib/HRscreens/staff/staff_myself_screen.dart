@@ -13,7 +13,10 @@ import 'package:charms/HRscreens/staff/payroll_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/claim_dashboard.dart';
 import 'package:charms/HRscreens/staff/change_pass_screen.dart';
 import 'package:charms/HRwidgets/staff/bottom_nav_staff.dart';
-import 'package:charms/screens/dashboard_screen.dart';
+//import 'package:charms/screens/dashboard_screen.dart';
+//import 'package:charms/providers/auth.dart' as app_auth;
+//import 'package:charms/screens/auth_screen.dart';
+import 'package:charms/utils/logout_helper.dart';
 
 class StaffMySelfScreen extends StatefulWidget {
   const StaffMySelfScreen({super.key});
@@ -241,9 +244,8 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
   }
 
   Future<void> _logout() async {
-    Navigator.of(context)
-        .pushNamedAndRemoveUntil(DashboardScreen.routeName, (route) => false);
-  }
+  await LogoutHelper.fullLogout(context);
+}
 
   void _onItemTapped(int index) {
     if (index == _selectedIndex) return;
@@ -409,7 +411,7 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
           if (!_isEditing)
             IconButton(
               icon: const Icon(Icons.logout_rounded, color: Colors.white),
-              tooltip: 'Back to Dashboard',
+              tooltip: 'Back to Login',
               onPressed: _logout,
             ),
           const SizedBox(width: 8),

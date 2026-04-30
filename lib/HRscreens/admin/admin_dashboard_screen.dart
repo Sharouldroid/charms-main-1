@@ -11,10 +11,12 @@ import 'package:charms/HRscreens/admin/schedule_list_screen.dart';
 import 'package:charms/HRscreens/admin/myself_screen.dart';
 import 'package:charms/HRwidgets/admin/bottom_nav_bar.dart';
 import 'package:charms/screens/dashboard_screen.dart';
+import 'package:charms/providers/auth.dart' as app_auth;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
+import 'package:charms/utils/logout_helper.dart';
 
 class AdminDashboard extends StatelessWidget {
   final String username;
@@ -41,7 +43,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   int onLeaveCount = 0;
   int todayAttendance = 0;
   int pendingPayroll = 0;
-  int pendingClaims = 0; // ✅ new
+  int pendingClaims = 0;
   String lastLoginTime = '';
   bool isLoading = true;
 
@@ -51,7 +53,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     'UMT': 0,
   };
 
-  // Modern Color Palette Constants
   final Color bgColor = const Color(0xFFF4F7FA);
   final Color primaryBlue = const Color(0xFF2563EB);
 
@@ -85,7 +86,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final currentDate = DateTime.now();
       final formattedDate = DateFormat('yyyy-MM-dd').format(currentDate);
       final attendances = await attendancesProvider.getAllAttendances();
-      await paymentsProvider.fetchPaymentsByMonth(currentDate.year, currentDate.month);
+      await paymentsProvider.fetchPaymentsByMonth(
+          currentDate.year, currentDate.month);
 
       if (!mounted) return;
       setState(() {
@@ -97,7 +99,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
         todayAttendance = attendances
             .where((attendance) =>
-                DateTime.parse(attendance['clock_in_time']).day == currentDate.day)
+                DateTime.parse(attendance['clock_in_time']).day ==
+                currentDate.day)
             .length;
 
         pendingPayroll = totalEmployees -
@@ -139,10 +142,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Future<void> _logout() async {
-    Navigator.of(context).pushNamedAndRemoveUntil(
-      DashboardScreen.routeName,
-      (route) => false,
-    );
+    await LogoutHelper.fullLogout(context);
   }
 
   void _onItemTapped(int index) {
@@ -175,20 +175,140 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
+  void _showSwitchMenu() {
+    final appAuth = Provider.of<app_auth.Auth>(context, listen: false);
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const Text(
+                'Switch View',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1E293B),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Option 1 — Staff Mode
+              ListTile(
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                tileColor: Colors.green.shade50,
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade100,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.badge_outlined,
+                      color: Colors.green, size: 22),
+                ),
+                title: const Text(
+                  'Staff Mode',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1E293B)),
+                ),
+                subtitle: const Text('View as a staff member'),
+                trailing: const Icon(Icons.chevron_right, color: Colors.green),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  // ── pushAndRemoveUntil clears entire stack ──
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          StaffDashboardScreen(username: widget.username),
+                    ),
+                    (route) => false,
+                  );
+                },
+              ),
+              const SizedBox(height: 10),
+
+              // Option 2 — CHARMS Main Dashboard
+              ListTile(
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                tileColor: Colors.blue.shade50,
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade100,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.dashboard_outlined,
+                      color: Colors.blue, size: 22),
+                ),
+                title: const Text(
+                  'CHARMS Dashboard',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1E293B)),
+                ),
+                subtitle: const Text('Back to main app dashboard'),
+                trailing: const Icon(Icons.chevron_right, color: Colors.blue),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  // ── pushAndRemoveUntil clears entire stack ──
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(
+                      builder: (_) => DashboardScreen(
+                        userid: appAuth.userId ?? 0,
+                        usertype: appAuth.usertype,
+                        hostname: appAuth.hostname,
+                      ),
+                    ),
+                    (route) => false,
+                  );
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: bgColor, // Modern light grey background
+      backgroundColor: bgColor,
       extendBody: true,
       appBar: AppBar(
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         automaticallyImplyLeading: false,
-        title: const Text('CHARMS ADMIN',
-            style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2)),
+        title: const Text(
+          'CHARMS ADMIN',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.2,
+          ),
+        ),
         centerTitle: true,
         backgroundColor: primaryBlue,
         shape: const RoundedRectangleBorder(
@@ -198,17 +318,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.swap_horiz),
-            tooltip: 'Switch to Staff Mode',
-            onPressed: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (_) =>
-                      StaffDashboardScreen(username: widget.username),
-                ),
-              );
-            },
+            icon: const Icon(Icons.compare_arrows_rounded),
+            tooltip: 'Switch View',
+            onPressed: _showSwitchMenu,
           ),
           Consumer3<Leaves, Payments, Claims>(
             builder: (context, leaves, payments, claims, child) {
@@ -218,7 +330,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   payments.payments.where((p) => p.status == 'Pending').length;
               int pendingClaimsCount =
                   claims.claims.where((c) => c.status == 'Pending').length;
-
               int totalPending =
                   pendingLeaves + pendingPayrolls + pendingClaimsCount;
 
@@ -227,7 +338,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     ? Badge(
                         label: Text(totalPending.toString()),
                         backgroundColor: Colors.redAccent,
-                        child: const Icon(Icons.notifications_none_rounded, size: 26),
+                        child: const Icon(
+                            Icons.notifications_none_rounded, size: 26),
                       )
                     : const Icon(Icons.notifications_none_rounded, size: 26),
                 onPressed: () {
@@ -242,7 +354,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.logout_rounded),
-            tooltip: 'Back to Dashboard',
+            tooltip: 'Back to Login',
             onPressed: _logout,
           ),
           const SizedBox(width: 8),
@@ -267,34 +379,35 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start, // Keeps the rest of the page layout structured
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ✅ Wrapped greeting and login time in a Center widget
               Center(
                 child: Column(
                   children: [
                     Text(
-                      "Welcome back,\n${widget.username} 👋", // Added emoji here
-                      textAlign: TextAlign.center, // Ensures the multi-line text is centered
+                      "Welcome back,\n${widget.username} 👋",
+                      textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF1E293B), // Dark slate color
+                        color: Color(0xFF1E293B),
                         height: 1.2,
                       ),
                     ),
                     const SizedBox(height: 6),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.center, // Centers the icon and text
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.access_time_rounded, size: 16, color: Colors.grey),
+                        const Icon(Icons.access_time_rounded,
+                            size: 16, color: Colors.grey),
                         const SizedBox(width: 4),
                         Text(
                           "Last Login: $lastLoginTime",
                           style: const TextStyle(
-                              color: Colors.grey,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500),
+                            color: Colors.grey,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ],
                     ),
@@ -303,7 +416,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Row 1 — Total Employees & Leave Pending
               Row(
                 children: [
                   Expanded(
@@ -327,7 +439,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ),
               const SizedBox(height: 12),
 
-              // Row 2 — Today's Attendance & Payroll Pending
               Row(
                 children: [
                   Expanded(
@@ -351,7 +462,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ),
               const SizedBox(height: 12),
 
-              // Row 3 — Claim Pending (Centered beautifully)
               Row(
                 children: [
                   const Spacer(flex: 1),
@@ -367,10 +477,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   const Spacer(flex: 1),
                 ],
               ),
-              
+
               const SizedBox(height: 32),
               _buildMovementCards(),
-              const SizedBox(height: 80), // Padding for Bottom Nav Bar
+              const SizedBox(height: 80),
             ],
           ),
         ),
@@ -421,18 +531,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ],
             ),
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               leading: Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: Colors.blue.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.location_on_rounded,
-                  size: 24,
-                  color: Colors.blue,
-                ),
+                child: const Icon(Icons.location_on_rounded,
+                    size: 24, color: Colors.blue),
               ),
               title: Text(
                 entry.key,
@@ -458,13 +566,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   color: Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  size: 16,
-                  color: Colors.blue,
-                ),
+                child: const Icon(Icons.arrow_forward_ios_rounded,
+                    size: 16, color: Colors.blue),
               ),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
               onTap: () {
                 Navigator.push(
                   context,
@@ -501,14 +607,14 @@ class SummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AspectRatio(
-      aspectRatio: 1.4, // Slightly tweaked for modern proportions
+      aspectRatio: 1.4,
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20), // Modern curved edges
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04), // Very soft shadow
+              color: Colors.black.withOpacity(0.04),
               blurRadius: 15,
               offset: const Offset(0, 5),
             ),
@@ -519,16 +625,15 @@ class SummaryCard extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Tinted background behind the icon
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.12), // Soft tint
+                  color: iconColor.withOpacity(0.12),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, size: 28, color: iconColor),
               ),
-              const SizedBox(height: 12), // ✅ Replaced Spacer with fixed SizedBox to center text
+              const SizedBox(height: 12),
               Text(
                 count.toString(),
                 style: const TextStyle(
@@ -546,7 +651,7 @@ class SummaryCard extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade600, // Muted subtitle color
+                  color: Colors.grey.shade600,
                 ),
               ),
             ],

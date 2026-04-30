@@ -19,6 +19,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
+import 'package:charms/HRproviders/auth.dart' as hr_auth;
 
 class MainDrawer extends StatelessWidget {
   const MainDrawer({
@@ -442,50 +443,39 @@ class MainDrawer extends StatelessWidget {
               ),
             ),
             onTap: () async {
-              // Show loading indicator
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder:
-                    (context) =>
-                        const Center(child: CircularProgressIndicator()),
-              );
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const Center(child: CircularProgressIndicator()),
+        );
 
-              try {
-                // Perform logout
-                await Provider.of<Auth>(context, listen: false).logout();
+        try {
+          // Clear BOTH auth providers
+          await Provider.of<Auth>(context, listen: false).logout();
+          await Provider.of<hr_auth.Auth>(context, listen: false).logout(); // ← add this
 
-                // Close the drawer
-                Navigator.of(context).pop();
+          Navigator.of(context).pop(); // close drawer
+          Navigator.of(context).pop(); // close loading
 
-                // Close loading indicator
-                Navigator.of(context).pop();
-
-                // DON'T clear secure storage - it wipes Remember Me credentials!
-                // await SecureStorageService.clearAll();
-
-                // Navigate to auth screen and clear all routes
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (context) => const AuthScreen()),
-                  (Route<dynamic> route) => false,
-                );
-              } catch (error) {
-                // Close loading indicator if still showing
-                if (Navigator.of(context).canPop()) {
-                  Navigator.of(context).pop();
-                }
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Logout failed: ${error.toString()}')),
-                );
-              }
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const AuthScreen()),
+            (Route<dynamic> route) => false,
+          );
+        } catch (error) {
+          if (Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
+          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Logout failed: ${error.toString()}')),
+          );
+        }
+      },
+                ),
+              ],
+            ),
+          );
+        }
+      }
 
 // Settings Page with Account Deletion prominently displayed
 class _SettingsPage extends StatelessWidget {

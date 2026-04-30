@@ -17,6 +17,7 @@ class Auth with ChangeNotifier {
   String _username = '';
 
   static const String _hostname = 'https://devcms.com.my/charmsAPI/api/';
+  static const String _prefsKey = 'hrUserData';
 
   String get username => _username;
   String get hostname => _hostname;
@@ -25,8 +26,11 @@ class Auth with ChangeNotifier {
   String? get userId => _userId;
   int get usertype => _usertype;
 
-  // Login
-  Future<int> authenticate(String username, String passkey) async {
+  // ── Login ─────────────────────────────────────────────────────────
+  // saveSession: false when called silently from auth_card.dart
+  // so it never writes hrUserData to prefs → tryAutoLogin stays clean
+  Future<int> authenticate(String username, String passkey,
+      {bool saveSession = true}) async {
     const url = '${_hostname}user/auth';
     final response = await http.post(
       Uri.parse(url),
@@ -45,26 +49,31 @@ class Auth with ChangeNotifier {
     if (response.statusCode == 200 && responseData['success'] == true) {
       final data = responseData['data'];
 
-      _token = responseData['token'] ?? '';
-      _userId = (data['id'] ?? data['userid']).toString();
+      _token    = responseData['token'] ?? '';
+      _userId   = (data['id'] ?? data['userid']).toString();
       _username = data['username'] ?? username;
       _usertype = data['usertype'] != null
           ? int.parse(data['usertype'].toString())
           : 2;
 
-      _expiryDate = DateTime.now().add(const Duration(hours: 3));
+      _expiryDate  = DateTime.now().add(const Duration(hours: 3));
       lastLoginTime = DateTime.now();
 
-      final prefs = await SharedPreferences.getInstance();
-      final userData = json.encode({
-        'token': _token,
-        'userId': _userId,
-        'usertype': _usertype,
-        'username': _username,
-        'expiryDate': _expiryDate.toIso8601String(),
-        'lastLoginTime': lastLoginTime?.toIso8601String(),
-      });
-      prefs.setString('userData', userData);
+      // ── Only persist when explicitly requested ───────────────────
+      if (saveSession) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(
+          _prefsKey,
+          json.encode({
+            'token':         _token,
+            'userId':        _userId,
+            'usertype':      _usertype,
+            'username':      _username,
+            'expiryDate':    _expiryDate.toIso8601String(),
+            'lastLoginTime': lastLoginTime?.toIso8601String(),
+          }),
+        );
+      }
 
       _autoLogout();
       notifyListeners();
@@ -85,196 +94,145 @@ class Auth with ChangeNotifier {
       },
       encoding: Encoding.getByName('utf-8'),
       body: jsonEncode({
-        'firstname': newUser.firstname,
-        'lastname': newUser.lastname,
-        'phone': newUser.phone,
-        'dob': newUser.dob,
-        'address1': newUser.address1,
-        'address2': newUser.address2,
-        'city': newUser.city,
-        'postcode': newUser.postcode,
-        'state': newUser.state,
-        'country': newUser.country,
-        'occupation': newUser.occupation,
-        'email': newUser.email,
-        'username': newUser.username,
-        'password': newUser.password,
-        'passkey': newUser.password,
-        'usertype': newUser.usertype,
-        'gender': newUser.gender,
-        'staff_id': newUser.staff_id,
-        'nationality': newUser.nationality,
-        'religion': newUser.religion,
+        'firstname':      newUser.firstname,
+        'lastname':       newUser.lastname,
+        'phone':          newUser.phone,
+        'dob':            newUser.dob,
+        'address1':       newUser.address1,
+        'address2':       newUser.address2,
+        'city':           newUser.city,
+        'postcode':       newUser.postcode,
+        'state':          newUser.state,
+        'country':        newUser.country,
+        'occupation':     newUser.occupation,
+        'email':          newUser.email,
+        'username':       newUser.username,
+        'password':       newUser.password,
+        'passkey':        newUser.password,
+        'usertype':       newUser.usertype,
+        'gender':         newUser.gender,
+        'staff_id':       newUser.staff_id,
+        'nationality':    newUser.nationality,
+        'religion':       newUser.religion,
         'marital_status': newUser.marital_status,
-        'office_phone': newUser.office_phone,
+        'office_phone':   newUser.office_phone,
       }),
     );
-
     notifyListeners();
   }
 
-  // ✅ Register staff (3-step) — now returns staffId (HR_staff.id)
+  // ── Register staff (3-step) ───────────────────────────────────────
   Future<int> registerStaff(Map<String, String> staffData) async {
-    const staffDataUrl = '${_hostname}staff/create';
-    const userUrl = '${_hostname}user/create';
+    const staffDataUrl    = '${_hostname}staff/create';
+    const userUrl         = '${_hostname}user/create';
     const staffProfileUrl = '${_hostname}staff/profile/create';
 
     try {
       // STEP 1: create HR_userdata
-      final staffPayload = {
-        'firstname': staffData['firstname'],
-        'lastname': staffData['lastname'],
-        'id_num': staffData['id_num'],
-        'phone': staffData['phone'],
-        'email': staffData['email'],
-        'dob': staffData['dob'],
-        'address1': staffData['address1'],
-        'address2': staffData['address2'],
-        'city': staffData['city'],
-        'postcode': staffData['postcode'],
-        'state': staffData['state'],
-        'country': staffData['country'],
-        'occupation': staffData['occupation'],
-        'gender': staffData['gender'],
-        'filename': staffData['filename'],
-      };
-
-      debugPrint('STAFF DATA CREATE URL: $staffDataUrl');
-      debugPrint('STAFF DATA CREATE PAYLOAD: ${jsonEncode(staffPayload)}');
-
       final staffRes = await http.post(
         Uri.parse(staffDataUrl),
-        headers: {
-          'Content-type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode(staffPayload),
+        headers: {'Content-type': 'application/json', 'Accept': 'application/json'},
+        body: jsonEncode({
+          'firstname':  staffData['firstname'],
+          'lastname':   staffData['lastname'],
+          'id_num':     staffData['id_num'],
+          'phone':      staffData['phone'],
+          'email':      staffData['email'],
+          'dob':        staffData['dob'],
+          'address1':   staffData['address1'],
+          'address2':   staffData['address2'],
+          'city':       staffData['city'],
+          'postcode':   staffData['postcode'],
+          'state':      staffData['state'],
+          'country':    staffData['country'],
+          'occupation': staffData['occupation'],
+          'gender':     staffData['gender'],
+          'filename':   staffData['filename'],
+        }),
       );
 
-      debugPrint('STAFF DATA CREATE STATUS: ${staffRes.statusCode}');
-      debugPrint('STAFF DATA CREATE RESPONSE: ${staffRes.body}');
-
+      debugPrint('STAFF CREATE STATUS: ${staffRes.statusCode}');
       if (staffRes.statusCode != 200 && staffRes.statusCode != 201) {
         throw Exception('Staff data creation failed: ${staffRes.body}');
       }
 
-      final staffJson = jsonDecode(staffRes.body);
-      final dynamic rawUserdataId = staffJson['data']?['id'] ?? staffJson['id'];
-      final int? createdUserdataId = rawUserdataId is int
-          ? rawUserdataId
-          : int.tryParse(rawUserdataId?.toString() ?? '');
-
-      if (createdUserdataId == null) {
-        throw Exception(
-            'Staff data created but id not returned: ${staffRes.body}');
-      }
+      final staffJson       = jsonDecode(staffRes.body);
+      final dynamic rawId   = staffJson['data']?['id'] ?? staffJson['id'];
+      final int? userdataId = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
+      if (userdataId == null) throw Exception('Staff id not returned: ${staffRes.body}');
 
       // STEP 2: create HR_userlogin
-      final cleanPass =
-          (staffData['passkey'] ?? staffData['password'] ?? '').trim();
-
-      final userPayload = {
-        'userid': createdUserdataId,
-        'username': staffData['username'],
-        'email': staffData['email'],
-        'usertype': staffData['usertype'],
-        'password': cleanPass,
-        'passkey': cleanPass,
-      };
-
-      debugPrint('USER CREATE URL: $userUrl');
-      debugPrint('USER CREATE PAYLOAD: ${jsonEncode(userPayload)}');
+      final cleanPass = (staffData['passkey'] ?? staffData['password'] ?? '').trim();
 
       final userRes = await http.post(
         Uri.parse(userUrl),
-        headers: {
-          'Content-type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode(userPayload),
+        headers: {'Content-type': 'application/json', 'Accept': 'application/json'},
+        body: jsonEncode({
+          'userid':   userdataId,
+          'username': staffData['username'],
+          'email':    staffData['email'],
+          'usertype': staffData['usertype'],
+          'password': cleanPass,
+          'passkey':  cleanPass,
+        }),
       );
 
       debugPrint('USER CREATE STATUS: ${userRes.statusCode}');
-      debugPrint('USER CREATE RESPONSE: ${userRes.body}');
-
       if (userRes.statusCode != 200 && userRes.statusCode != 201) {
         throw Exception('User creation failed: ${userRes.body}');
       }
 
       // STEP 3: create HR_staff profile
-      final staffProfilePayload = {
-        'user_id': createdUserdataId,
-        'category': staffData['category'],
-        'nationality': staffData['nationality'],
-        'religion': staffData['religion'],
-        'marital_status': staffData['marital_status'],
-        'office_phone': staffData['office_phone'],
-        'emergency_name': staffData['emergency_name'],
-        'emergency_ic': staffData['emergency_ic'],
-        'emergency_relation': staffData['emergency_relation'],
-        'emergency_gender': staffData['emergency_gender'],
-        'emergency_phone': staffData['emergency_phone'],
-        'plain_password': cleanPass,
-      };
-
-      debugPrint('STAFF PROFILE CREATE URL: $staffProfileUrl');
-      debugPrint(
-          'STAFF PROFILE CREATE PAYLOAD: ${jsonEncode(staffProfilePayload)}');
-
-      final staffProfileRes = await http.post(
+      final profileRes = await http.post(
         Uri.parse(staffProfileUrl),
-        headers: {
-          'Content-type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode(staffProfilePayload),
+        headers: {'Content-type': 'application/json', 'Accept': 'application/json'},
+        body: jsonEncode({
+          'user_id':            userdataId,
+          'category':           staffData['category'],
+          'nationality':        staffData['nationality'],
+          'religion':           staffData['religion'],
+          'marital_status':     staffData['marital_status'],
+          'office_phone':       staffData['office_phone'],
+          'emergency_name':     staffData['emergency_name'],
+          'emergency_ic':       staffData['emergency_ic'],
+          'emergency_relation': staffData['emergency_relation'],
+          'emergency_gender':   staffData['emergency_gender'],
+          'emergency_phone':    staffData['emergency_phone'],
+          'plain_password':     cleanPass,
+        }),
       );
 
-      debugPrint('STAFF PROFILE CREATE STATUS: ${staffProfileRes.statusCode}');
-      debugPrint('STAFF PROFILE CREATE RESPONSE: ${staffProfileRes.body}');
-
-      if (staffProfileRes.statusCode != 200 &&
-          staffProfileRes.statusCode != 201) {
-        throw Exception(
-            'Staff profile creation failed: ${staffProfileRes.body}');
+      debugPrint('PROFILE CREATE STATUS: ${profileRes.statusCode}');
+      if (profileRes.statusCode != 200 && profileRes.statusCode != 201) {
+        throw Exception('Staff profile creation failed: ${profileRes.body}');
       }
 
-      // ✅ Get the HR_staff.id from step 3 response — this is what uploadStaffPhoto needs
-      final staffProfileJson = jsonDecode(staffProfileRes.body);
-      final dynamic rawStaffId =
-          staffProfileJson['data']?['id'] ?? staffProfileJson['id'];
-      final int? createdStaffId = rawStaffId is int
-          ? rawStaffId
-          : int.tryParse(rawStaffId?.toString() ?? '');
-
-      if (createdStaffId == null) {
-        throw Exception(
-            'Staff profile created but staff id not returned: ${staffProfileRes.body}');
-      }
+      final profileJson      = jsonDecode(profileRes.body);
+      final dynamic rawSid   = profileJson['data']?['id'] ?? profileJson['id'];
+      final int? staffId     = rawSid is int ? rawSid : int.tryParse(rawSid?.toString() ?? '');
+      if (staffId == null) throw Exception('Staff profile id not returned: ${profileRes.body}');
 
       notifyListeners();
-      return createdStaffId; // ✅ return HR_staff.id for photo upload
+      return staffId;
     } catch (error) {
-      debugPrint('Error during registerStaff: $error');
+      debugPrint('registerStaff error: $error');
       rethrow;
     }
   }
 
+  // ── tryAutoLogin ──────────────────────────────────────────────────
   Future<bool> tryAutoLogin() async {
     final prefs = await SharedPreferences.getInstance();
-    if (!prefs.containsKey('userData')) return false;
+    if (!prefs.containsKey(_prefsKey)) return false;
 
-    final extractedData =
-        json.decode(prefs.getString('userData')!) as Map<String, Object>;
-
-    final expiryDate =
-        DateTime.parse(extractedData['expiryDate'].toString());
+    final extractedData = json.decode(prefs.getString(_prefsKey)!) as Map<String, dynamic>;
+    final expiryDate    = DateTime.parse(extractedData['expiryDate'].toString());
     if (expiryDate.isBefore(DateTime.now())) return false;
 
-    _token = extractedData['token'].toString();
-    _userId = extractedData['userId']?.toString();
-    _usertype = int.parse(extractedData['usertype'].toString());
-    _username = extractedData['username'].toString();
+    _token    = extractedData['token']?.toString();
+    _userId   = extractedData['userId']?.toString();
+    _usertype = int.tryParse(extractedData['usertype'].toString()) ?? 2;
+    _username = extractedData['username']?.toString() ?? '';
     lastLoginTime = DateTime.now();
 
     notifyListeners();
@@ -282,9 +240,10 @@ class Auth with ChangeNotifier {
     return true;
   }
 
+  // ── Logout ────────────────────────────────────────────────────────
   Future<void> logout() async {
-    _token = '';
-    _userId = '';
+    _token    = '';
+    _userId   = '';
     _usertype = 0;
     _username = '';
     _expiryDate = DateTime.now();
@@ -293,7 +252,7 @@ class Auth with ChangeNotifier {
     notifyListeners();
 
     final prefs = await SharedPreferences.getInstance();
-    prefs.clear();
+    await prefs.remove(_prefsKey); // only removes HR key
   }
 
   void _autoLogout() {

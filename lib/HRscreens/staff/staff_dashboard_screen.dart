@@ -7,7 +7,6 @@ import 'package:charms/HRproviders/staffs.dart';
 import 'package:charms/HRproviders/schedules.dart';
 import 'package:charms/HRmodels/staff.dart';
 import 'package:charms/HRmodels/schedule.dart';
-import 'package:charms/screens/dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/leave_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/payroll_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/claim_dashboard.dart';
@@ -16,6 +15,9 @@ import 'package:charms/HRscreens/staff/staff_schedule_details_screen.dart';
 import 'package:charms/HRwidgets/staff/bottom_nav_staff.dart';
 import 'package:charms/HRscreens/staff/staff_notification_screen.dart';
 import 'package:charms/HRscreens/admin/admin_dashboard_screen.dart';
+import 'package:charms/constants/user_roles.dart';
+import 'package:charms/HRproviders/auth.dart' as hr_auth;
+import 'package:charms/utils/logout_helper.dart'; // ← replaces inline logout
 
 class StaffDashboardScreen extends StatefulWidget {
   final String username;
@@ -70,6 +72,9 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
       final schedulesProvider = Provider.of<Schedules>(context, listen: false);
       final leavesProvider = Provider.of<Leaves>(context, listen: false);
       final claimsProvider = Provider.of<Claims>(context, listen: false);
+      final hrAuth = Provider.of<hr_auth.Auth>(context, listen: false);
+      debugPrint('HR Auth token: ${hrAuth.token}');
+      debugPrint('HR Auth username: ${hrAuth.username}');
 
       await Future.wait([
         staffsProvider.fetchStaff(),
@@ -149,11 +154,11 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
     );
   }
 
+  /// Full logout — clears BOTH app_auth and hr_auth, then goes to AuthScreen.
+  /// Uses LogoutHelper so the stack is fully cleared and no stale screen
+  /// remains underneath after the next login.
   Future<void> _logout() async {
-    Navigator.of(context).pushNamedAndRemoveUntil(
-      DashboardScreen.routeName,
-      (route) => false,
-    );
+    await LogoutHelper.fullLogout(context);
   }
 
   String formatDateTime(DateTime dateTime) {
@@ -183,15 +188,17 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
         title: const Text(
           'STAFF PORTAL',
           style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.2),
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.2,
+          ),
         ),
         centerTitle: true,
         backgroundColor: staffPrimary,
         actions: [
-          // Switch to Admin Mode (only for admins)
-          if (_currentStaff != null && _currentStaff!.usertype == 6)
+          // Switch to Admin Mode (only for HR admins)
+          if (_currentStaff != null &&
+              UserRoles.hrAdmin.contains(_currentStaff!.usertype))
             IconButton(
               icon: const Icon(Icons.admin_panel_settings_rounded),
               tooltip: 'Switch to Admin Mode',
@@ -331,7 +338,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Section label — sits cleanly on white background ─────────────
+        // ── Section label ─────────────────────────────────────────────────
         Padding(
           padding:
               const EdgeInsets.only(left: 24, right: 24, top: 20, bottom: 8),
@@ -356,9 +363,10 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                       Text(
                         'No upcoming schedules',
                         style: TextStyle(
-                            color: Colors.grey.shade500,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500),
+                          color: Colors.grey.shade500,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ],
                   ),
@@ -385,8 +393,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                         borderRadius: BorderRadius.circular(16),
                         onTap: () async {
                           final attendanceProvider =
-                              Provider.of<Attendances>(context,
-                                  listen: false);
+                              Provider.of<Attendances>(context, listen: false);
 
                           final isClockIn =
                               await attendanceProvider.checkAttendance(
@@ -467,9 +474,10 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
 
                             // Vertical divider
                             Container(
-                                width: 1,
-                                height: 60,
-                                color: staffCardBorder),
+                              width: 1,
+                              height: 60,
+                              color: staffCardBorder,
+                            ),
 
                             // ── Right content block ───────────────────────
                             Expanded(

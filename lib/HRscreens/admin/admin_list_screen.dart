@@ -10,7 +10,8 @@ import 'package:charms/HRscreens/admin/notification_screen.dart';
 import 'package:charms/HRwidgets/admin/bottom_nav_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:charms/screens/dashboard_screen.dart';
+//import 'package:charms/HRproviders/auth.dart' as hr_auth;
+import 'package:charms/utils/logout_helper.dart'; // ← replaces inline logout
 
 class AdminListScreen extends StatefulWidget {
   final String username;
@@ -68,11 +69,9 @@ class _AdminListScreenState extends State<AdminListScreen> {
     }
   }
 
+  /// Full logout — clears both app_auth and hr_auth via LogoutHelper.
   Future<void> _logout() async {
-    Navigator.of(context).pushNamedAndRemoveUntil(
-      DashboardScreen.routeName,
-      (route) => false,
-    );
+    await LogoutHelper.fullLogout(context);
   }
 
   void _onItemTapped(int index) {
@@ -138,7 +137,8 @@ class _AdminListScreenState extends State<AdminListScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _dialogRow(Icons.account_circle_rounded, 'Username', admin.username),
+            _dialogRow(
+                Icons.account_circle_rounded, 'Username', admin.username),
             const SizedBox(height: 10),
             _dialogRow(Icons.email_rounded, 'Email', admin.email),
             const SizedBox(height: 10),
@@ -172,7 +172,8 @@ class _AdminListScreenState extends State<AdminListScreen> {
                     fontWeight: FontWeight.w600)),
             Text(value,
                 style: const TextStyle(
-                    fontSize: 14, fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
                     color: Color(0xFF1E293B))),
           ],
         ),
@@ -225,7 +226,8 @@ class _AdminListScreenState extends State<AdminListScreen> {
                   payments.payments.where((p) => p.status == 'Pending').length;
               int pendingClaims =
                   claims.claims.where((c) => c.status == 'Pending').length;
-              int totalPending = pendingLeaves + pendingPayrolls + pendingClaims;
+              int totalPending =
+                  pendingLeaves + pendingPayrolls + pendingClaims;
 
               return IconButton(
                 icon: totalPending > 0
@@ -248,7 +250,7 @@ class _AdminListScreenState extends State<AdminListScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.logout_rounded),
-            tooltip: 'Back to Dashboard',
+            tooltip: 'Back to Login',
             onPressed: _logout,
           ),
           const SizedBox(width: 8),
@@ -321,8 +323,8 @@ class _AdminListScreenState extends State<AdminListScreen> {
                               ),
                               const Spacer(),
                               GestureDetector(
-                                onTap: () =>
-                                    setState(() => _isAscending = !_isAscending),
+                                onTap: () => setState(
+                                    () => _isAscending = !_isAscending),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 14, vertical: 8),
@@ -416,7 +418,8 @@ class _AdminListScreenState extends State<AdminListScreen> {
                           ),
                         )
                       : SliverPadding(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                          padding:
+                              const EdgeInsets.fromLTRB(16, 0, 16, 100),
                           sliver: SliverList(
                             delegate: SliverChildBuilderDelegate(
                               (context, index) {
@@ -432,8 +435,8 @@ class _AdminListScreenState extends State<AdminListScreen> {
                                           BorderRadius.circular(16),
                                       boxShadow: [
                                         BoxShadow(
-                                          color:
-                                              Colors.black.withOpacity(0.04),
+                                          color: Colors.black
+                                              .withOpacity(0.04),
                                           blurRadius: 10,
                                           offset: const Offset(0, 4),
                                         ),
@@ -482,7 +485,8 @@ class _AdminListScreenState extends State<AdminListScreen> {
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 10, vertical: 4),
                                         decoration: BoxDecoration(
-                                          color: Colors.green.withOpacity(0.10),
+                                          color: Colors.green
+                                              .withOpacity(0.10),
                                           borderRadius:
                                               BorderRadius.circular(8),
                                         ),

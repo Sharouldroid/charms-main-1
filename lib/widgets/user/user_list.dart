@@ -5,6 +5,7 @@ import 'package:charms/widgets/user/view_user.dart';
 import 'package:flutter/material.dart';
 import 'package:overlay_support/overlay_support.dart';
 import 'package:provider/provider.dart';
+import 'package:charms/constants/user_roles.dart';
 
 class UserList extends StatelessWidget {
   const UserList({
@@ -18,22 +19,6 @@ class UserList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-String getRoleName(int userType) {
-  switch (userType) {
-    case 1: return 'Admin';
-    case 5: return 'Manager'; // Already exists, ensure it's here
-    case 3: return 'Researcher';
-    case 2: return 'Volunteer';
-    case 4: return 'Boat Owner';
-    case 7: return 'KPP Participant';
-    case 8: return 'Central Lab Officer';
-    case 9: return 'Marine Biologist'; // Add this line
-    case 10: return 'internCH';
-    case 11: return 'Turtle Ranger';
-    default: return 'Unknown Role';
-  }
-}
-
     return FutureBuilder(
       future: Provider.of<Users>(context, listen: false).fetchUser(hostname),
       builder: (context, snapshot) {
@@ -68,13 +53,14 @@ String getRoleName(int userType) {
                   onDismissed: (direction) {},
                   child: ExpansionTile(
                     title: Text(
-                        '${userData.userlist[i].firstname} ${userData.userlist[i].lastname}'),
+                      '${userData.userlist[i].firstname} ${userData.userlist[i].lastname}',
+                    ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Username: ${userData.userlist[i].username}'),
                         Text(
-                          'Role: ${getRoleName(userData.userlist[i].usertype)}',
+                          'Role: ${UserRoles.getRoleName(userData.userlist[i].usertype)}',
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             color: Colors.blueGrey,
@@ -102,13 +88,19 @@ String getRoleName(int userType) {
                       icon: const Icon(Icons.receipt_rounded),
                     ),
                     children:
-                        int.parse(user.id) != int.parse(userData.userlist[i].id)
+                        int.parse(user.id) !=
+                                int.parse(userData.userlist[i].id)
                             ? _buildRoleChangeButtons(
-                                context, user, userData.userlist[i], hostname)
+                                context,
+                                user,
+                                userData.userlist[i],
+                                hostname,
+                              )
                             : [
                                 const Padding(
                                   padding: EdgeInsets.all(8.0),
-                                  child: Text('Cannot change your own role.'),
+                                  child:
+                                      Text('Cannot change your own role.'),
                                 ),
                               ],
                   ),
@@ -130,22 +122,71 @@ String getRoleName(int userType) {
     List<Widget> buttons = [];
 
     final List<Map<String, dynamic>> roleOptions = [
-  {'role': 1, 'label': 'Admin', 'icon': Icons.admin_panel_settings},
-  {'role': 5, 'label': 'Manager (full)', 'icon': Icons.work_outline},
-  {'role': 3, 'label': 'Researcher', 'icon': Icons.search},
-  {'role': 2, 'label': 'Volunteer', 'icon': Icons.volunteer_activism},
-  {'role': 4, 'label': 'Boat Owner', 'icon': Icons.directions_boat},
-  {'role': 7, 'label': 'KPP Participant', 'icon': Icons.auto_fix_normal},
-  {'role': 8, 'label': 'Central Lab Officer', 'icon': Icons.local_library_rounded},
+      {
+        'role': UserRoles.superID,
+        'label': 'Super ID',
+        'icon': Icons.admin_panel_settings
+      },
+      {
+        'role': UserRoles.manager,
+        'label': 'Manager',
+        'icon': Icons.work_outline
+      },
+      {
+        'role': UserRoles.staffAdmin,
+        'label': 'Staff Admin',
+        'icon': Icons.manage_accounts
+      },
+      {
+        'role': UserRoles.staff,
+        'label': 'Staff',
+        'icon': Icons.badge
+      },
+      {
+        'role': UserRoles.centralLabOfficer,
+        'label': 'Central Lab Officer',
+        'icon': Icons.local_library_rounded
+      },
+      {
+        'role': UserRoles.marineBiologist,
+        'label': 'Marine Biologist',
+        'icon': Icons.water
+      },
+      {
+        'role': UserRoles.trainee,
+        'label': 'Intern / Trainee',
+        'icon': Icons.school
+      },
+      {
+        'role': UserRoles.researcher,
+        'label': 'Researcher',
+        'icon': Icons.search
+      },
+      {
+        'role': UserRoles.volunteer,
+        'label': 'Volunteer',
+        'icon': Icons.volunteer_activism
+      },
+      {
+        'role': UserRoles.boatOwner,
+        'label': 'Boat Owner',
+        'icon': Icons.directions_boat
+      },
+      {
+        'role': UserRoles.turtleRanger,
+        'label': 'Turtle Ranger',
+        'icon': Icons.nature
+      },
+    ];
 
-];
     for (var option in roleOptions) {
       if (currentUser.usertype <= option['role'] &&
           targetUser.usertype != option['role'] &&
-          targetUser.usertype != 1) {
+          targetUser.usertype != UserRoles.superID) {
         buttons.add(
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
+            padding:
+                const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
             child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -156,10 +197,12 @@ String getRoleName(int userType) {
                   option['role'] as int,
                   int.parse(targetUser.id),
                 );
+
                 showSimpleNotification(
                   Text(
-                    '${targetUser.firstname} ${targetUser.lastname} is now a ${option['label'].toString()}!',
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                    '${targetUser.firstname} ${targetUser.lastname} is now a ${option['label']}!',
+                    style: const TextStyle(
+                        color: Colors.white, fontSize: 16),
                   ),
                   duration: const Duration(seconds: 4),
                   background: Colors.green,
@@ -172,6 +215,7 @@ String getRoleName(int userType) {
         );
       }
     }
+
     return buttons;
   }
 }

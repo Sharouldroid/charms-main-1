@@ -26,21 +26,28 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:charms/admin_checklist_page.dart';
 import 'package:charms/notification_page.dart';
-import 'package:charms/utils/logout_helper.dart';
-import 'package:charms/HRscreens/login_screen.dart';
+//import 'package:charms/utils/logout_helper.dart';
+//import 'package:charms/HRscreens/login_screen.dart';
+import 'package:charms/providers/auth.dart' as app_auth;
+import 'package:charms/HRscreens/admin/admin_dashboard_screen.dart';
+import 'package:charms/constants/user_roles.dart';
 
 // --- CONTROLLER (Recent Activity) ---
 class RecentActivityController {
-  static final RecentActivityController _instance = RecentActivityController._internal();
+  static final RecentActivityController _instance =
+      RecentActivityController._internal();
   factory RecentActivityController() => _instance;
   RecentActivityController._internal();
 
-  Future<List<String>> fetchRecentActivities(String hostname, int userId) async {
-  try {
-    final base = hostname.replaceAll(RegExp(r'\/+$'), '');
-    final response = await http.get(
-      Uri.parse('$base/api/recent-activities?limit=5&userid=$userId'),
-    ).timeout(const Duration(seconds: 15));
+  Future<List<String>> fetchRecentActivities(
+      String hostname, int userId) async {
+    try {
+      final base = hostname.replaceAll(RegExp(r'\/+$'), '');
+      final response = await http
+          .get(
+            Uri.parse('$base/api/recent-activities?limit=5&userid=$userId'),
+          )
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         List data = json.decode(response.body);
@@ -81,19 +88,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _isLoading = true;
   User? userdata;
 
-// --- NEW: Variable to track if dialog has been shown ---
+  // Variable to track if dialog has been shown
   bool _dialogShown = false;
   bool _versionChecked = false;
-
-  
 
   late Future<List<String>> _recentActivitiesFuture;
 
   @override
   void initState() {
     super.initState();
-    _recentActivitiesFuture =
-    RecentActivityController().fetchRecentActivities(widget.hostname, widget.userid);
+    _recentActivitiesFuture = RecentActivityController()
+        .fetchRecentActivities(widget.hostname, widget.userid);
 
     // Check for app updates after widget is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -116,8 +121,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _isInit = false;
     }
 
-    // --- NEW: Check for Payment Reminder Argument ---
-    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    // Check for Payment Reminder Argument
+    final args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
 
     // Check if args exist, if 'showReminder' is true, and if we haven't shown it yet
     if (args != null && args['showReminder'] == true && !_dialogShown) {
@@ -128,10 +134,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _showReminderDialog();
       });
     }
-    // ------------------------------------------------
   }
 
-  // --- NEW: The Dialog Function ---
+  // The Dialog Function
   void _showReminderDialog() {
     showDialog(
       context: context,
@@ -146,8 +151,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         actions: [
           TextButton(
             onPressed: () {
-              // Remove the arguments so it doesn't show again if they navigate back/forth
-              // Note: In simple apps, just popping is usually enough as _dialogShown handles the state
               Navigator.of(ctx).pop();
             },
             child: const Text('OK'),
@@ -158,38 +161,62 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _fetchUser() async {
-  try {
-    final fetchedUser = await Provider.of<Users>(
-      context,
-      listen: false,
-    ).fetchIndividual(widget.hostname, widget.userid);
+    // HR users don't exist in main DB — skip fetch, use auth data directly
+    final appAuth = Provider.of<app_auth.Auth>(context, listen: false);
 
-    if (!mounted) return;
+    if (appAuth.isHRUser) {
+      setState(() {
+        // Build a minimal User object from auth data
+        userdata = User(
+          id: appAuth.token ?? '0',
+          firstname: appAuth.username,
+          lastname: '',
+          phone: '',
+          dob: '',
+          address1: '',
+          city: '',
+          postcode: 0,
+          state: '',
+          country: '',
+          occupation: '',
+          username: appAuth.username,
+          email: '',
+          password: '',
+          usertype: appAuth.usertype,
+          gender: 0,
+          idnum: '',
+        );
+        _isLoading = false;
+      });
+      return;
+    }
 
-    setState(() {
-      userdata = fetchedUser;
-      _isLoading = false;
-    });
-  } catch (e, st) {
-    debugPrint('DASHBOARD _fetchUser error: $e');
-    debugPrint('$st');
+    // Normal main DB fetch
+    try {
+      final fetchedUser = await Provider.of<Users>(
+        context,
+        listen: false,
+      ).fetchIndividual(widget.hostname, widget.userid);
 
-    if (!mounted) return;
-
-    setState(() {
-      _isLoading = false; // IMPORTANT: stop infinite spinner
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Failed to load profile: $e')),
-    );
+      if (!mounted) return;
+      setState(() {
+        userdata = fetchedUser;
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('DASHBOARD _fetchUser error: $e');
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load profile: $e')),
+      );
+    }
   }
-}
 
   void _refreshRecentActivities() {
     setState(() {
-    _recentActivitiesFuture =
-    RecentActivityController().fetchRecentActivities(widget.hostname, widget.userid);
+      _recentActivitiesFuture = RecentActivityController()
+          .fetchRecentActivities(widget.hostname, widget.userid);
     });
   }
 
@@ -199,12 +226,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   // --- Role Helpers ---
-  bool _isStaff() => [1, 6].contains(widget.usertype); // Excludes Manager (5) to hide other sections
-  bool _isAdmin() => widget.usertype == 1; // Excludes Manager (5)
-  bool _isBoatOwner() => widget.usertype == 4;
-  bool _isLabOfficer() => widget.usertype == 8;
-  bool _isManager() => widget.usertype == 5; // Manager Role
-  bool _isMarineBiologist() => widget.usertype == 9 || widget.usertype == 10 || widget.usertype == 11;
+  bool _isAdmin()          => UserRoles.hrAdmin.contains(widget.usertype);
+  bool _isStaff()          => UserRoles.hrAdmin.contains(widget.usertype);
+  bool _isManager()        => widget.usertype == UserRoles.manager;
+  bool _isBoatOwner()      => widget.usertype == UserRoles.boatOwner;
+  bool _isLabOfficer()     => widget.usertype == UserRoles.centralLabOfficer;
+  bool _isMarineBiologist() => widget.usertype == UserRoles.marineBiologist 
+                              || widget.usertype == UserRoles.trainee;
 
   // --- UI Builder: Single Dashboard Card ---
   Widget _buildDashboardCard({
@@ -269,7 +297,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required IconData icon,
     required List<Widget> children,
     bool initiallyExpanded = false,
-    bool forceExpansionTile = false, // <-- new parameter
+    bool forceExpansionTile = false,
   }) {
     if (children.isEmpty) return const SizedBox.shrink();
 
@@ -282,7 +310,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final bool useExpansionTile = _isStaff() || forceExpansionTile;
 
     if (!useExpansionTile) {
-      // For non‑staff and not forced: plain grid
+      // For non-staff and not forced: plain grid
       return Padding(
         padding: EdgeInsets.only(bottom: spacing),
         child: GridView.count(
@@ -317,8 +345,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
             initiallyExpanded: initiallyExpanded,
             backgroundColor: Colors.white,
             collapsedBackgroundColor: Colors.white,
-            tilePadding: EdgeInsets.symmetric(horizontal: tilePadding, vertical: 4),
-            leading: Icon(icon, color: Colors.grey[700], size: ResponsiveHelper.getIconSize(context)),
+            tilePadding:
+                EdgeInsets.symmetric(horizontal: tilePadding, vertical: 4),
+            leading: Icon(icon,
+                color: Colors.grey[700],
+                size: ResponsiveHelper.getIconSize(context)),
             title: Text(
               title.toUpperCase(),
               style: TextStyle(
@@ -328,7 +359,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 letterSpacing: 0.5,
               ),
             ),
-            childrenPadding: EdgeInsets.fromLTRB(tilePadding, 0, tilePadding, tilePadding),
+            childrenPadding: EdgeInsets.fromLTRB(
+                tilePadding, 0, tilePadding, tilePadding),
             children: [
               GridView.count(
                 physics: const NeverScrollableScrollPhysics(),
@@ -352,37 +384,43 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final cartI = Provider.of<OptionalItemCartOut>(context, listen: false);
     final cartG = Provider.of<GroupMembersOut>(context, listen: false);
 
-    if (_isLoading) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('CHARMS Dashboard')),
-      body: const Center(child: CircularProgressIndicator()),
-    );
-  }
+    // Read auth once for use in AppBar actions
+    final appAuth = Provider.of<app_auth.Auth>(context, listen: false);
 
-   if (userdata == null) {
-  return Scaffold(
-    appBar: AppBar(title: const Text('CHARMS Dashboard')),
-    body: Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text('Unable to load dashboard data.'),
-          const SizedBox(height: 12),
-          ElevatedButton(
-            onPressed: () {
-              setState(() => _isLoading = true);
-              _fetchUser();
-            },
-            child: const Text('Retry'),
+    if (_isLoading) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('CHARMS Dashboard')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (userdata == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('CHARMS Dashboard')),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Unable to load dashboard data.'),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() => _isLoading = true);
+                  _fetchUser();
+                },
+                child: const Text('Retry'),
+              ),
+            ],
           ),
-        ],
-      ),
-    ),
-  );
-}
+        ),
+      );
+    }
+
     String today = DateFormat('EEEE, d MMMM yyyy').format(DateTime.now());
 
-    final String initials = '${userdata!.firstname.isNotEmpty ? userdata!.firstname[0] : ''}${userdata!.lastname.isNotEmpty ? userdata!.lastname[0] : ''}'.toUpperCase();
+    final String initials =
+        '${userdata!.firstname.isNotEmpty ? userdata!.firstname[0] : ''}${userdata!.lastname.isNotEmpty ? userdata!.lastname[0] : ''}'
+            .toUpperCase();
 
     return ConnectivityAwareScaffold(
       backgroundColor: Colors.grey[50],
@@ -391,19 +429,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
         centerTitle: true,
         elevation: 0,
         actions: [
-  if (_isAdmin() || _isManager())
-    IconButton(
-      icon: const Icon(Icons.notifications),
-      onPressed: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => NotificationPage(userId: widget.userid,hostname: widget.hostname, ), // Use actual user ID
-          ),
-        );
-      },
-    ),
-],
+          // ── Switch to HR Dashboard (only visible for HR users) ──
+          if (appAuth.isHRUser)
+            IconButton(
+              icon: const Icon(Icons.admin_panel_settings_rounded),
+              tooltip: 'Switch to HR Dashboard',
+              onPressed: () {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(
+                    builder: (_) => AdminDashboardScreen(
+                      username: appAuth.username,
+                    ),
+                  ),
+                  (route) => false,
+                );
+              },
+            ),
+          // ── Notifications (admin and manager only) ──
+          if (_isAdmin() || _isManager())
+            IconButton(
+              icon: const Icon(Icons.notifications),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => NotificationPage(
+                      userId: widget.userid,
+                      hostname: widget.hostname,
+                    ),
+                  ),
+                );
+              },
+            ),
+        ],
       ),
       drawer: MainDrawer(
         userid: widget.userid,
@@ -416,7 +474,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         onRefresh: _refreshPage,
         child: Center(
           child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: ResponsiveHelper.getMaxContentWidth(context)),
+            constraints: BoxConstraints(
+                maxWidth: ResponsiveHelper.getMaxContentWidth(context)),
             child: ListView(
               padding: ResponsiveHelper.getResponsivePadding(context),
               children: [
@@ -424,7 +483,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 // 1. HEADER
                 // ===========================
                 Container(
-                  padding: EdgeInsets.all(ResponsiveHelper.isTablet(context) ? 20 : 16),
+                  padding: EdgeInsets.all(
+                      ResponsiveHelper.isTablet(context) ? 20 : 16),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
@@ -444,13 +504,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         child: Text(
                           initials,
                           style: TextStyle(
-                            fontSize: ResponsiveHelper.isTablet(context) ? 24 : 20,
+                            fontSize:
+                                ResponsiveHelper.isTablet(context) ? 24 : 20,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
                         ),
                       ),
-                      SizedBox(width: ResponsiveHelper.isTablet(context) ? 20 : 16),
+                      SizedBox(
+                          width:
+                              ResponsiveHelper.isTablet(context) ? 20 : 16),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -459,14 +522,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               'Welcome back,',
                               style: TextStyle(
                                 color: Colors.grey[600],
-                                fontSize: ResponsiveHelper.isTablet(context) ? 14 : 12,
+                                fontSize: ResponsiveHelper.isTablet(context)
+                                    ? 14
+                                    : 12,
                               ),
                             ),
                             Text(
                               userdata!.firstname,
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                fontSize: ResponsiveHelper.isTablet(context) ? 22 : 18,
+                                fontSize: ResponsiveHelper.isTablet(context)
+                                    ? 22
+                                    : 18,
                                 color: Colors.black87,
                               ),
                               maxLines: 1,
@@ -476,7 +543,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               today,
                               style: TextStyle(
                                 color: Theme.of(context).primaryColor,
-                                fontSize: ResponsiveHelper.isTablet(context) ? 14 : 12,
+                                fontSize: ResponsiveHelper.isTablet(context)
+                                    ? 14
+                                    : 12,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -613,22 +682,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       if (!_isBoatOwner())
                         _buildDashboardCard(
                           icon: Icons.assignment_outlined,
-                          title: _isStaff() ? 'Survey Management' : 'Survey',
+                          title: _isStaff()
+                              ? 'Survey Management'
+                              : 'Survey',
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder: (_) => _isStaff() || _isLabOfficer()
-                                  ? FeedbackAdminScreen(
-                                      isadmin: true,
-                                      user: userdata!,
-                                      hostname: widget.hostname,
-                                      isLabOfficer: _isLabOfficer(),
-                                    )
-                                  : FeedbackScreen(
-                                      isadmin: false,
-                                      user: userdata!,
-                                      hostname: widget.hostname,
-                                      volorres: widget.usertype == 2 ? 1 : 2,
-                                    ),
+                              builder: (_) =>
+                                  _isStaff() || _isLabOfficer()
+                                      ? FeedbackAdminScreen(
+                                          isadmin: true,
+                                          user: userdata!,
+                                          hostname: widget.hostname,
+                                          isLabOfficer: _isLabOfficer(),
+                                        )
+                                      : FeedbackScreen(
+                                          isadmin: false,
+                                          user: userdata!,
+                                          hostname: widget.hostname,
+                                          volorres:
+                                              widget.usertype == 2 ? 1 : 2,
+                                        ),
                             ),
                           ),
                         ),
@@ -699,32 +772,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     title: 'Maintenance & Safety',
                     icon: Icons.handyman_outlined,
                     initiallyExpanded: false,
-                    forceExpansionTile: true, // <-- added to force dropdown
+                    forceExpansionTile: true,
                     children: [
                       _buildDashboardCard(
                         icon: Icons.handyman_outlined,
                         title: 'Maintenance',
-                        onTap: () => Navigator.pushNamed(context, '/maintenance'),
+                        onTap: () =>
+                            Navigator.pushNamed(context, '/maintenance'),
                       ),
                       _buildDashboardCard(
                         icon: Icons.health_and_safety_outlined,
                         title: 'Safety',
-                        onTap: () => Navigator.pushNamed(context, '/safety'),
+                        onTap: () =>
+                            Navigator.pushNamed(context, '/safety'),
                       ),
                       _buildDashboardCard(
                         icon: Icons.apartment_outlined,
                         title: 'Facilities',
-                        onTap: () => Navigator.pushNamed(context, '/facilities'),
+                        onTap: () =>
+                            Navigator.pushNamed(context, '/facilities'),
                       ),
                       _buildDashboardCard(
                         icon: Icons.warning_amber_rounded,
                         title: 'Incident',
-                        onTap: () => Navigator.pushNamed(context, '/incident'),
+                        onTap: () =>
+                            Navigator.pushNamed(context, '/incident'),
                       ),
                       _buildDashboardCard(
                         icon: Icons.electrical_services,
                         title: 'Others (Boat/Genset)',
-                        onTap: () => Navigator.pushNamed(context, '/others_maintenance'),
+                        onTap: () => Navigator.pushNamed(
+                            context, '/others_maintenance'),
                       ),
                       // Hide Admin Verification from Marine Biologist
                       if (!_isMarineBiologist())
@@ -735,7 +813,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const AdminChecklistPage(),
+                                builder: (context) =>
+                                    const AdminChecklistPage(),
                               ),
                             );
                           },
@@ -755,34 +834,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       _buildDashboardCard(
                         icon: Icons.dashboard_customize_outlined,
                         title: 'Internship Dashboard',
-                        onTap: () => Navigator.pushNamed(context, '/internship'),
+                        onTap: () =>
+                            Navigator.pushNamed(context, '/internship'),
                       ),
                     ],
                   ),
 
                 // ===========================
-                // SECTION 6: HR MODULE (NEW)
+                // SECTION 6: HR MODULE
                 // ===========================
-                if (_isAdmin())
-                  _buildSmartSection(
-                    title: 'HR Management',
-                    icon: Icons.people_alt_outlined,
-                    initiallyExpanded: false,
-                    children: [
-                      _buildDashboardCard(
-                        icon: Icons.admin_panel_settings_outlined,
-                        title: 'HR Dashboard',
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const HRSelectionScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
+                // if (_isAdmin())
+                //   _buildSmartSection(
+                //     title: 'HR Management',
+                //     icon: Icons.people_alt_outlined,
+                //     initiallyExpanded: false,
+                //     children: [
+                //       _buildDashboardCard(
+                //         icon: Icons.admin_panel_settings_outlined,
+                //         title: 'HR Dashboard',
+                //         onTap: () {
+                //           Navigator.push(
+                //             context,
+                //             MaterialPageRoute(
+                //               builder: (context) =>
+                //                   const HRSelectionScreen(),
+                //             ),
+                //           );
+                //         },
+                //       ),
+                //     ],
+                //   ),
 
                 // SECTION 7: LOGISTIK (Bahan)
                 if (_isAdmin() || _isManager() || _isMarineBiologist())
@@ -790,12 +871,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     title: 'Logistik (Bahan Mentah & Kering)',
                     icon: Icons.inventory_2_outlined,
                     initiallyExpanded: false,
-                    forceExpansionTile: true, // <-- added to force dropdown
+                    forceExpansionTile: true,
                     children: [
                       _buildDashboardCard(
                         icon: Icons.list_alt_outlined,
                         title: 'Logistik (Bahan Mentah & Kering)',
-                        onTap: () => Navigator.pushNamed(context, '/list-bahan'),
+                        onTap: () =>
+                            Navigator.pushNamed(context, '/list-bahan'),
                       ),
                     ],
                   ),
@@ -811,10 +893,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     children: [
                       const Text(
                         'Recent Activity',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.w600),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.refresh, color: Colors.grey),
+                        icon:
+                            const Icon(Icons.refresh, color: Colors.grey),
                         onPressed: _refreshRecentActivities,
                         tooltip: 'Refresh Activity',
                       ),
@@ -825,8 +909,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   FutureBuilder<List<String>>(
                     future: _recentActivitiesFuture,
                     builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
+                      if (snapshot.connectionState ==
+                          ConnectionState.waiting) {
+                        return const Center(
+                            child: CircularProgressIndicator());
                       }
 
                       if (snapshot.hasError) {
@@ -841,11 +927,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             color: const Color(0xFFB9C4CA),
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          child: Row(
-                            children: const [
-                              Icon(Icons.info_outline, color: Colors.black87),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.info_outline,
+                                  color: Colors.black87),
                               SizedBox(width: 10),
-                              Text("No recent activities", style: TextStyle(fontSize: 16)),
+                              Text("No recent activities",
+                                  style: TextStyle(fontSize: 16)),
                             ],
                           ),
                         );
@@ -869,10 +957,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.check_circle, color: Colors.green, size: 26),
+                                const Icon(Icons.check_circle,
+                                    color: Colors.green, size: 26),
                                 const SizedBox(width: 12),
                                 Expanded(
-                                  child: Text(activity, style: const TextStyle(fontSize: 16)),
+                                  child: Text(activity,
+                                      style:
+                                          const TextStyle(fontSize: 16)),
                                 ),
                               ],
                             ),
@@ -887,7 +978,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Center(
                   child: Text(
                     '© 2024 CHARMS System',
-                    style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                    style:
+                        TextStyle(color: Colors.grey[400], fontSize: 12),
                   ),
                 ),
                 const SizedBox(height: 30),
@@ -901,97 +993,103 @@ class _DashboardScreenState extends State<DashboardScreen> {
 }
 
 // ==========================================
-// NEW: HR Selection Screen (Login-like page)
+// HR Selection Screen (Login-like page)
 // ==========================================
-class HRSelectionScreen extends StatelessWidget {
-  const HRSelectionScreen({super.key});
+// class HRSelectionScreen extends StatelessWidget {
+//   const HRSelectionScreen({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Select HR Role'),
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: Colors.red,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Logout',
-            onPressed: () => LogoutHelper.backToMainDashboard(context),
-          ),
-        ],
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                'HR Module Login',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 40),
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       appBar: AppBar(
+//         title: const Text('Select HR Role'),
+//         centerTitle: true,
+//         elevation: 0,
+//         backgroundColor: Colors.red,
+//         actions: [
+//           IconButton(
+//             icon: const Icon(Icons.logout),
+//             tooltip: 'Logout',
+//             onPressed: () => LogoutHelper.backToMainDashboard(context),
+//           ),
+//         ],
+//       ),
+//       body: Center(
+//         child: Padding(
+//           padding: const EdgeInsets.all(20.0),
+//           child: Column(
+//             mainAxisAlignment: MainAxisAlignment.center,
+//             children: [
+//               const Text(
+//                 'HR Module Login',
+//                 style:
+//                     TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+//               ),
+//               const SizedBox(height: 40),
 
-              // ✅ Login as HR Admin → goes to LoginScreen first
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueAccent,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  icon: const Icon(Icons.admin_panel_settings, color: Colors.white),
-                  label: const Text(
-                    'Login as HR Admin',
-                    style: TextStyle(fontSize: 18, color: Colors.white),
-                  ),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const LoginScreen(role: 'HR Admin'),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 20),
+//               // Login as HR Admin → goes to LoginScreen first
+//               SizedBox(
+//                 width: double.infinity,
+//                 height: 50,
+//                 child: ElevatedButton.icon(
+//                   style: ElevatedButton.styleFrom(
+//                     backgroundColor: Colors.blueAccent,
+//                     shape: RoundedRectangleBorder(
+//                       borderRadius: BorderRadius.circular(10),
+//                     ),
+//                   ),
+//                   icon: const Icon(Icons.admin_panel_settings,
+//                       color: Colors.white),
+//                   label: const Text(
+//                     'Login as HR Admin',
+//                     style:
+//                         TextStyle(fontSize: 18, color: Colors.white),
+//                   ),
+//                   onPressed: () {
+//                     Navigator.push(
+//                       context,
+//                       MaterialPageRoute(
+//                         builder: (context) =>
+//                             const LoginScreen(role: 'HR Admin'),
+//                       ),
+//                     );
+//                   },
+//                 ),
+//               ),
+//               const SizedBox(height: 20),
 
-              // ✅ Login as Staff → goes to LoginScreen first
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  icon: const Icon(Icons.group, color: Colors.white),
-                  label: const Text(
-                    'Login as Staff',
-                    style: TextStyle(fontSize: 18, color: Colors.white),
-                  ),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const LoginScreen(role: 'Staff'),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+//               // Login as Staff → goes to LoginScreen first
+//               SizedBox(
+//                 width: double.infinity,
+//                 height: 50,
+//                 child: ElevatedButton.icon(
+//                   style: ElevatedButton.styleFrom(
+//                     backgroundColor: Colors.green,
+//                     shape: RoundedRectangleBorder(
+//                       borderRadius: BorderRadius.circular(10),
+//                     ),
+//                   ),
+//                   icon: const Icon(Icons.group, color: Colors.white),
+//                   label: const Text(
+//                     'Login as Staff',
+//                     style:
+//                         TextStyle(fontSize: 18, color: Colors.white),
+//                   ),
+//                   onPressed: () {
+//                     Navigator.push(
+//                       context,
+//                       MaterialPageRoute(
+//                         builder: (context) =>
+//                             const LoginScreen(role: 'Staff'),
+//                       ),
+//                     );
+//                   },
+//                 ),
+//               ),
+//             ],
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+// }

@@ -28,6 +28,7 @@ import 'package:charms/screens/splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:overlay_support/overlay_support.dart';
 import 'package:provider/provider.dart';
+import 'package:charms/constants/user_roles.dart';
 
 // ------------------------
 // 🌟 INTERNSHIP MODULE IMPORTS
@@ -50,7 +51,7 @@ import 'package:charms/HRproviders/schedules.dart' as hr_schedules; // Alias to 
 import 'package:charms/HRproviders/staffs.dart';
 import 'package:charms/HRproviders/theme_provider.dart';
 import 'package:charms/HRproviders/users.dart' as hr_users;
-import 'package:charms/HRscreens/admin/admin_dashboard_screen.dart';
+//import 'package:charms/HRscreens/admin/admin_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
 
 
@@ -338,30 +339,29 @@ class MyApp extends StatelessWidget {
   }
 
   // 🌟 HELPER FUNCTION TO SELECT DASHBOARD
-Widget _getDashboardForUser(int userType, String? username, int? userId, String hostname) {
-  Widget destination;
-
-  // HR Admin or General Admin (1 or 6)
-  if (userType == 1 || userType == 6) {
-    destination = AdminDashboardScreen(username: username ?? 'Admin');
-  } 
-  // Staff, Managers, Officers, or Trainees (usertypes 7, 8, 9, 10)
-  else if ([7, 8, 9, 10].contains(userType)) {
-    destination = StaffDashboardScreen(username: username ?? 'Staff');
-  } 
-  // All other types (including CHARMS roles 2-5)
-  else {
-    destination = DashboardScreen(
+  Widget _getDashboardForUser(
+    int userType, String? username, int? userId, String hostname) {
+  // ── DEBUG: trace which dashboard is selected ──────────────────────────────
+  debugPrint('=== GET DASHBOARD ===');
+  debugPrint('userType: $userType');
+  debugPrint('staffMember check: ${UserRoles.staffMember.contains(userType)}');
+  debugPrint('hrAdmin check:     ${UserRoles.hrAdmin.contains(userType)}');
+  // ─────────────────────────────────────────────────────────────────────────
+ 
+  if (UserRoles.staffMember.contains(userType)) {
+    // Staff go directly to StaffDashboardScreen
+    return StaffDashboardScreen(username: username ?? 'Staff');
+  } else {
+    // Everyone else (HR Admin + all others) → CHARMS Dashboard
+    return DashboardScreen(
       userid: userId ?? 0,
       usertype: userType,
       hostname: hostname,
     );
   }
-
-  return destination;
-}
 }
 
+}
 // --------------------------------------------------------
 // 🌟 INTERNSHIP MODULE: UserSelectionScreen
 // --------------------------------------------------------
