@@ -29,6 +29,8 @@ import 'package:flutter/material.dart';
 import 'package:overlay_support/overlay_support.dart';
 import 'package:provider/provider.dart';
 import 'package:charms/constants/user_roles.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 // ------------------------
 // 🌟 INTERNSHIP MODULE IMPORTS
@@ -370,10 +372,12 @@ class UserSelectionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final appAuth = Provider.of<app_auth.Auth>(context, listen: false);
+      debugPrint('🔍 appAuth.profilePic: ${appAuth.profilePic}'); // 🌟 ADD THIS
+
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Select User'),
-      ),
+      appBar: AppBar(title: const Text('Select User')),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -383,11 +387,13 @@ class UserSelectionScreen extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const internship_screens.DashboardScreen(
-                      username: 'Lutfil Haziq',
+                    builder: (context) => internship_screens.DashboardScreen(
+                      username: appAuth.username,
                       role: 'Admin',
-                      profilePicture: 'assets/profilepicture.png',
-                      userId: 1, 
+                      profilePicture: (appAuth.profilePic != null && appAuth.profilePic!.isNotEmpty)
+                          ? appAuth.profilePic!
+                          : 'assets/profilepicture.png', // 🌟
+                      userId: appAuth.userId ?? 0,
                     ),
                   ),
                 );
@@ -400,11 +406,13 @@ class UserSelectionScreen extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const internship_screens.DashboardScreen(
-                      username: 'Lutfil Haziq',
+                    builder: (context) => internship_screens.DashboardScreen(
+                      username: appAuth.username,
                       role: 'Intern',
-                      profilePicture: 'assets/profilepicture.png',
-                      userId: 1, 
+                      profilePicture: (appAuth.profilePic != null && appAuth.profilePic!.isNotEmpty)
+                          ? appAuth.profilePic!
+                          : 'assets/profilepicture.png', // 🌟
+                      userId: appAuth.userId ?? 0,
                     ),
                   ),
                 );

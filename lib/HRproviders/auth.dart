@@ -15,12 +15,14 @@ class Auth with ChangeNotifier {
   int _usertype = 2;
   Timer _authTimer = Timer(const Duration(hours: 0), () {});
   String _username = '';
+  String _profilePicture = '';
 
   static const String _hostname = 'https://devcms.com.my/charmsAPI/api/';
   static const String _prefsKey = 'hrUserData';
 
   String get username => _username;
   String get hostname => _hostname;
+  String get profilePicture => _profilePicture;
   bool get isAuth => _token != null && _token!.isNotEmpty;
   String? get token => _token;
   String? get userId => _userId;
@@ -49,6 +51,8 @@ class Auth with ChangeNotifier {
     if (response.statusCode == 200 && responseData['success'] == true) {
       final data = responseData['data'];
 
+      debugPrint('LOGIN DATA FULL: ${jsonEncode(responseData)}');
+
       _token    = responseData['token'] ?? '';
       _userId   = (data['id'] ?? data['userid']).toString();
       _username = data['username'] ?? username;
@@ -58,6 +62,8 @@ class Auth with ChangeNotifier {
 
       _expiryDate  = DateTime.now().add(const Duration(hours: 3));
       lastLoginTime = DateTime.now();
+
+      _profilePicture = data['staff_image_url']?.toString() ?? '';
 
       // ── Only persist when explicitly requested ───────────────────
       if (saveSession) {
@@ -69,6 +75,7 @@ class Auth with ChangeNotifier {
             'userId':        _userId,
             'usertype':      _usertype,
             'username':      _username,
+            'profilePicture': _profilePicture,
             'expiryDate':    _expiryDate.toIso8601String(),
             'lastLoginTime': lastLoginTime?.toIso8601String(),
           }),
@@ -233,6 +240,7 @@ class Auth with ChangeNotifier {
     _userId   = extractedData['userId']?.toString();
     _usertype = int.tryParse(extractedData['usertype'].toString()) ?? 2;
     _username = extractedData['username']?.toString() ?? '';
+    _profilePicture = extractedData['profilePicture']?.toString() ?? '';
     lastLoginTime = DateTime.now();
 
     notifyListeners();

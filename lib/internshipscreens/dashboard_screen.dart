@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:charms/internshipscreens/assessment_intern.dart';
+import 'package:charms/utils/logout_helper.dart';
 import 'check_status.dart';
 import 'schedule_calendar.dart';
 import 'monitor_performance.dart';
@@ -18,77 +19,49 @@ class DashboardScreen extends StatelessWidget {
     required this.username,
     required this.role,
     required this.profilePicture,
-    required this.userId, // Add userId parameter
+    required this.userId,
   });
+
+  // ✅ Helper method to get the correct ImageProvider
+  ImageProvider _getImageProvider(String imagePath) {
+    if (imagePath.startsWith('http') || imagePath.startsWith('https')) {
+      // Network image from server
+      debugPrint('🌐 Loading network image: $imagePath');
+      return NetworkImage(imagePath);
+    } else if (imagePath.startsWith('assets/')) {
+      // Local asset image
+      debugPrint('📁 Loading asset image: $imagePath');
+      return AssetImage(imagePath);
+    } else {
+      // Fallback to default asset
+      debugPrint('⚠️ Unknown image path format, using default: $imagePath');
+      return const AssetImage('assets/profilepicture.png');
+    }
+  }
+
+  // ✅ Logout method
+  Future<void> _logout(BuildContext context) async {
+    await LogoutHelper.fullLogout(context);
+  }
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('🖼️ profilePicture received: $profilePicture');
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: Text('$role Dashboard'),
-        backgroundColor: Colors.blueAccent, // Customize the app bar color
-      ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            UserAccountsDrawerHeader(
-              accountName: Text(username),
-              accountEmail: Text(role),
-              currentAccountPicture: CircleAvatar(
-                backgroundImage: AssetImage(profilePicture),
-              ),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.blue,
-                    Colors.purple
-                  ], // Gradient for drawer header
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.home),
-              title: const Text('Home'),
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.schedule),
-              title: const Text('Schedule'),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ScheduleCalendar(
-                        isAdmin: role == 'Admin', userId: userId),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.feedback),
-              title: const Text('Feedback'),
-              onTap: () {
-                // Navigate to Feedback page
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('Logout'),
-              onTap: () {
-                // Implement logout functionality
-              },
-            ),
-          ],
-        ),
+        backgroundColor: Colors.blueAccent,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout_rounded),
+            tooltip: 'Logout',
+            onPressed: () => _logout(context),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Container(
-        // Apply solid white background here
         color: Colors.white,
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -101,18 +74,15 @@ class DashboardScreen extends StatelessWidget {
                     colors: [
                       Colors.blueAccent,
                       Color.fromARGB(255, 123, 64, 251)
-                    ], // Matching the gradient of the main page
+                    ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(
-                      15), // Match the card's border radius
+                  borderRadius: BorderRadius.circular(15),
                 ),
                 child: Card(
-                  elevation:
-                      0, // Remove card shadow to let gradient show through
-                  color: Colors
-                      .transparent, // Make the card transparent to show gradient
+                  elevation: 0,
+                  color: Colors.transparent,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(15),
                   ),
@@ -120,9 +90,14 @@ class DashboardScreen extends StatelessWidget {
                     padding: const EdgeInsets.all(16.0),
                     child: Row(
                       children: [
+                        // ✅ Updated CircleAvatar to use _getImageProvider
                         CircleAvatar(
                           radius: 50,
-                          backgroundImage: AssetImage(profilePicture),
+                          backgroundImage: _getImageProvider(profilePicture),
+                          backgroundColor: Colors.grey[300],
+                          onBackgroundImageError: (exception, stackTrace) {
+                            debugPrint('❌ Error loading profile image: $exception');
+                          },
                         ),
                         const SizedBox(width: 20),
                         Column(
@@ -133,16 +108,14 @@ class DashboardScreen extends StatelessWidget {
                               style: const TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
-                                color: Color.fromARGB(255, 255, 255,
-                                    255), // Change text color to black for better visibility on white background
+                                color: Color.fromARGB(255, 255, 255, 255),
                               ),
                             ),
                             Text(
                               role,
                               style: const TextStyle(
                                 fontSize: 16,
-                                color: Color.fromARGB(255, 255, 255,
-                                    255), // Change text color to black for better visibility on white background
+                                color: Color.fromARGB(255, 255, 255, 255),
                               ),
                             ),
                           ],
@@ -160,12 +133,11 @@ class DashboardScreen extends StatelessWidget {
                     colors: [
                       Colors.blueAccent,
                       Color.fromARGB(255, 123, 64, 251)
-                    ], // Matching the gradient of the profile section
+                    ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(
-                      15), // Match the card's border radius
+                  borderRadius: BorderRadius.circular(15),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -173,9 +145,8 @@ class DashboardScreen extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Wrap(
-                        spacing: 16.0, // Horizontal space between buttons
-                        runSpacing:
-                            16.0, // Vertical space between rows of buttons
+                        spacing: 16.0,
+                        runSpacing: 16.0,
                         children: _buildDashboardButtons(context),
                       ),
                     ),
@@ -188,7 +159,6 @@ class DashboardScreen extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // Navigate to chat box page or open chat feature
           showDialog(
             context: context,
             builder: (context) => AlertDialog(
@@ -207,7 +177,7 @@ class DashboardScreen extends StatelessWidget {
         },
         backgroundColor: Colors.blueAccent,
         tooltip: 'Chat with Support',
-        child: Icon(Icons.chat, color: Colors.white),
+        child: const Icon(Icons.chat, color: Colors.white),
       ),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
@@ -226,7 +196,6 @@ class DashboardScreen extends StatelessWidget {
         ],
         selectedItemColor: Colors.blueAccent,
         onTap: (index) {
-          // Implement navigation based on tapped index
           switch (index) {
             case 0:
               Navigator.pop(context);
@@ -285,7 +254,7 @@ class DashboardScreen extends StatelessWidget {
         _buildDashboardButton(context, 'Assessment', Icons.assessment, () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => InternListPage()),
+            MaterialPageRoute(builder: (context) => const InternListPage()),
           );
         }),
         _buildDashboardButton(context, 'Intern Submissions', Icons.assignment,
@@ -306,7 +275,7 @@ class DashboardScreen extends StatelessWidget {
             MaterialPageRoute(
               builder: (context) => ScheduleCalendar(
                 isAdmin: false,
-                userId: userId, // Pass userId here
+                userId: userId,
               ),
             ),
           );
@@ -332,18 +301,15 @@ class DashboardScreen extends StatelessWidget {
           );
         }),
         _buildDashboardButton(context, 'Check Status', Icons.check_circle, () {
-          // Navigate to CheckStatusPage
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => const CheckStatusPage(
-                  isStatusChecked:
-                      false), // Pass the status as false or true based on the logic you have
+                  isStatusChecked: false),
             ),
           );
         }),
         _buildDashboardButton(context, 'Submissions', Icons.assignment, () {
-          // Navigate to SubmissionStatusPage
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -363,10 +329,9 @@ class DashboardScreen extends StatelessWidget {
   // Helper method to build individual buttons
   Widget _buildDashboardButton(BuildContext context, String title,
       IconData icon, VoidCallback onPressed) {
-    // Define a fixed size for the button boxes
     final buttonWidth =
-        (MediaQuery.of(context).size.width / 3) - 32; // Adjust as needed
-    const buttonHeight = 120.0; // Fixed height for the buttons
+        (MediaQuery.of(context).size.width / 3) - 32;
+    const buttonHeight = 120.0;
 
     return SizedBox(
       width: buttonWidth,
@@ -375,28 +340,26 @@ class DashboardScreen extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 8.0),
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(
-            padding: EdgeInsets.zero, // Remove default padding
+            padding: EdgeInsets.zero,
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-            backgroundColor:
-                Colors.blueAccent, // Blue accent color for button background
-            elevation: 3, // Slight shadow effect for depth
+            backgroundColor: Colors.blueAccent,
+            elevation: 3,
           ),
           onPressed: onPressed,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon,
-                  color: Colors.white, size: 24), // Adjust icon size as needed
-              const SizedBox(height: 8), // Spacing between icon and text
+              Icon(icon, color: Colors.white, size: 24),
+              const SizedBox(height: 8),
               Text(
                 title,
                 style: const TextStyle(
-                  fontSize: 16, // Adjust font size for smaller buttons
-                  fontWeight: FontWeight.w600, // Bolder font weight
-                  color: Colors.white, // White font color for visibility
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
                 ),
-                textAlign: TextAlign.center, // Center text alignment
+                textAlign: TextAlign.center,
               ),
             ],
           ),

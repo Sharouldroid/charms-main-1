@@ -37,6 +37,7 @@ class Auth with ChangeNotifier {
   int _usertype = 2;
   Timer _authTimer = Timer(const Duration(hours: 0), () {});
   String _username = '';
+  String? _profilePic;
 
   // Flag: true when the user authenticated via HR DB fallback.
   // DashboardScreen checks this to skip main-DB fetches that would 404.
@@ -50,6 +51,7 @@ class Auth with ChangeNotifier {
   bool get isAuth => token != null;
   String? get token => _token;
   int get usertype => _usertype;
+  String? get profilePic => _profilePic;
 
   /// True when the current session was authenticated via the HR DB fallback.
   /// Use this in DashboardScreen to skip `fetchIndividual` (main DB only).
@@ -133,6 +135,7 @@ class Auth with ChangeNotifier {
             _usertype = int.tryParse(data['usertype'].toString()) ?? 2;
             _isHRUser = true; // HR DB user — skip main-DB-only fetches
             _expiryDate = DateTime.now().add(const Duration(minutes: 30));
+            _profilePic = data['staff_image_url']?.toString() ?? '';
 
             // ── DEBUG: HR DB login ──────────────────────────────────
             debugPrint('=== AUTH SUCCESS (HR DB) ===');
@@ -140,6 +143,7 @@ class Auth with ChangeNotifier {
             debugPrint('usertype: $_usertype');
             debugPrint('token: $_token');
             debugPrint('isHRUser: $_isHRUser');
+            debugPrint('🌟 Stored profilePic: $_profilePic');
             // ─────────────────────────────────────────────────────────
 
             _autoLogout();
@@ -175,6 +179,7 @@ class Auth with ChangeNotifier {
         'username': _username,
         'expiryDate': _expiryDate.toIso8601String(),
         'isHRUser': _isHRUser, // persisted so it survives app restarts
+        'profilePic': _profilePic, // persisted so it survives app restarts
       }),
     );
   }
@@ -261,6 +266,7 @@ class Auth with ChangeNotifier {
     _usertype = extractedData['usertype'] as int? ?? 2;
     _username = extractedData['username'] as String? ?? '';
     _isHRUser = extractedData['isHRUser'] == true; // restore HR flag
+    _profilePic = extractedData['profilePic'] as String? ?? ''; // restore profile picture
     _expiryDate = expiryDate;
 
     _autoLogout();
@@ -340,6 +346,7 @@ class Auth with ChangeNotifier {
         'expiryDate': _expiryDate.toIso8601String(),
         'isSocial': true,
         'isHRUser': _isHRUser, // always false for social, but kept consistent
+        'profilePic': _profilePic, // persist profile picture
       }),
     );
   }
