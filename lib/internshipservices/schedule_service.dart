@@ -153,7 +153,8 @@ class ScheduleService {
 
   // GET /api/internship/schedules/{scheduleId}/check-limit
   Future<Map<String, dynamic>> checkRegistrationLimit(int scheduleId) async {
-    final url = '$baseUrl/api/internship/schedules/$scheduleId/check-limit';
+    // ✅ FIXED: Use correct route path
+    final url = '$baseUrl/api/internship/schedules/$scheduleId/check-registration';
     print('REQUEST URL (checkRegistrationLimit): $url');
 
     try {

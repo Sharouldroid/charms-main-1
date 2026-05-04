@@ -416,56 +416,60 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
   }
 
   void _showAddEditDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Schedule'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _descriptionController,
-              decoration: const InputDecoration(hintText: 'Enter description'),
-            ),
-          ],
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () {
-              if (_descriptionController.text.isNotEmpty &&
-                  _startDate != null &&
-                  _endDate != null) {
-                // Calculate duration
-                final duration = _endDate!.difference(_startDate!).inDays;
-
-                // Debug log to verify duration
-                print('Duration calculated: $duration');
-
-                // Add schedule with startDate, endDate, and duration
-                Provider.of<ScheduleProvider>(context, listen: false)
-                    .addSchedule(Schedule(
-                  id: DateTime.now().millisecondsSinceEpoch,
-                  startDate: _startDate!, // Pass startDate
-                  endDate: _endDate!, // Pass endDate
-                  description: _descriptionController.text,
-                  duration: duration.toString(), // Convert duration to String for backend compatibility
-                ));
-                _descriptionController.clear();
-                Navigator.pop(context); // Close the dialog
-              }
-            },
-            child: const Text('Add'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context); // Close the dialog
-            },
-            child: const Text('Cancel'),
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Add Schedule'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _descriptionController,
+            decoration: const InputDecoration(hintText: 'Enter description'),
           ),
         ],
       ),
-    );
-  }
+      actions: [
+        ElevatedButton(
+          onPressed: () {
+            if (_descriptionController.text.isNotEmpty &&
+                _startDate != null &&
+                _endDate != null) {
+              // Calculate duration
+              final duration = _endDate!.difference(_startDate!).inDays;
+
+              print('Duration calculated: $duration');
+
+              // ✅ FIXED: Add maxRegistrations field
+              Provider.of<ScheduleProvider>(context, listen: false)
+                  .addSchedule(Schedule(
+                id: DateTime.now().millisecondsSinceEpoch,
+                startDate: _startDate!,
+                endDate: _endDate!,
+                description: _descriptionController.text,
+                duration: duration.toString(),
+                maxRegistrations: 5, // ✅ ADDED: Default 5 slots
+              ));
+              
+              _descriptionController.clear();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Schedule created successfully!')),
+              );
+              Navigator.pop(context);
+            }
+          },
+          child: const Text('Add'),
+        ),
+        TextButton(
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          child: const Text('Cancel'),
+        ),
+      ],
+    ),
+  );
+}
 
   Future<Map<String, dynamic>> _getRegistrationCount(int scheduleId) async {
     try {
