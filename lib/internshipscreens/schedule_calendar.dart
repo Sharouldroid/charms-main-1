@@ -332,8 +332,7 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
 
   Future<void> _checkRegistrationLimit(int scheduleId) async {
     try {
-      final url =
-          '${AppConfig.hostname}internship/schedules/$scheduleId/check-registration';
+      final url = '${AppConfig.hostname}/api/internship/schedules/$scheduleId/check-registration';
       print('Making request to: $url');
 
       final response = await http.get(Uri.parse(url));
@@ -474,8 +473,7 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
   Future<Map<String, dynamic>> _getRegistrationCount(int scheduleId) async {
     try {
       final response = await http.get(
-        Uri.parse(
-            '${AppConfig.hostname}internship/schedules/$scheduleId/check-registration'),
+        Uri.parse('${AppConfig.hostname}/api/internship/schedules/$scheduleId/check-registration'),
       );
 
       if (response.statusCode == 200) {

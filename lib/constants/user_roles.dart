@@ -10,8 +10,10 @@ class UserRoles {
   static const int staff            = 7;
   static const int centralLabOfficer = 8;
   static const int marineBiologist  = 9;
-  static const int trainee          = 10;
   static const int researcher       = 3;
+
+  // ── Staff Member ──────────────────────────────────────
+  static const int trainee          = 10;
 
   // ── Else ──────────────────────────────────────────────
   static const int volunteer    = 2;
@@ -22,9 +24,10 @@ class UserRoles {
   static const List<int> hrAdmin = [superID, manager, staffAdmin];
 
   static const List<int> staffMember = [
-    staff, centralLabOfficer, marineBiologist, trainee, researcher,
+    staff, centralLabOfficer, marineBiologist, researcher,
   ];
 
+  static const List<int> internGroup = [trainee];
   static const List<int> elseGroup = [volunteer, boatOwner, turtleRanger];
 
   // ── Name lookup ───────────────────────────────────────

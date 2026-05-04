@@ -348,26 +348,40 @@ class MyApp extends StatelessWidget {
     );
   }
 
-  // 🌟 HELPER FUNCTION TO SELECT DASHBOARD
-  Widget _getDashboardForUser(
-      int userType, String? username, int? userId, String hostname) {
-    debugPrint('=== GET DASHBOARD ===');
-    debugPrint('userType: $userType');
-    debugPrint(
-        'staffMember check: ${UserRoles.staffMember.contains(userType)}');
-    debugPrint('hrAdmin check:     ${UserRoles.hrAdmin.contains(userType)}');
+      // 🌟 HELPER FUNCTION TO SELECT DASHBOARD
+      Widget _getDashboardForUser(
+          int userType, String? username, int? userId, String hostname) {
+        debugPrint('=== GET DASHBOARD ===');
+        debugPrint('userType: $userType');
+        debugPrint('staffMember check: ${UserRoles.staffMember.contains(userType)}');
+        debugPrint('hrAdmin check:     ${UserRoles.hrAdmin.contains(userType)}');
+        debugPrint('internGroup check: ${UserRoles.internGroup.contains(userType)}'); // ✅ ADDED
 
-    if (UserRoles.staffMember.contains(userType)) {
-      return StaffDashboardScreen(username: username ?? 'Staff');
-    } else {
-      return DashboardScreen(
-        userid: userId ?? 0,
-        usertype: userType,
-        hostname: hostname,
-      );
+        // ✅ NEW: Check if user is intern/trainee (usertype 10)
+        if (UserRoles.internGroup.contains(userType)) {
+          debugPrint('→ Routing to Internship Dashboard (Intern role)');
+          return internship_screens.DashboardScreen(
+            username: username ?? 'Intern',
+            role: 'Intern', // ✅ Set role as 'Intern'
+            userId: userId ?? 0,
+          );
+        }
+        
+        // Staff members (7, 8, 9, 3) → Staff Dashboard
+        if (UserRoles.staffMember.contains(userType)) {
+          debugPrint('→ Routing to Staff Dashboard');
+          return StaffDashboardScreen(username: username ?? 'Staff');
+        }
+        
+        // Everyone else (HR Admin + others) → CHARMS Dashboard
+        debugPrint('→ Routing to CHARMS Dashboard');
+        return DashboardScreen(
+          userid: userId ?? 0,
+          usertype: userType,
+          hostname: hostname,
+        );
+      }
     }
-  }
-}
 
 // --------------------------------------------------------
 // 🌟 INTERNSHIP MODULE: UserSelectionScreen (FOR TESTING ONLY)

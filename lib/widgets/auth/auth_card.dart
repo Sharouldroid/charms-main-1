@@ -17,7 +17,7 @@ import 'auth_utils.dart';
 import 'package:charms/constants/user_roles.dart';
 import 'package:charms/HRproviders/auth.dart' as hr_auth;
 import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
-//import 'package:charms/HRscreens/admin/admin_dashboard_screen.dart';
+import 'package:charms/internshipscreens/dashboard_screen.dart' as internship_screens;
 
 enum AuthMode { Signup, Login }
 
@@ -166,20 +166,12 @@ class AuthCardState extends State<AuthCard> {
         if (success && mounted) {
           await LoginRateLimiter.resetAttempts();
 
-          final usertype =
-              Provider.of<Auth>(context, listen: false).usertype;
-          final username =
-              Provider.of<Auth>(context, listen: false).username;
+          final usertype = Provider.of<Auth>(context, listen: false).usertype;
+          final username = Provider.of<Auth>(context, listen: false).username;
+          final userId = Provider.of<Auth>(context, listen: false).userId;
 
-          if (UserRoles.staffMember.contains(usertype)) {
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder: (_) => StaffDashboardScreen(username: username),
-              ),
-            );
-          } else {
-            Navigator.of(context).pushReplacementNamed('/dashboard');
-          }
+          // ✅ Route based on usertype
+          _routeAfterLogin(usertype, username, userId);
         }
       }
     }
@@ -294,6 +286,52 @@ class AuthCardState extends State<AuthCard> {
     }
   }
 
+  // ✅ NEW: Centralized routing logic
+  void _routeAfterLogin(int usertype, String username, int? userId) {
+    debugPrint('');
+    debugPrint('========================================');
+    debugPrint('🔀 ROUTING USER AFTER LOGIN');
+    debugPrint('========================================');
+    debugPrint('usertype: $usertype');
+    debugPrint('username: $username');
+    debugPrint('userId: $userId');
+    debugPrint('internGroup check: ${UserRoles.internGroup.contains(usertype)}');
+    debugPrint('staffMember check: ${UserRoles.staffMember.contains(usertype)}');
+    debugPrint('hrAdmin check: ${UserRoles.hrAdmin.contains(usertype)}');
+    debugPrint('========================================');
+    debugPrint('');
+
+    // ✅ Priority 1: Intern/Trainee (usertype 10) → Internship Dashboard
+    if (UserRoles.internGroup.contains(usertype)) {
+      debugPrint('→ Routing to Internship Dashboard (Intern role)');
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => internship_screens.DashboardScreen(
+            username: username,
+            role: 'Intern', // ✅ Role = Intern
+            userId: userId ?? 0,
+          ),
+        ),
+      );
+      return;
+    }
+
+    // ✅ Priority 2: Staff (7, 8, 9, 3) → Staff Dashboard
+    if (UserRoles.staffMember.contains(usertype)) {
+      debugPrint('→ Routing to Staff Dashboard');
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => StaffDashboardScreen(username: username),
+        ),
+      );
+      return;
+    }
+
+    // ✅ Priority 3: Everyone else (HR Admin + others) → CHARMS Dashboard
+    debugPrint('→ Routing to CHARMS Dashboard');
+    Navigator.of(context).pushReplacementNamed('/dashboard');
+  }
+
   Future<void> _handleLogin() async {
     try {
       final authProvider = Provider.of<Auth>(context, listen: false);
@@ -310,15 +348,8 @@ class AuthCardState extends State<AuthCard> {
 
       final usertype = authProvider.usertype;
       final username = authProvider.username;
+      final userId = authProvider.userId;
       final passkey = _authData['passkey']!;
-
-      // ── DEBUG: after authenticate() resolves ─────────────────────
-      debugPrint('=== HANDLE LOGIN ===');
-      debugPrint('usertype: $usertype');
-      debugPrint('username: $username');
-      debugPrint('hrAdmin check: ${UserRoles.hrAdmin.contains(usertype)}');
-      debugPrint('staffMember check: ${UserRoles.staffMember.contains(usertype)}');
-      // ─────────────────────────────────────────────────────────────
 
       // ── Seed HR Auth silently for staff/admin roles ──────────────
       if (UserRoles.hrAdmin.contains(usertype) ||
@@ -333,19 +364,9 @@ class AuthCardState extends State<AuthCard> {
 
       if (!mounted) return;
 
-      // ── Route ────────────────────────────────────────────────────
-      // Staff → Staff Dashboard
-      if (UserRoles.staffMember.contains(usertype)) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => StaffDashboardScreen(username: username),
-          ),
-        );
-      } 
-      // EVERYONE ELSE → CHARMS Dashboard (INCLUDING HR ADMIN)
-      else {
-        Navigator.of(context).pushReplacementNamed('/dashboard');
-      }
+      // ✅ Use centralized routing
+      _routeAfterLogin(usertype, username, userId);
+
     } on HttpException catch (e) {
       try {
         final result = await LoginRateLimiter.recordFailedAttempt();
