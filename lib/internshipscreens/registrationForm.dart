@@ -147,56 +147,93 @@ class _RegistrationFormState extends State<RegistrationForm> {
   );
 
   Future<void> _submitForm() async {
-    if (_formKey.currentState!.validate()) {
-      final register = Register(
-        firstName: _firstNameController.text,
-        lastName: _lastNameController.text,
-        dateOfBirth: _dateOfBirth != null
-            ? DateFormat('yyyy-MM-dd').format(_dateOfBirth!)
-            : '',
-        age: _age ?? 0, // Use the calculated age
-        gender: _selectedGender ?? '', // Use the selected gender
-        levelOfStudy: _selectedLevel ?? '',
-        institutionName: _institutionController.text,
-        programme: _programmeController.text,
-        course: _courseController.text,
-        faculty: _facultyController.text,
-        branch: _branchController.text,
-        streetAddress1: _streetAddress1Controller.text,
-        streetAddress2: _streetAddress2Controller.text,
-        city: _cityController.text,
-        state: _stateController.text,
-        postalCode: _postalCodeController.text,
-        country: _selectedCountry ?? '',
-        areaCode: _countryCode ?? '',
-        phoneNumber: _phoneNumber ?? '',
-        email: _emailController.text,
-        password: _passwordController.text,
-        scheduleId: widget.scheduleId,
-      );
+  if (_formKey.currentState!.validate()) {
+    // ✅ FIX: Ensure state is set correctly
+    String finalState = '';
+    if (_selectedCountry == 'Malaysia') {
+      finalState = _selectedState ?? '';
+    } else {
+      finalState = _stateController.text;
+    }
 
-      try {
-        final userId =
-            await Provider.of<RegisterProvider>(context, listen: false)
-                .registerUser(register);
+    final register = Register(
+      firstName: _firstNameController.text,
+      lastName: _lastNameController.text,
+      dateOfBirth: _dateOfBirth != null
+          ? DateFormat('yyyy-MM-dd').format(_dateOfBirth!)
+          : '',
+      age: _age ?? 0,
+      gender: _selectedGender ?? '',
+      levelOfStudy: _selectedLevel ?? '',
+      institutionName: _institutionController.text,
+      programme: _programmeController.text,
+      course: _courseController.text,
+      faculty: _facultyController.text,
+      branch: _branchController.text,
+      streetAddress1: _streetAddress1Controller.text,
+      streetAddress2: _streetAddress2Controller.text,
+      city: _cityController.text,
+      state: finalState, // ✅ FIXED: Use correct state value
+      postalCode: _postalCodeController.text,
+      country: _selectedCountry ?? '',
+      areaCode: _countryCode ?? '',
+      phoneNumber: _phoneNumber ?? '',
+      email: _emailController.text,
+      password: _passwordController.text,
+      scheduleId: widget.scheduleId,
+    );
 
-        // Navigate to the DocsUpload screen with userId
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => DocsUpload(
-              userId: userId, // Pass the userId
-              scheduleId: widget.scheduleId, // Pass the scheduleId too
-            ),
+    try {
+      print('🚀 Submitting registration...');
+      final userId =
+          await Provider.of<RegisterProvider>(context, listen: false)
+              .registerUser(register);
+
+      print('✅ Registration successful! User ID: $userId');
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Registration successful!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
           ),
         );
-      } catch (e) {
+      }
+
+      // Navigate to the DocsUpload screen with userId
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => DocsUpload(
+            userId: userId,
+            scheduleId: widget.scheduleId,
+          ),
+        ),
+      );
+    } catch (e) {
+      print('❌ Registration error: $e');
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error during registration: $e')),
+          SnackBar(
+            content: Text('❌ Registration failed: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
         );
       }
     }
+  } else {
+    // Form validation failed
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('⚠️ Please fill in all required fields correctly'),
+        backgroundColor: Colors.orange,
+      ),
+    );
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -561,39 +598,41 @@ class _RegistrationFormState extends State<RegistrationForm> {
                 ),
               ),
 
-// Conditionally render the "State" field
-              _selectedCountry == 'Malaysia'
-                  ? DropdownButtonFormField<String>(
-                      initialValue: _selectedState,
-                      items: _malaysianStates.map((state) {
-                        return DropdownMenuItem<String>(
-                          value: state,
-                          child: Text(state),
-                        );
-                      }).toList(),
-                      decoration: const InputDecoration(labelText: 'State'),
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedState = value;
-                        });
-                      },
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please select a state';
-                        }
-                        return null;
-                      },
-                    )
-                  : TextFormField(
-                      controller: _stateController,
-                      decoration: const InputDecoration(labelText: 'State'),
-                      validator: (value) {
-                        if (value!.isEmpty) {
-                          return 'Please enter your state';
-                        }
-                        return null;
-                      },
-                    ),
+              // Conditionally render the "State" field
+        _selectedCountry == 'Malaysia'
+            ? DropdownButtonFormField<String>(
+                value: _selectedState,
+                items: _malaysianStates.map((state) {
+                  return DropdownMenuItem<String>(
+                    value: state,
+                    child: Text(state),
+                  );
+                }).toList(),
+                decoration: const InputDecoration(labelText: 'State'),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedState = value;
+                    // ✅ ADDED: Also update controller for consistency
+                    _stateController.text = value ?? '';
+                  });
+                },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please select a state';
+                  }
+                  return null;
+                },
+              )
+            : TextFormField(
+                controller: _stateController,
+                decoration: const InputDecoration(labelText: 'State'),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter your state';
+                  }
+                  return null;
+                },
+              ),
               TextFormField(
                 controller: _cityController,
                 decoration: const InputDecoration(labelText: 'City'),

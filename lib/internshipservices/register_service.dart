@@ -24,11 +24,25 @@ class RegisterService {
 
   // POST /api/internship/registers
   Future<int> addRegister(Register register) async {
+    final url = '$baseUrl/api/internship/registers';
+    
+    print('');
+    print('========================================');
+    print('📤 INTERN REGISTRATION REQUEST');
+    print('========================================');
+    print('URL: $url');
+    print('BODY: ${jsonEncode(register.toJson())}');
+    
     final response = await http.post(
-      Uri.parse('$baseUrl/api/internship/registers'),
+      Uri.parse(url),
       headers: _headers(),
       body: jsonEncode(register.toJson()),
     );
+
+    print('📥 RESPONSE STATUS: ${response.statusCode}');
+    print('📥 RESPONSE BODY: ${response.body}');
+    print('========================================');
+    print('');
 
     if (response.statusCode == 201 || response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -65,7 +79,7 @@ class RegisterService {
     }
   }
 
-  // alias for list interns (same endpoint)
+  // Fetch interns
   Future<List<Map<String, dynamic>>> fetchInterns() async {
     final response = await http.get(
       Uri.parse('$baseUrl/api/internship/registers'),
@@ -78,26 +92,6 @@ class RegisterService {
     }
 
     throw Exception('Failed to load interns: ${response.statusCode} ${response.body}');
-  }
-
-  // PUT /api/internship/internApproval
-  // Keep only if this endpoint exists in your Laravel routes/controller
-  Future<void> updateInternApprovalStatus(
-      int internId, String status, String comments) async {
-    final response = await http.put(
-      Uri.parse('$baseUrl/api/internship/internApproval'),
-      headers: _headers(),
-      body: jsonEncode({
-        'intern_id': internId,
-        'status': status,
-        'comments': comments,
-      }),
-    );
-
-    if (response.statusCode != 200) {
-      throw Exception(
-          'Failed to update approval status: ${response.statusCode} ${response.body}');
-    }
   }
 
   // GET /api/internship/registers/{id}
