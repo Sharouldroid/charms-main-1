@@ -157,6 +157,7 @@ class _RegistrationFormState extends State<RegistrationForm> {
     }
 
     final register = Register(
+      userId: widget.userId,
       firstName: _firstNameController.text,
       lastName: _lastNameController.text,
       dateOfBirth: _dateOfBirth != null
@@ -185,11 +186,10 @@ class _RegistrationFormState extends State<RegistrationForm> {
 
     try {
       print('🚀 Submitting registration...');
-      final userId =
-          await Provider.of<RegisterProvider>(context, listen: false)
-              .registerUser(register);
+      final internId = await Provider.of<RegisterProvider>(context, listen: false)
+    .registerUser(register);
 
-      print('✅ Registration successful! User ID: $userId');
+      print('✅ Registration successful! User ID: $internId');
 
       // Show success message
       if (mounted) {
@@ -202,12 +202,12 @@ class _RegistrationFormState extends State<RegistrationForm> {
         );
       }
 
-      // Navigate to the DocsUpload screen with userId
+      // Navigate to the DocsUpload screen with internId
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => DocsUpload(
-            userId: userId,
+            userId: internId,
             scheduleId: widget.scheduleId,
           ),
         ),

@@ -1,5 +1,6 @@
 class Register {
   // Personal Information
+  final int? userId;
   final String firstName;
   final String lastName;
   final String dateOfBirth; // Stored as a string in 'yyyy-MM-dd' format
@@ -38,6 +39,7 @@ class Register {
     required this.dateOfBirth,
     required this.age,
     required this.gender,
+    this.userId,
 
     // Institution Information
     required this.levelOfStudy,
@@ -68,6 +70,7 @@ class Register {
   factory Register.fromJson(Map<String, dynamic> json) {
     return Register(
       // Personal Information
+      userId: json['user_id'],
       firstName: json['first_name'],
       lastName: json['last_name'],
       dateOfBirth: json['date_of_birth'],
@@ -103,6 +106,7 @@ class Register {
 
   Map<String, dynamic> toJson() => {
         // Personal Information
+        'user_id': userId,
         'first_name': firstName,
         'last_name': lastName,
         'date_of_birth': dateOfBirth,

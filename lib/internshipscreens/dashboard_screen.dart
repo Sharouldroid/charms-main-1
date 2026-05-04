@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:charms/HRproviders/staffs.dart';
 import 'package:charms/HRmodels/staff.dart';
 import 'package:charms/internshipscreens/assessment_intern.dart';
+import 'package:charms/internshipservices/intern_helper.dart'; // ✅ ADDED
 import 'package:charms/utils/logout_helper.dart';
 import 'check_status.dart';
 import 'schedule_calendar.dart';
@@ -10,6 +11,7 @@ import 'monitor_performance.dart';
 import 'intern_list_assesstment.dart';
 import 'admin_submissions.dart';
 import 'submission_status.dart';
+import 'docs_upload.dart'; // ✅ ADDED
 
 class DashboardScreen extends StatefulWidget {
   final String username;
@@ -38,7 +40,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _loadStaffData();
   }
 
-  // ✅ Same pattern as MySelfScreen._loadStaffData()
   Future<void> _loadStaffData() async {
     debugPrint('');
     debugPrint('========================================');
@@ -57,7 +58,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       debugPrint('✅ Step 2: Staff data fetched');
       debugPrint('📊 Total staff: ${staffsProvider.staffList.length}');
 
-      // Debug: Print all staff
       for (var staff in staffsProvider.staffList) {
         debugPrint('   - ${staff.firstname} ${staff.lastname} (userId: ${staff.userId})');
       }
@@ -65,7 +65,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       debugPrint('');
       debugPrint('🔎 Step 3: Looking for userId: ${widget.userId}');
 
-      // ✅ Find staff by userId (same as MySelfScreen)
       final matches = staffsProvider.staffList
           .where((s) => s.userId == widget.userId)
           .toList();
@@ -87,7 +86,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       debugPrint('   📁 Filename: ${_currentStaff!.filename}');
       debugPrint('');
 
-      // ✅ Build profile picture URL (same pattern as MySelfScreen)
       if (_currentStaff!.filepath != null && _currentStaff!.filepath!.isNotEmpty) {
         _profilePicture = 'https://devcms.com.my/charmsAPI/public/storage/${_currentStaff!.filepath}';
         debugPrint('✅ Step 5: Profile picture URL built');
@@ -100,7 +98,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       debugPrint('');
       debugPrint('========================================');
       debugPrint('✅ LOADING COMPLETE');
-      debugPrint('🎯 Final profile picture: $_profilePicture');
       debugPrint('========================================');
       debugPrint('');
 
@@ -121,28 +118,93 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  // ✅ Helper method to get the correct ImageProvider (same as MySelfScreen)
-  // ImageProvider _getImageProvider() {
-  //   if (_profilePicture.startsWith('http') || _profilePicture.startsWith('https')) {
-  //     debugPrint('🌐 Loading network image: $_profilePicture');
-  //     return NetworkImage(_profilePicture);
-  //   } else if (_profilePicture.startsWith('assets/')) {
-  //     debugPrint('📁 Loading asset image: $_profilePicture');
-  //     return AssetImage(_profilePicture);
-  //   } else {
-  //     debugPrint('⚠️ Unknown image path format, using default: $_profilePicture');
-  //     return const AssetImage('assets/profilepicture.png');
-  //   }
-  // }
-
-  // ✅ Logout method
   Future<void> _logout(BuildContext context) async {
     await LogoutHelper.fullLogout(context);
   }
 
+  // ✅ NEW: Navigate to document upload with intern ID lookup
+  Future<void> _navigateToDocumentUpload() async {
+    if (widget.role == 'Intern') {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      try {
+        debugPrint('🔍 Looking up intern ID for userId: ${widget.userId}');
+        
+        // Get intern ID from user ID
+        final internId = await InternHelper.getInternIdByUserId(widget.userId);
+        
+        debugPrint('📋 Intern ID result: $internId');
+        
+        // Close loading dialog
+        if (mounted) Navigator.pop(context);
+
+        if (internId != null) {
+          debugPrint('✅ Found intern ID: $internId, navigating to upload');
+          
+          // Navigate to document upload with intern ID
+          if (mounted) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => DocsUpload(
+                  userId: internId, // ✅ Use internId, not userId
+                  scheduleId: null,
+                ),
+              ),
+            );
+          }
+        } else {
+          debugPrint('⚠️ No registration found, redirecting to registration');
+          
+          // No registration found, redirect to registration
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('⚠️ Please complete your registration first'),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 3),
+              ),
+            );
+
+            // Navigate to schedule/registration
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ScheduleCalendar(
+                  isAdmin: false,
+                  userId: widget.userId,
+                ),
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        debugPrint('❌ Error looking up intern ID: $e');
+        
+        // Close loading dialog if open
+        if (mounted) {
+          Navigator.pop(context);
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ Error: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Show loading screen while fetching data
     if (_isLoading) {
       return Scaffold(
         backgroundColor: Colors.white,
@@ -171,7 +233,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
     }
 
-    // Show dashboard
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -215,7 +276,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     padding: const EdgeInsets.all(16.0),
                     child: Row(
                       children: [
-                        // ✅ Conditionally render CircleAvatar
                         (_currentStaff?.filepath != null && _currentStaff!.filepath!.isNotEmpty)
                             ? CircleAvatar(
                                 radius: 50,
@@ -340,7 +400,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               );
               break;
             case 2:
-              // Navigate to feedback page
               break;
           }
         },
@@ -348,14 +407,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // Helper method to build dashboard buttons
   List<Widget> _buildDashboardButtons(BuildContext context) {
     final buttons = <Widget>[];
 
     if (widget.role == 'Admin') {
       buttons.addAll([
-        _buildDashboardButton(context, 'Create Schedule', Icons.calendar_today,
-            () {
+        _buildDashboardButton(context, 'Create Schedule', Icons.calendar_today, () {
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -369,8 +426,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _buildDashboardButton(context, 'Intern List', Icons.person_add, () {
           // Placeholder action for Registration
         }),
-        _buildDashboardButton(context, 'Monitor Performance', Icons.monitor,
-            () {
+        _buildDashboardButton(context, 'Monitor Performance', Icons.monitor, () {
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -387,8 +443,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             MaterialPageRoute(builder: (context) => const InternListPage()),
           );
         }),
-        _buildDashboardButton(context, 'Intern Submissions', Icons.assignment,
-            () {
+        _buildDashboardButton(context, 'Intern Submissions', Icons.assignment, () {
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -410,8 +465,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           );
         }),
-        _buildDashboardButton(context, 'Monitor Performance', Icons.monitor,
-            () {
+        _buildDashboardButton(context, 'Monitor Performance', Icons.monitor, () {
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -439,6 +493,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           );
         }),
+        // ✅ UPDATED: Upload Documents with intern ID lookup
+        _buildDashboardButton(context, 'Upload Documents', Icons.upload_file, () {
+          _navigateToDocumentUpload();
+        }),
         _buildDashboardButton(context, 'Submissions', Icons.assignment, () {
           Navigator.push(
             context,
@@ -447,16 +505,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           );
         }),
-        _buildDashboardButton(context, 'Feedback', Icons.feedback, () {
-          // Placeholder action for Feedback
-        }),
       ]);
     }
 
     return buttons;
   }
 
-  // Helper method to build individual buttons
   Widget _buildDashboardButton(BuildContext context, String title,
       IconData icon, VoidCallback onPressed) {
     final buttonWidth = (MediaQuery.of(context).size.width / 3) - 32;
