@@ -42,7 +42,7 @@ class _DocsUploadState extends State<DocsUpload> {
 try {
       // 2. UPDATED URL: Points to Laravel 'internship/documents/submissions/{userId}'
       final response = await http.get(
-        Uri.parse('${AppConfig.hostname}internship/documents/submissions/${widget.userId}'),
+        Uri.parse('${AppConfig.hostname}/api/internship/submissions/intern/${widget.userId}')
       );
 
       if (response.statusCode == 200) {
@@ -110,7 +110,7 @@ try {
       // 3. UPDATED URL: Points to Laravel 'internship/documents/upload'
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('${AppConfig.hostname}internship/documents/upload'),
+        Uri.parse('${AppConfig.hostname}/api/internship/submissions')
       );
 
       // Add the file to the request

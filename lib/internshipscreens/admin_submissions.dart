@@ -33,7 +33,7 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
     try {
       // 2. UPDATED URL: Points to Laravel 'internship/documents/admin/submissions'
       final response = await http.get(
-        Uri.parse('${AppConfig.hostname}internship/documents/admin/submissions'),
+        Uri.parse('${AppConfig.hostname}/api/internship/submissions/all')
       );
 
       if (response.statusCode == 200) {
@@ -58,7 +58,7 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
       _showLoadingDialog('Downloading file...');
 
      final response = await http.get(
-        Uri.parse('${AppConfig.hostname}internship/documents/download/$submissionId'),
+        Uri.parse('${AppConfig.hostname}/api/internship/documents/download/$submissionId')
       );
       Navigator.of(context).pop(); // Close loading dialog
 
@@ -89,7 +89,7 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
       _showLoadingDialog('Updating status...');
 
       final response = await http.put(
-        Uri.parse('${AppConfig.hostname}internship/documents/submissions/$submissionId/status'),
+        Uri.parse('${AppConfig.hostname}/api/internship/submissions/$submissionId/status'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'status': status,
