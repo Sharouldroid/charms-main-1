@@ -31,8 +31,7 @@ import 'package:charms/notification_page.dart';
 import 'package:charms/providers/auth.dart' as app_auth;
 import 'package:charms/HRscreens/admin/admin_dashboard_screen.dart';
 import 'package:charms/constants/user_roles.dart';
-import 'package:charms/providers/auth.dart'; 
-import 'package:charms/internshipscreens/dashboard_screen.dart' as internship_screens; // Add this
+import 'package:charms/internshipscreens/dashboard_screen.dart' as internship_screens;
 
 // --- CONTROLLER (Recent Activity) ---
 class RecentActivityController {
@@ -827,32 +826,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 // ===========================
                 // SECTION 5: INTERNSHIP
                 // ===========================
-                if (_isAdmin()) // Only show for HR Admin (usertype = 6)
-                  _buildSmartSection(
-                    title: 'Internship Management',
-                    icon: Icons.school_outlined,
-                    initiallyExpanded: false,
-                    children: [
-                      _buildDashboardCard(
-                        icon: Icons.dashboard_customize_outlined,
-                        title: 'Internship Dashboard',
-                        onTap: () {
-                          final appAuth = Provider.of<Auth>(context, listen: false);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => internship_screens.DashboardScreen(
-                                username: appAuth.username,
-                                role: 'Admin',
-                                profilePicture: 'assets/profilepicture.png',
-                                userId: int.tryParse(appAuth.userId.toString()) ?? 0,// Link to HR staff ID
-                              ),
+               if (_isAdmin())
+                _buildSmartSection(
+                  title: 'Internship Management',
+                  icon: Icons.school_outlined,
+                  initiallyExpanded: false,
+                  children: [
+                    _buildDashboardCard(
+                      icon: Icons.dashboard_customize_outlined,
+                      title: 'Internship Dashboard',
+                      onTap: () {
+                        final appAuth = Provider.of<app_auth.Auth>(context, listen: false);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => internship_screens.DashboardScreen(
+                              username: appAuth.username,
+                              role: 'Admin',
+                              userId: appAuth.userId ?? 0,
                             ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+
                 // ===========================
                 // SECTION 6: HR MODULE
                 // ===========================

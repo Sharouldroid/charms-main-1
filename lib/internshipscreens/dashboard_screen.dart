@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:charms/HRproviders/staffs.dart';
+import 'package:charms/HRmodels/staff.dart';
 import 'package:charms/internshipscreens/assessment_intern.dart';
 import 'package:charms/utils/logout_helper.dart';
 import 'check_status.dart';
@@ -8,36 +11,129 @@ import 'intern_list_assesstment.dart';
 import 'admin_submissions.dart';
 import 'submission_status.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   final String username;
   final String role;
-  final String profilePicture;
   final int userId;
 
   const DashboardScreen({
     super.key,
     required this.username,
     required this.role,
-    required this.profilePicture,
     required this.userId,
   });
 
-  // ✅ Helper method to get the correct ImageProvider
-  ImageProvider _getImageProvider(String imagePath) {
-    if (imagePath.startsWith('http') || imagePath.startsWith('https')) {
-      // Network image from server
-      debugPrint('🌐 Loading network image: $imagePath');
-      return NetworkImage(imagePath);
-    } else if (imagePath.startsWith('assets/')) {
-      // Local asset image
-      debugPrint('📁 Loading asset image: $imagePath');
-      return AssetImage(imagePath);
-    } else {
-      // Fallback to default asset
-      debugPrint('⚠️ Unknown image path format, using default: $imagePath');
-      return const AssetImage('assets/profilepicture.png');
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  Staff? _currentStaff;
+  bool _isLoading = true;
+  String _profilePicture = 'assets/profilepicture.png';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStaffData();
+  }
+
+  // ✅ Same pattern as MySelfScreen._loadStaffData()
+  Future<void> _loadStaffData() async {
+    debugPrint('');
+    debugPrint('========================================');
+    debugPrint('🚀 LOADING STAFF DATA FOR INTERNSHIP');
+    debugPrint('========================================');
+    debugPrint('📋 Username: ${widget.username}');
+    debugPrint('🔑 UserId: ${widget.userId}');
+    debugPrint('');
+
+    try {
+      final staffsProvider = context.read<Staffs>();
+
+      debugPrint('🔍 Step 1: Fetching all staff from database...');
+      await staffsProvider.fetchStaff();
+
+      debugPrint('✅ Step 2: Staff data fetched');
+      debugPrint('📊 Total staff: ${staffsProvider.staffList.length}');
+
+      // Debug: Print all staff
+      for (var staff in staffsProvider.staffList) {
+        debugPrint('   - ${staff.firstname} ${staff.lastname} (userId: ${staff.userId})');
+      }
+
+      debugPrint('');
+      debugPrint('🔎 Step 3: Looking for userId: ${widget.userId}');
+
+      // ✅ Find staff by userId (same as MySelfScreen)
+      final matches = staffsProvider.staffList
+          .where((s) => s.userId == widget.userId)
+          .toList();
+
+      if (matches.isEmpty) {
+        debugPrint('❌ No matching staff found for userId=${widget.userId}');
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      _currentStaff = matches.first;
+
+      debugPrint('✅ Step 4: Found staff!');
+      debugPrint('   👤 Name: ${_currentStaff!.firstname} ${_currentStaff!.lastname}');
+      debugPrint('   📧 Email: ${_currentStaff!.email}');
+      debugPrint('   🖼️ Filepath: ${_currentStaff!.filepath}');
+      debugPrint('   📁 Filename: ${_currentStaff!.filename}');
+      debugPrint('');
+
+      // ✅ Build profile picture URL (same pattern as MySelfScreen)
+      if (_currentStaff!.filepath != null && _currentStaff!.filepath!.isNotEmpty) {
+        _profilePicture = 'https://devcms.com.my/charmsAPI/public/storage/${_currentStaff!.filepath}';
+        debugPrint('✅ Step 5: Profile picture URL built');
+        debugPrint('   🌐 URL: $_profilePicture');
+      } else {
+        debugPrint('⚠️ Step 5: No filepath, using default');
+        _profilePicture = 'assets/profilepicture.png';
+      }
+
+      debugPrint('');
+      debugPrint('========================================');
+      debugPrint('✅ LOADING COMPLETE');
+      debugPrint('🎯 Final profile picture: $_profilePicture');
+      debugPrint('========================================');
+      debugPrint('');
+
+    } catch (error) {
+      debugPrint('');
+      debugPrint('========================================');
+      debugPrint('❌ ERROR LOADING STAFF DATA');
+      debugPrint('========================================');
+      debugPrint('Error: $error');
+      debugPrint('========================================');
+      debugPrint('');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
+
+  // ✅ Helper method to get the correct ImageProvider (same as MySelfScreen)
+  // ImageProvider _getImageProvider() {
+  //   if (_profilePicture.startsWith('http') || _profilePicture.startsWith('https')) {
+  //     debugPrint('🌐 Loading network image: $_profilePicture');
+  //     return NetworkImage(_profilePicture);
+  //   } else if (_profilePicture.startsWith('assets/')) {
+  //     debugPrint('📁 Loading asset image: $_profilePicture');
+  //     return AssetImage(_profilePicture);
+  //   } else {
+  //     debugPrint('⚠️ Unknown image path format, using default: $_profilePicture');
+  //     return const AssetImage('assets/profilepicture.png');
+  //   }
+  // }
 
   // ✅ Logout method
   Future<void> _logout(BuildContext context) async {
@@ -46,11 +142,40 @@ class DashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('🖼️ profilePicture received: $profilePicture');
+    // Show loading screen while fetching data
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          title: const Text('Loading...'),
+          backgroundColor: Colors.blueAccent,
+        ),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(
+                color: Colors.blueAccent,
+              ),
+              SizedBox(height: 20),
+              Text(
+                'Loading Dashboard...',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Show dashboard
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: Text('$role Dashboard'),
+        title: Text('${widget.role} Dashboard'),
         backgroundColor: Colors.blueAccent,
         actions: [
           IconButton(
@@ -62,7 +187,7 @@ class DashboardScreen extends StatelessWidget {
         ],
       ),
       body: Container(
-        color: Colors.white,
+        color: const Color.fromARGB(255, 254, 251, 251),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
@@ -90,21 +215,26 @@ class DashboardScreen extends StatelessWidget {
                     padding: const EdgeInsets.all(16.0),
                     child: Row(
                       children: [
-                        // ✅ Updated CircleAvatar to use _getImageProvider
-                        CircleAvatar(
-                          radius: 50,
-                          backgroundImage: _getImageProvider(profilePicture),
-                          backgroundColor: Colors.grey[300],
-                          onBackgroundImageError: (exception, stackTrace) {
-                            debugPrint('❌ Error loading profile image: $exception');
-                          },
-                        ),
+                        // ✅ Conditionally render CircleAvatar
+                        (_currentStaff?.filepath != null && _currentStaff!.filepath!.isNotEmpty)
+                            ? CircleAvatar(
+                                radius: 50,
+                                backgroundColor: Colors.blueAccent.withOpacity(0.12),
+                                backgroundImage: NetworkImage(
+                                    'https://devcms.com.my/charmsAPI/public/storage/${_currentStaff!.filepath}'),
+                              )
+                            : CircleAvatar(
+                                radius: 50,
+                                backgroundColor: Colors.blueAccent.withOpacity(0.12),
+                                child: const Icon(Icons.person_rounded,
+                                    size: 52, color: Colors.blueAccent),
+                              ),
                         const SizedBox(width: 20),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              username,
+                              widget.username,
                               style: const TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
@@ -112,7 +242,7 @@ class DashboardScreen extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              role,
+                              widget.role,
                               style: const TextStyle(
                                 fontSize: 16,
                                 color: Color.fromARGB(255, 255, 255, 255),
@@ -205,7 +335,7 @@ class DashboardScreen extends StatelessWidget {
                 context,
                 MaterialPageRoute(
                   builder: (context) => ScheduleCalendar(
-                      isAdmin: role == 'Admin', userId: userId),
+                      isAdmin: widget.role == 'Admin', userId: widget.userId),
                 ),
               );
               break;
@@ -222,7 +352,7 @@ class DashboardScreen extends StatelessWidget {
   List<Widget> _buildDashboardButtons(BuildContext context) {
     final buttons = <Widget>[];
 
-    if (role == 'Admin') {
+    if (widget.role == 'Admin') {
       buttons.addAll([
         _buildDashboardButton(context, 'Create Schedule', Icons.calendar_today,
             () {
@@ -231,7 +361,7 @@ class DashboardScreen extends StatelessWidget {
             MaterialPageRoute(
               builder: (context) => ScheduleCalendar(
                 isAdmin: true,
-                userId: userId,
+                userId: widget.userId,
               ),
             ),
           );
@@ -245,8 +375,8 @@ class DashboardScreen extends StatelessWidget {
             context,
             MaterialPageRoute(
               builder: (context) => MonitorPerformancePage(
-                role: role,
-                userId: userId,
+                role: widget.role,
+                userId: widget.userId,
               ),
             ),
           );
@@ -262,12 +392,12 @@ class DashboardScreen extends StatelessWidget {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => AdminSubmissionsPage(adminId: userId),
+              builder: (context) => AdminSubmissionsPage(adminId: widget.userId),
             ),
           );
         }),
       ]);
-    } else if (role == 'Intern') {
+    } else if (widget.role == 'Intern') {
       buttons.addAll([
         _buildDashboardButton(context, 'Register', Icons.calendar_today, () {
           Navigator.push(
@@ -275,7 +405,7 @@ class DashboardScreen extends StatelessWidget {
             MaterialPageRoute(
               builder: (context) => ScheduleCalendar(
                 isAdmin: false,
-                userId: userId,
+                userId: widget.userId,
               ),
             ),
           );
@@ -286,8 +416,8 @@ class DashboardScreen extends StatelessWidget {
             context,
             MaterialPageRoute(
               builder: (context) => MonitorPerformancePage(
-                role: role,
-                userId: userId,
+                role: widget.role,
+                userId: widget.userId,
               ),
             ),
           );
@@ -296,7 +426,7 @@ class DashboardScreen extends StatelessWidget {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => AssessmentInternPage(internId: userId),
+              builder: (context) => AssessmentInternPage(internId: widget.userId),
             ),
           );
         }),
@@ -313,7 +443,7 @@ class DashboardScreen extends StatelessWidget {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => SubmissionStatusPage(userId: userId),
+              builder: (context) => SubmissionStatusPage(userId: widget.userId),
             ),
           );
         }),
@@ -329,8 +459,7 @@ class DashboardScreen extends StatelessWidget {
   // Helper method to build individual buttons
   Widget _buildDashboardButton(BuildContext context, String title,
       IconData icon, VoidCallback onPressed) {
-    final buttonWidth =
-        (MediaQuery.of(context).size.width / 3) - 32;
+    final buttonWidth = (MediaQuery.of(context).size.width / 3) - 32;
     const buttonHeight = 120.0;
 
     return SizedBox(

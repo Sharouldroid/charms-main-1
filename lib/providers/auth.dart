@@ -130,7 +130,7 @@ class Auth with ChangeNotifier {
           final hrData = jsonDecode(hrResponse.body);
           if (hrData['success'] == true) {
             final data = hrData['data'];
-            _token = (data['id'] ?? data['userid']).toString();
+           _token = (data['userid'] ?? data['id']).toString();
             _username = data['username'] ?? username;
             _usertype = int.tryParse(data['usertype'].toString()) ?? 2;
             _isHRUser = true; // HR DB user — skip main-DB-only fetches
