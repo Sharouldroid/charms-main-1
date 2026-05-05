@@ -3,15 +3,14 @@ import 'package:provider/provider.dart';
 import 'package:charms/HRproviders/staffs.dart';
 import 'package:charms/HRmodels/staff.dart';
 import 'package:charms/internshipscreens/assessment_intern.dart';
-import 'package:charms/internshipservices/intern_helper.dart'; // ✅ ADDED
+import 'package:charms/internshipservices/intern_helper.dart';
 import 'package:charms/utils/logout_helper.dart';
-import 'check_status.dart';
 import 'schedule_calendar.dart';
 import 'monitor_performance.dart';
 import 'intern_list_assesstment.dart';
 import 'admin_submissions.dart';
-//import 'submission_status.dart';
-import 'docs_upload.dart'; // ✅ ADDED
+import 'docs_upload.dart';
+import 'registration_status.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String username;
@@ -122,10 +121,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     await LogoutHelper.fullLogout(context);
   }
 
-  // ✅ NEW: Navigate to document upload with intern ID lookup
+  // ✅ Navigate to document upload with intern ID lookup
   Future<void> _navigateToDocumentUpload() async {
     if (widget.role == 'Intern') {
-      // Show loading indicator
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -137,24 +135,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
       try {
         debugPrint('🔍 Looking up intern ID for userId: ${widget.userId}');
         
-        // Get intern ID from user ID
         final internId = await InternHelper.getInternIdByUserId(widget.userId);
         
         debugPrint('📋 Intern ID result: $internId');
         
-        // Close loading dialog
         if (mounted) Navigator.pop(context);
 
         if (internId != null) {
           debugPrint('✅ Found intern ID: $internId, navigating to upload');
           
-          // Navigate to document upload with intern ID
           if (mounted) {
             Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => DocsUpload(
-                  userId: internId, // ✅ Use internId, not userId
+                  userId: internId,
                   scheduleId: null,
                 ),
               ),
@@ -163,7 +158,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         } else {
           debugPrint('⚠️ No registration found, redirecting to registration');
           
-          // No registration found, redirect to registration
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -173,7 +167,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             );
 
-            // Navigate to schedule/registration
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -188,7 +181,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       } catch (e) {
         debugPrint('❌ Error looking up intern ID: $e');
         
-        // Close loading dialog if open
         if (mounted) {
           Navigator.pop(context);
           
@@ -200,6 +192,172 @@ class _DashboardScreenState extends State<DashboardScreen> {
           );
         }
       }
+    }
+  }
+
+  // ✅ NEW: Navigate to monitor performance with intern ID lookup
+  Future<void> _navigateToMonitorPerformance() async {
+    if (widget.role == 'Intern') {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      try {
+        debugPrint('🔍 Looking up intern ID for Monitor Performance: ${widget.userId}');
+        
+        final internId = await InternHelper.getInternIdByUserId(widget.userId);
+        
+        debugPrint('📋 Intern ID for performance: $internId');
+        
+        if (mounted) Navigator.pop(context);
+
+        if (internId != null) {
+          debugPrint('✅ Found intern ID: $internId, navigating to monitor performance');
+          
+          if (mounted) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MonitorPerformancePage(
+                  role: widget.role,
+                  userId: internId, // ✅ Use internId!
+                ),
+              ),
+            );
+          }
+        } else {
+          debugPrint('⚠️ No registration found for performance monitoring');
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('⚠️ Please complete your registration first'),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 3),
+              ),
+            );
+
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ScheduleCalendar(
+                  isAdmin: false,
+                  userId: widget.userId,
+                ),
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        debugPrint('❌ Error looking up intern ID for performance: $e');
+        
+        if (mounted) {
+          Navigator.pop(context);
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ Error: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } else {
+      // Admin view - no lookup needed
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MonitorPerformancePage(
+            role: widget.role,
+            userId: widget.userId,
+          ),
+        ),
+      );
+    }
+  }
+
+  // ✅ NEW: Navigate to assessment with intern ID lookup
+  Future<void> _navigateToAssessment() async {
+    if (widget.role == 'Intern') {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      try {
+        debugPrint('🔍 Looking up intern ID for Assessment: ${widget.userId}');
+        
+        final internId = await InternHelper.getInternIdByUserId(widget.userId);
+        
+        debugPrint('📋 Intern ID for assessment: $internId');
+        
+        if (mounted) Navigator.pop(context);
+
+        if (internId != null) {
+          debugPrint('✅ Found intern ID: $internId, navigating to assessment');
+          
+          if (mounted) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AssessmentInternPage(
+                  internId: internId, // ✅ Use internId!
+                ),
+              ),
+            );
+          }
+        } else {
+          debugPrint('⚠️ No registration found for assessment');
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('⚠️ Please complete your registration first'),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 3),
+              ),
+            );
+
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ScheduleCalendar(
+                  isAdmin: false,
+                  userId: widget.userId,
+                ),
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        debugPrint('❌ Error looking up intern ID for assessment: $e');
+        
+        if (mounted) {
+          Navigator.pop(context);
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ Error: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } else {
+      // This shouldn't happen for interns, but kept for safety
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AssessmentInternPage(internId: widget.userId),
+        ),
+      );
     }
   }
 
@@ -465,46 +623,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           );
         }),
+        // ✅ FIXED: Monitor Performance with intern ID lookup
         _buildDashboardButton(context, 'Monitor Performance', Icons.monitor, () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => MonitorPerformancePage(
-                role: widget.role,
-                userId: widget.userId,
-              ),
-            ),
-          );
+          _navigateToMonitorPerformance();
         }),
+        // ✅ FIXED: Assessment with intern ID lookup
         _buildDashboardButton(context, 'Assessment', Icons.assessment, () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => AssessmentInternPage(internId: widget.userId),
-            ),
-          );
+          _navigateToAssessment();
         }),
+        // ✅ FIXED: Check Status with real API
         _buildDashboardButton(context, 'Check Status', Icons.check_circle, () {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => const CheckStatusPage(
-                  isStatusChecked: false),
+              builder: (context) => RegistrationStatusPage(userId: widget.userId),
             ),
           );
         }),
-        // ✅ UPDATED: Upload Documents with intern ID lookup
+        // ✅ FIXED: Upload Documents with intern ID lookup
         _buildDashboardButton(context, 'Upload Documents', Icons.upload_file, () {
           _navigateToDocumentUpload();
         }),
-        // _buildDashboardButton(context, 'Submissions', Icons.assignment, () {
-        //   Navigator.push(
-        //     context,
-        //     MaterialPageRoute(
-        //       builder: (context) => SubmissionStatusPage(userId: widget.userId),
-        //     ),
-        //   );
-        // }),
+        // ❌ REMOVED: Submissions button (functionality merged into Upload Documents)
       ]);
     }
 
