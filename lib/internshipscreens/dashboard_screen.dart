@@ -10,7 +10,7 @@ import 'schedule_calendar.dart';
 import 'monitor_performance.dart';
 import 'intern_list_assesstment.dart';
 import 'admin_submissions.dart';
-import 'submission_status.dart';
+//import 'submission_status.dart';
 import 'docs_upload.dart'; // ✅ ADDED
 
 class DashboardScreen extends StatefulWidget {
@@ -497,14 +497,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _buildDashboardButton(context, 'Upload Documents', Icons.upload_file, () {
           _navigateToDocumentUpload();
         }),
-        _buildDashboardButton(context, 'Submissions', Icons.assignment, () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => SubmissionStatusPage(userId: widget.userId),
-            ),
-          );
-        }),
+        // _buildDashboardButton(context, 'Submissions', Icons.assignment, () {
+        //   Navigator.push(
+        //     context,
+        //     MaterialPageRoute(
+        //       builder: (context) => SubmissionStatusPage(userId: widget.userId),
+        //     ),
+        //   );
+        // }),
       ]);
     }
 
