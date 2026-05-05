@@ -11,6 +11,7 @@ import 'intern_list_assesstment.dart';
 import 'admin_submissions.dart';
 import 'docs_upload.dart';
 import 'registration_status.dart';
+import 'intern_myself_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String username;
@@ -644,7 +645,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _buildDashboardButton(context, 'Upload Documents', Icons.upload_file, () {
           _navigateToDocumentUpload();
         }),
-        // ❌ REMOVED: Submissions button (functionality merged into Upload Documents)
+         _buildDashboardButton(context, 'My Profile', Icons.account_circle, () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => InternMySelfScreen(
+                userId: widget.userId,
+                username: widget.username,
+              ),
+            ),
+          );
+        }),
       ]);
     }
 
