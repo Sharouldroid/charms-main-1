@@ -54,14 +54,14 @@ class _InternChangePasswordScreenState
     debugPrint('URL: ${AppConfig.hostname}/api/user/change-password');
     
     final response = await http.post(
-      Uri.parse('${AppConfig.hostname}/api/user/change-password'), // ✅ FIXED!
+      Uri.parse('${AppConfig.hostname}/api/user/change-password'),
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
       body: jsonEncode({
         'username': widget.username,
-        'current_password': _currentPasswordController.text,
+        'old_password': _currentPasswordController.text,  // ✅ CHANGED from 'current_password'
         'new_password': _newPasswordController.text,
       }),
     );
