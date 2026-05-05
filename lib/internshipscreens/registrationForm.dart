@@ -37,7 +37,7 @@ class _RegistrationFormState extends State<RegistrationForm> {
   final _postalCodeController = TextEditingController();
   final _phoneNumberController = TextEditingController();
   final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  //final _passwordController = TextEditingController();
 
   String? _selectedGender;
   DateTime? _dateOfBirth;
@@ -128,23 +128,141 @@ class _RegistrationFormState extends State<RegistrationForm> {
     _postalCodeController.dispose();
     _phoneNumberController.dispose();
     _emailController.dispose();
-    _passwordController.dispose();
+    //_passwordController.dispose();
     super.dispose();
   }
 
+  // ✅ SOLUTION 1: Enhanced Date Picker with Validation
   Future<void> _selectDateOfBirth(BuildContext context) async {
     final DateTime? selectedDate = await showDatePicker(
       context: context,
-      initialDate: _dateOfBirth ?? DateTime.now(),
+      initialDate: DateTime.now().subtract(const Duration(days: 6570)), // 18 years ago
       firstDate: DateTime(1900),
-      lastDate: DateTime.now(),
+      lastDate: DateTime.now(), // Blocks future dates
+      helpText: 'Select your date of birth',
+      errorFormatText: 'Enter valid date',
+      errorInvalidText: 'Enter date in valid range',
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: Colors.blue[600]!,
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
-    if (selectedDate != null && selectedDate != _dateOfBirth) {
+    if (selectedDate != null) {
+      // ✅ Extra validation: Ensure date is not in the future
+      if (selectedDate.isAfter(DateTime.now())) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.warning_amber, color: Colors.white),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      '⚠️ Date of birth cannot be in the future!',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+
+      final calculatedAge = _calculateAge(selectedDate);
+
+      // ✅ Validate minimum age requirement
+      if (calculatedAge < 16) {
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              title: Row(
+                children: [
+                  Icon(Icons.warning_amber, color: Colors.orange[700], size: 28),
+                  const SizedBox(width: 12),
+                  const Text('Age Requirement'),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'You must be at least 16 years old to register for the internship program.',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange[200]!),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.orange[700]),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Your age: $calculatedAge years old',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange[900],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text(
+                    'OK',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
+      }
+
       setState(() {
         _dateOfBirth = selectedDate;
-        _age = _calculateAge(_dateOfBirth!);
+        _age = calculatedAge;
       });
+
+      // Debug logging
+      print('');
+      print('========================================');
+      print('📅 DATE OF BIRTH SELECTED');
+      print('========================================');
+      print('Date: ${DateFormat('dd MMM yyyy').format(selectedDate)}');
+      print('Age: $calculatedAge years');
+      print('Valid: ${calculatedAge >= 16 ? "✅ Yes" : "❌ No"}');
+      print('========================================');
+      print('');
     }
   }
 
@@ -160,7 +278,77 @@ class _RegistrationFormState extends State<RegistrationForm> {
     return age;
   }
 
+  // ✅ SOLUTION 3: Enhanced Form Validation
   Future<void> _submitForm() async {
+    // ✅ Validate Date of Birth is selected
+    if (_dateOfBirth == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.calendar_today, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  '⚠️ Please select your date of birth',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    // ✅ Validate age is valid
+    if (_age == null || _age! <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  '⚠️ Invalid date of birth. Please select a valid date.',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    // ✅ Validate minimum age
+    if (_age! < 16) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.block, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  '⚠️ You must be at least 16 years old. Your age: $_age',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
     if (_formKey.currentState!.validate()) {
       // Ensure state is set correctly
       String finalState = '';
@@ -194,12 +382,15 @@ class _RegistrationFormState extends State<RegistrationForm> {
         areaCode: _countryCode ?? '',
         phoneNumber: _phoneNumber ?? '',
         email: _emailController.text,
-        password: _passwordController.text,
+        //password: _passwordController.text,
         scheduleId: widget.scheduleId,
       );
 
       try {
         print('🚀 Submitting registration...');
+        print('Age being submitted: ${_age}');
+        print('Date of Birth: ${DateFormat('yyyy-MM-dd').format(_dateOfBirth!)}');
+        
         final internId = await Provider.of<RegisterProvider>(context, listen: false)
             .registerUser(register);
 
@@ -225,7 +416,7 @@ class _RegistrationFormState extends State<RegistrationForm> {
             ),
           );
 
-          // ✅ Pop back with success result to refresh schedule calendar
+          // Pop back with success result to refresh schedule calendar
           if (mounted) {
             Navigator.pop(context, true);
           }
@@ -348,59 +539,126 @@ class _RegistrationFormState extends State<RegistrationForm> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Date of Birth section
+                  // ✅ SOLUTION 2: Enhanced Date of Birth Display with Visual Validation
                   Card(
                     elevation: 2,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     child: InkWell(
                       onTap: () => _selectDateOfBirth(context),
                       borderRadius: BorderRadius.circular(8),
                       child: Container(
                         padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          border: _dateOfBirth == null
+                              ? Border.all(color: Colors.orange, width: 2)
+                              : null,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                         child: Row(
                           children: [
-                            Icon(Icons.calendar_today, color: Colors.blue[600]),
-                            const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Date of Birth',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey[600],
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  _dateOfBirth == null
-                                      ? 'Select Date'
-                                      : DateFormat('dd MMM yyyy')
-                                          .format(_dateOfBirth!),
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
+                            Icon(
+                              Icons.calendar_today,
+                              color: _dateOfBirth == null
+                                  ? Colors.orange
+                                  : Colors.blue[600],
                             ),
-                            const Spacer(),
-                            if (_age != null)
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Date of Birth',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey[600],
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _dateOfBirth == null
+                                        ? 'Tap to select *Required'
+                                        : DateFormat('dd MMM yyyy')
+                                            .format(_dateOfBirth!),
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: _dateOfBirth == null
+                                          ? Colors.orange
+                                          : Colors.black,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // ✅ Age Badge with Validation Colors
+                            if (_age != null && _age! > 0)
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 12, vertical: 6),
                                 decoration: BoxDecoration(
-                                  color: Colors.blue[100],
+                                  color: _age! < 16
+                                      ? Colors.red[100]
+                                      : Colors.green[100],
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: _age! < 16
+                                        ? Colors.red[300]!
+                                        : Colors.green[300]!,
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      _age! < 16
+                                          ? Icons.error_outline
+                                          : Icons.check_circle,
+                                      size: 16,
+                                      color: _age! < 16
+                                          ? Colors.red[800]
+                                          : Colors.green[800],
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Age: $_age',
+                                      style: TextStyle(
+                                        color: _age! < 16
+                                            ? Colors.red[800]
+                                            : Colors.green[800],
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            else
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange[100],
                                   borderRadius: BorderRadius.circular(20),
                                 ),
-                                child: Text(
-                                  'Age: $_age',
-                                  style: TextStyle(
-                                    color: Colors.blue[800],
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.warning_amber,
+                                        size: 16, color: Colors.orange[800]),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Select DOB',
+                                      style: TextStyle(
+                                        color: Colors.orange[800],
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                           ],
@@ -408,6 +666,35 @@ class _RegistrationFormState extends State<RegistrationForm> {
                       ),
                     ),
                   ),
+                  // ✅ Age Requirement Info
+                  if (_dateOfBirth != null && _age != null && _age! < 16)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red[50],
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.red[200]!),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline, color: Colors.red[700], size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Minimum age requirement: 16 years old',
+                                style: TextStyle(
+                                  color: Colors.red[900],
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                 ],
               ),
               const SizedBox(height: 20),

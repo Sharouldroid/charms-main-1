@@ -27,7 +27,7 @@ class Register {
   final String areaCode;
   final String phoneNumber;
   final String email;
-  final String password;
+  //final String password;
 
   // Schedule Information
   final int scheduleId; // Add scheduleId
@@ -61,7 +61,7 @@ class Register {
     required this.areaCode,
     required this.phoneNumber,
     required this.email,
-    required this.password,
+    //required this.password,
 
     // Schedule Information
     required this.scheduleId, // Add scheduleId
@@ -97,7 +97,7 @@ class Register {
       areaCode: json['area_code'],
       phoneNumber: json['phone_number'],
       email: json['email'],
-      password: json['password'],
+      //password: json['password'],
 
       // Schedule Information
       scheduleId: json['schedule_id'], // Add scheduleId
