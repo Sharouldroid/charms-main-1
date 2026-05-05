@@ -448,6 +448,14 @@ class _DocsUploadState extends State<DocsUpload> {
                 ],
               ),
             ),
+            floatingActionButton: FloatingActionButton(
+            onPressed: () {
+              Navigator.of(context).popUntil((route) => route.isFirst);
+            },
+            backgroundColor: Colors.blueAccent,
+            tooltip: 'Back to Dashboard',
+            child: const Icon(Icons.home, color: Colors.white),
+          ),
     );
   }
 }
