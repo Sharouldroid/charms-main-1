@@ -27,7 +27,7 @@ class Register {
   final String areaCode;
   final String phoneNumber;
   final String email;
-  //final String password;
+  final String? password;
 
   // Schedule Information
   final int scheduleId; // Add scheduleId
@@ -61,7 +61,7 @@ class Register {
     required this.areaCode,
     required this.phoneNumber,
     required this.email,
-    //required this.password,
+    this.password,
 
     // Schedule Information
     required this.scheduleId, // Add scheduleId
@@ -104,13 +104,14 @@ class Register {
     );
   }
 
-  Map<String, dynamic> toJson() => {
-        // Personal Information
-        'user_id': userId,
-        'first_name': firstName,
-        'last_name': lastName,
-        'date_of_birth': dateOfBirth,
-        'age': age,
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> json = {
+      // Personal Information
+      'user_id': userId,
+      'first_name': firstName,
+      'last_name': lastName,
+      'date_of_birth': dateOfBirth,
+      'age': age,
         'gender': gender,
 
         // Institution Information
@@ -138,4 +139,12 @@ class Register {
         // Schedule Information
         'schedule_id': scheduleId, // Add scheduleId
       };
+
+      // ✅ Only include password if it's provided
+    if (password != null && password!.isNotEmpty) {
+      json['password'] = password;
+    }
+
+    return json;
+  }
 }

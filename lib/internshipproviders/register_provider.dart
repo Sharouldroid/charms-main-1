@@ -11,6 +11,16 @@ class RegisterProvider with ChangeNotifier {
   List<Map<String, dynamic>> get internList => _internList;
 
   Future<int> registerUser(Register register) async {
+    
+    print('');
+    print('========================================');
+    print('📤 SENDING REGISTRATION REQUEST');
+    print('========================================');
+    print('User ID: ${register.userId}');
+    print('Schedule ID: ${register.scheduleId}');  // ✅ Check this!
+    print('Name: ${register.firstName} ${register.lastName}');
+    print('========================================');
+    
     final userId = await _registerService.addRegister(register);
     notifyListeners();
     return userId;

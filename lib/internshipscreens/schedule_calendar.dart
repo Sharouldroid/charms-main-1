@@ -397,6 +397,15 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
   // ✅ UPDATED: Check registration with duplicate prevention
   Future<void> _checkRegistrationLimit(int scheduleId) async {
     try {
+
+    print('');
+    print('========================================');
+    print('📋 SCHEDULE TAPPED');
+    print('========================================');
+    print('Schedule ID: $scheduleId');  // ✅ What schedule was clicked?
+    print('User ID: ${widget.userId}');
+    print('========================================');
+    
       // ✅ STEP 1: Check if user already registered for THIS schedule
       if (_userRegisteredScheduleIds.contains(scheduleId)) {
         ScaffoldMessenger.of(context).showSnackBar(
