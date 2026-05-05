@@ -133,7 +133,7 @@ class Register {
         'area_code': areaCode,
         'phone_number': phoneNumber,
         'email': email,
-        'password': password,
+        //'password': password,
 
         // Schedule Information
         'schedule_id': scheduleId, // Add scheduleId

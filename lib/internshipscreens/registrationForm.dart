@@ -14,7 +14,7 @@ class RegistrationForm extends StatefulWidget {
   const RegistrationForm({
     super.key,
     required this.scheduleId,
-    required this.userId, // Add userId parameter
+    required this.userId,
   });
 
   @override
@@ -39,12 +39,11 @@ class _RegistrationFormState extends State<RegistrationForm> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  String? _selectedGender; // Add this line for gender
+  String? _selectedGender;
   DateTime? _dateOfBirth;
   int? _age;
   String? _phoneNumber;
   String? _countryCode;
-
   String? _selectedState;
 
   final List<String> _malaysianStates = [
@@ -66,7 +65,6 @@ class _RegistrationFormState extends State<RegistrationForm> {
     'Putrajaya',
   ];
 
-  // Dropdown values
   final List<String> _levelsOfStudy = [
     'Diploma',
     'STPM',
@@ -78,7 +76,6 @@ class _RegistrationFormState extends State<RegistrationForm> {
   String? _selectedCountry;
   String? _selectedInstitution;
 
-  // Malaysian universities
   final List<String> _malaysianUniversities = [
     'Universiti Malaya (UM)',
     'Universiti Sains Malaysia (USM)',
@@ -109,6 +106,32 @@ class _RegistrationFormState extends State<RegistrationForm> {
     'Others'
   ];
 
+  final List<String> _genders = ['Male', 'Female'];
+
+  final RegExp _emailRegExp = RegExp(
+    r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$",
+  );
+
+  @override
+  void dispose() {
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _institutionController.dispose();
+    _programmeController.dispose();
+    _courseController.dispose();
+    _facultyController.dispose();
+    _branchController.dispose();
+    _streetAddress1Controller.dispose();
+    _streetAddress2Controller.dispose();
+    _cityController.dispose();
+    _stateController.dispose();
+    _postalCodeController.dispose();
+    _phoneNumberController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
   Future<void> _selectDateOfBirth(BuildContext context) async {
     final DateTime? selectedDate = await showDatePicker(
       context: context,
@@ -125,12 +148,10 @@ class _RegistrationFormState extends State<RegistrationForm> {
     }
   }
 
-  // Function to calculate the age based on the date of birth
   int _calculateAge(DateTime dob) {
     final DateTime today = DateTime.now();
     int age = today.year - dob.year;
 
-    // Check if the birthday has occurred this year, if not subtract 1
     if (today.month < dob.month ||
         (today.month == dob.month && today.day < dob.day)) {
       age--;
@@ -139,101 +160,97 @@ class _RegistrationFormState extends State<RegistrationForm> {
     return age;
   }
 
-  final List<String> _genders = ['Male', 'Female']; // Gender options
-
-  // Regular expression for email validation
-  final RegExp _emailRegExp = RegExp(
-    r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$",
-  );
-
   Future<void> _submitForm() async {
-  if (_formKey.currentState!.validate()) {
-    // ✅ FIX: Ensure state is set correctly
-    String finalState = '';
-    if (_selectedCountry == 'Malaysia') {
-      finalState = _selectedState ?? '';
-    } else {
-      finalState = _stateController.text;
-    }
-
-    final register = Register(
-      userId: widget.userId,
-      firstName: _firstNameController.text,
-      lastName: _lastNameController.text,
-      dateOfBirth: _dateOfBirth != null
-          ? DateFormat('yyyy-MM-dd').format(_dateOfBirth!)
-          : '',
-      age: _age ?? 0,
-      gender: _selectedGender ?? '',
-      levelOfStudy: _selectedLevel ?? '',
-      institutionName: _institutionController.text,
-      programme: _programmeController.text,
-      course: _courseController.text,
-      faculty: _facultyController.text,
-      branch: _branchController.text,
-      streetAddress1: _streetAddress1Controller.text,
-      streetAddress2: _streetAddress2Controller.text,
-      city: _cityController.text,
-      state: finalState, // ✅ FIXED: Use correct state value
-      postalCode: _postalCodeController.text,
-      country: _selectedCountry ?? '',
-      areaCode: _countryCode ?? '',
-      phoneNumber: _phoneNumber ?? '',
-      email: _emailController.text,
-      password: _passwordController.text,
-      scheduleId: widget.scheduleId,
-    );
-
-    try {
-      print('🚀 Submitting registration...');
-      final internId = await Provider.of<RegisterProvider>(context, listen: false)
-    .registerUser(register);
-
-      print('✅ Registration successful! User ID: $internId');
-
-      // Show success message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Registration successful!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
+    if (_formKey.currentState!.validate()) {
+      // Ensure state is set correctly
+      String finalState = '';
+      if (_selectedCountry == 'Malaysia') {
+        finalState = _selectedState ?? '';
+      } else {
+        finalState = _stateController.text;
       }
 
-      // Navigate to the DocsUpload screen with internId
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => DocsUpload(
-            userId: internId,
-            scheduleId: widget.scheduleId,
-          ),
+      final register = Register(
+        userId: widget.userId,
+        firstName: _firstNameController.text,
+        lastName: _lastNameController.text,
+        dateOfBirth: _dateOfBirth != null
+            ? DateFormat('yyyy-MM-dd').format(_dateOfBirth!)
+            : '',
+        age: _age ?? 0,
+        gender: _selectedGender ?? '',
+        levelOfStudy: _selectedLevel ?? '',
+        institutionName: _institutionController.text,
+        programme: _programmeController.text,
+        course: _courseController.text,
+        faculty: _facultyController.text,
+        branch: _branchController.text,
+        streetAddress1: _streetAddress1Controller.text,
+        streetAddress2: _streetAddress2Controller.text,
+        city: _cityController.text,
+        state: finalState,
+        postalCode: _postalCodeController.text,
+        country: _selectedCountry ?? '',
+        areaCode: _countryCode ?? '',
+        phoneNumber: _phoneNumber ?? '',
+        email: _emailController.text,
+        password: _passwordController.text,
+        scheduleId: widget.scheduleId,
+      );
+
+      try {
+        print('🚀 Submitting registration...');
+        final internId = await Provider.of<RegisterProvider>(context, listen: false)
+            .registerUser(register);
+
+        print('✅ Registration successful! Intern ID: $internId');
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Registration successful!'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+
+          // Navigate to DocsUpload
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => DocsUpload(
+                userId: internId,
+                scheduleId: widget.scheduleId,
+              ),
+            ),
+          );
+
+          // ✅ Pop back with success result to refresh schedule calendar
+          if (mounted) {
+            Navigator.pop(context, true);
+          }
+        }
+      } catch (e) {
+        print('❌ Registration error: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ Registration failed: $e'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⚠️ Please fill in all required fields correctly'),
+          backgroundColor: Colors.orange,
         ),
       );
-    } catch (e) {
-      print('❌ Registration error: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Registration failed: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
     }
-  } else {
-    // Form validation failed
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('⚠️ Please fill in all required fields correctly'),
-        backgroundColor: Colors.orange,
-      ),
-    );
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -292,6 +309,7 @@ class _RegistrationFormState extends State<RegistrationForm> {
                 ),
               ),
               const SizedBox(height: 24),
+
               // Personal Details Section
               _buildSectionCard(
                 'Basic Information',
@@ -329,6 +347,7 @@ class _RegistrationFormState extends State<RegistrationForm> {
                     ],
                   ),
                   const SizedBox(height: 16),
+
                   // Date of Birth section
                   Card(
                     elevation: 2,
@@ -392,6 +411,7 @@ class _RegistrationFormState extends State<RegistrationForm> {
                 ],
               ),
               const SizedBox(height: 20),
+
               // Gender Section
               _buildSectionCard(
                 'Gender',
@@ -415,15 +435,17 @@ class _RegistrationFormState extends State<RegistrationForm> {
                 ],
               ),
               const SizedBox(height: 20),
+
               // Institution Information Section
               const Text(
                 'Institution Information',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
-              // Country Dropdown - First
+
+              // Country Dropdown
               DropdownButtonFormField<String>(
-                initialValue: _selectedCountry,
+                value: _selectedCountry,
                 items: [
                   'Malaysia',
                   'Singapore',
@@ -442,8 +464,7 @@ class _RegistrationFormState extends State<RegistrationForm> {
                 onChanged: (value) {
                   setState(() {
                     _selectedCountry = value;
-                    _selectedInstitution =
-                        null; // Reset institution when country changes
+                    _selectedInstitution = null;
                     _institutionController.clear();
                   });
                 },
@@ -453,9 +474,10 @@ class _RegistrationFormState extends State<RegistrationForm> {
                 },
               ),
               const SizedBox(height: 16),
-              // Level of Study Dropdown - Second
+
+              // Level of Study Dropdown
               DropdownButtonFormField<String>(
-                initialValue: _selectedLevel,
+                value: _selectedLevel,
                 items: _levelsOfStudy.map((level) {
                   return DropdownMenuItem<String>(
                     value: level,
@@ -474,18 +496,19 @@ class _RegistrationFormState extends State<RegistrationForm> {
                 },
               ),
               const SizedBox(height: 16),
-              // Institution Field - Dropdown for Malaysia, TextFormField for others
+
+              // Institution Field
               if (_selectedCountry == 'Malaysia') ...[
                 DropdownButtonFormField<String>(
-                  initialValue: _selectedInstitution,
+                  value: _selectedInstitution,
                   items: _malaysianUniversities.map((university) {
                     return DropdownMenuItem<String>(
                       value: university,
                       child: Text(university),
                     );
                   }).toList(),
-                  decoration:
-                      const InputDecoration(labelText: 'University/Institution'),
+                  decoration: const InputDecoration(
+                      labelText: 'University/Institution'),
                   onChanged: (value) {
                     setState(() {
                       _selectedInstitution = value;
@@ -526,7 +549,8 @@ class _RegistrationFormState extends State<RegistrationForm> {
                 ),
               ],
               const SizedBox(height: 16),
-              // Faculty - Text Field
+
+              // Faculty
               TextFormField(
                 controller: _facultyController,
                 decoration: const InputDecoration(labelText: 'Faculty'),
@@ -536,7 +560,8 @@ class _RegistrationFormState extends State<RegistrationForm> {
                 },
               ),
               const SizedBox(height: 16),
-              // Branch - Text Field
+
+              // Branch
               TextFormField(
                 controller: _branchController,
                 decoration: const InputDecoration(labelText: 'Branch'),
@@ -545,6 +570,9 @@ class _RegistrationFormState extends State<RegistrationForm> {
                   return null;
                 },
               ),
+              const SizedBox(height: 16),
+
+              // Programme
               TextFormField(
                 controller: _programmeController,
                 decoration: const InputDecoration(labelText: 'Programme'),
@@ -553,6 +581,9 @@ class _RegistrationFormState extends State<RegistrationForm> {
                   return null;
                 },
               ),
+              const SizedBox(height: 16),
+
+              // Course
               TextFormField(
                 controller: _courseController,
                 decoration: const InputDecoration(labelText: 'Course'),
@@ -561,11 +592,16 @@ class _RegistrationFormState extends State<RegistrationForm> {
                   return null;
                 },
               ),
+              const SizedBox(height: 24),
+
+              // Address Information
               const Text(
                 'Address Information',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
+
+              // Street Address 1
               TextFormField(
                 controller: _streetAddress1Controller,
                 decoration: const InputDecoration(labelText: 'Street Address 1'),
@@ -574,13 +610,18 @@ class _RegistrationFormState extends State<RegistrationForm> {
                   return null;
                 },
               ),
+              const SizedBox(height: 16),
+
+              // Street Address 2
               TextFormField(
                 controller: _streetAddress2Controller,
-                decoration: const InputDecoration(labelText: 'Street Address 2'),
+                decoration: const InputDecoration(labelText: 'Street Address 2 (Optional)'),
               ),
+              const SizedBox(height: 16),
+
+              // Country Picker
               Container(
-                alignment:
-                    Alignment.centerLeft, // Aligns the widget to the left
+                alignment: Alignment.centerLeft,
                 child: CountryListPick(
                   theme: CountryTheme(
                     isShowFlag: true,
@@ -589,7 +630,7 @@ class _RegistrationFormState extends State<RegistrationForm> {
                     isDownIcon: true,
                     showEnglishName: true,
                   ),
-                  initialSelection: '+93', // Afghanistan as default
+                  initialSelection: '+60',
                   onChanged: (CountryCode? code) {
                     setState(() {
                       _selectedCountry = code?.name ?? '';
@@ -597,42 +638,45 @@ class _RegistrationFormState extends State<RegistrationForm> {
                   },
                 ),
               ),
+              const SizedBox(height: 16),
 
-              // Conditionally render the "State" field
-        _selectedCountry == 'Malaysia'
-            ? DropdownButtonFormField<String>(
-                value: _selectedState,
-                items: _malaysianStates.map((state) {
-                  return DropdownMenuItem<String>(
-                    value: state,
-                    child: Text(state),
-                  );
-                }).toList(),
-                decoration: const InputDecoration(labelText: 'State'),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedState = value;
-                    // ✅ ADDED: Also update controller for consistency
-                    _stateController.text = value ?? '';
-                  });
-                },
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please select a state';
-                  }
-                  return null;
-                },
-              )
-            : TextFormField(
-                controller: _stateController,
-                decoration: const InputDecoration(labelText: 'State'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your state';
-                  }
-                  return null;
-                },
-              ),
+              // State Field
+              _selectedCountry == 'Malaysia'
+                  ? DropdownButtonFormField<String>(
+                      value: _selectedState,
+                      items: _malaysianStates.map((state) {
+                        return DropdownMenuItem<String>(
+                          value: state,
+                          child: Text(state),
+                        );
+                      }).toList(),
+                      decoration: const InputDecoration(labelText: 'State'),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedState = value;
+                          _stateController.text = value ?? '';
+                        });
+                      },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please select a state';
+                        }
+                        return null;
+                      },
+                    )
+                  : TextFormField(
+                      controller: _stateController,
+                      decoration: const InputDecoration(labelText: 'State'),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter your state';
+                        }
+                        return null;
+                      },
+                    ),
+              const SizedBox(height: 16),
+
+              // City
               TextFormField(
                 controller: _cityController,
                 decoration: const InputDecoration(labelText: 'City'),
@@ -641,7 +685,9 @@ class _RegistrationFormState extends State<RegistrationForm> {
                   return null;
                 },
               ),
+              const SizedBox(height: 16),
 
+              // Postal Code
               TextFormField(
                 controller: _postalCodeController,
                 decoration: const InputDecoration(labelText: 'Postal Code'),
@@ -651,19 +697,24 @@ class _RegistrationFormState extends State<RegistrationForm> {
                   return null;
                 },
               ),
+              const SizedBox(height: 24),
+
+              // Contact Information
               const Text(
                 'Contact Information',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
+
+              // Phone Number
               IntlPhoneField(
                 controller: _phoneNumberController,
                 decoration: const InputDecoration(labelText: 'Phone Number'),
-                initialCountryCode: 'MY', // Set default country code (Malaysia)
+                initialCountryCode: 'MY',
                 onChanged: (phone) {
                   setState(() {
                     _phoneNumber = phone.number;
-                    _countryCode = phone.countryCode; // Get country code
+                    _countryCode = phone.countryCode;
                   });
                 },
                 validator: (value) {
@@ -673,6 +724,9 @@ class _RegistrationFormState extends State<RegistrationForm> {
                   return null;
                 },
               ),
+              const SizedBox(height: 16),
+
+              // Email
               TextFormField(
                 controller: _emailController,
                 decoration: const InputDecoration(labelText: 'Email'),
@@ -685,20 +739,8 @@ class _RegistrationFormState extends State<RegistrationForm> {
                   return null;
                 },
               ),
-              TextFormField(
-                controller: _passwordController,
-                decoration: const InputDecoration(
-                    labelText: 'Password (minimum 6 characters)'),
-                obscureText: true,
-                validator: (value) {
-                  if (value!.isEmpty) return 'Please enter your password';
-                  if (value.length < 6) {
-                    return 'Password must be at least 6 characters';
-                  }
-                  return null;
-                },
-              ),
               const SizedBox(height: 32),
+
               // Submit Button
               SizedBox(
                 width: double.infinity,
@@ -815,7 +857,7 @@ class _RegistrationFormState extends State<RegistrationForm> {
     String? Function(T?)? validator,
   }) {
     return DropdownButtonFormField<T>(
-      initialValue: value,
+      value: value,
       items: items.map((item) {
         return DropdownMenuItem<T>(
           value: item,

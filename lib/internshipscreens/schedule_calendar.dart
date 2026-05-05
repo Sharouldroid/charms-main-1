@@ -32,12 +32,16 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
+  // ✅ NEW: Store user's registered schedule IDs
+  List<int> _userRegisteredScheduleIds = [];
+
   @override
   void initState() {
     super.initState();
     _startDateController = TextEditingController();
     _endDateController = TextEditingController();
     _loadSchedules();
+    _loadUserRegistrations(); // ✅ Load user's registrations
   }
 
   @override
@@ -61,6 +65,38 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
     final scheduleProvider =
         Provider.of<ScheduleProvider>(context, listen: false);
     await scheduleProvider.loadSchedules();
+  }
+
+  // ✅ NEW: Load all schedules user is registered for
+  Future<void> _loadUserRegistrations() async {
+    if (widget.isAdmin) return; // Only for interns
+
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConfig.hostname}/api/internship/registers/by-user/${widget.userId}'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        // Handle both single registration and multiple registrations
+        if (data is Map) {
+          setState(() {
+            _userRegisteredScheduleIds = [data['schedule_id'] as int];
+          });
+        } else if (data is List) {
+          setState(() {
+            _userRegisteredScheduleIds = data
+                .map((item) => item['schedule_id'] as int)
+                .toList();
+          });
+        }
+
+        print('✅ User registered for schedules: $_userRegisteredScheduleIds');
+      }
+    } catch (e) {
+      print('Error loading user registrations: $e');
+    }
   }
 
   @override
@@ -160,31 +196,61 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
                     itemCount: scheduleProvider.schedules.length,
                     itemBuilder: (context, index) {
                       final schedule = scheduleProvider.schedules[index];
+                      final isUserRegistered = _userRegisteredScheduleIds.contains(schedule.id);
+
                       return Card(
-                        margin:
-                            const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                        elevation: widget.isAdmin
-                            ? 2
-                            : 4, // More elevation for interns
+                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        elevation: 3,
+                        color: isUserRegistered
+                            ? Colors.green.withOpacity(0.05)
+                            : Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
-                          side: !widget.isAdmin
-                              ? const BorderSide(
-                                  color: Colors.blueAccent,
-                                  width: 1,
-                                )
+                          side: isUserRegistered
+                              ? const BorderSide(color: Colors.green, width: 2)
                               : BorderSide.none,
                         ),
                         child: ListTile(
                           contentPadding: const EdgeInsets.all(16),
-                          title: Text(
-                            schedule.description,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: widget.isAdmin
-                                  ? 16
-                                  : 18, // Larger for interns
-                            ),
+                          title: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  schedule.description,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              // ✅ Show "REGISTERED" badge if user registered
+                              if (isUserRegistered)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.check_circle, size: 16, color: Colors.white),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'REGISTERED',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
                           ),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -193,7 +259,7 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
                               Row(
                                 children: [
                                   Icon(
-                                    Icons.date_range,
+                                    Icons.calendar_month,
                                     size: 16,
                                     color: Colors.grey[600],
                                   ),
@@ -224,9 +290,7 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
                                 future: _getRegistrationCount(schedule.id),
                                 builder: (context, snapshot) {
                                   if (snapshot.hasData) {
-                                    final count = snapshot
-                                            .data!['currentRegistrations'] ??
-                                        0;
+                                    final count = snapshot.data!['currentRegistrations'] ?? 0;
                                     final isAvailable = count < 5;
                                     return Container(
                                       padding: const EdgeInsets.symmetric(
@@ -239,9 +303,7 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
                                             : Colors.red.withOpacity(0.1),
                                         borderRadius: BorderRadius.circular(8),
                                         border: Border.all(
-                                          color: isAvailable
-                                              ? Colors.green
-                                              : Colors.red,
+                                          color: isAvailable ? Colors.green : Colors.red,
                                           width: 1,
                                         ),
                                       ),
@@ -249,12 +311,8 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           Icon(
-                                            isAvailable
-                                                ? Icons.check_circle
-                                                : Icons.cancel,
-                                            color: isAvailable
-                                                ? Colors.green
-                                                : Colors.red,
+                                            isAvailable ? Icons.check_circle : Icons.cancel,
+                                            color: isAvailable ? Colors.green : Colors.red,
                                             size: 16,
                                           ),
                                           const SizedBox(width: 4),
@@ -263,9 +321,7 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
                                                 ? '$count/5 slots filled - Available'
                                                 : 'Full ($count/5) - Registration Closed',
                                             style: TextStyle(
-                                              color: isAvailable
-                                                  ? Colors.green
-                                                  : Colors.red,
+                                              color: isAvailable ? Colors.green : Colors.red,
                                               fontWeight: FontWeight.bold,
                                               fontSize: 12,
                                             ),
@@ -293,7 +349,7 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
                                   );
                                 },
                               ),
-                              if (!widget.isAdmin) ...[
+                              if (!widget.isAdmin && !isUserRegistered) ...[
                                 const SizedBox(height: 8),
                                 const Text(
                                   'Tap to register for this slot',
@@ -304,18 +360,28 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
                                   ),
                                 ),
                               ],
+                              if (isUserRegistered) ...[
+                                const SizedBox(height: 8),
+                                const Text(
+                                  '✓ You are registered for this session',
+                                  style: TextStyle(
+                                    color: Colors.green,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                           trailing: !widget.isAdmin
-                              ? const Icon(
-                                  Icons.arrow_forward_ios,
-                                  color: Colors.blueAccent,
+                              ? Icon(
+                                  isUserRegistered ? Icons.check_circle : Icons.arrow_forward_ios,
+                                  color: isUserRegistered ? Colors.green : Colors.blueAccent,
                                 )
                               : const Icon(Icons.event_note),
                           onTap: () {
                             if (!widget.isAdmin) {
-                              _checkRegistrationLimit(
-                                  schedule.id); // Pass the schedule ID
+                              _checkRegistrationLimit(schedule.id);
                             }
                           },
                         ),
@@ -328,10 +394,33 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
     );
   }
 
-  // schedule_calendar.dart
-
+  // ✅ UPDATED: Check registration with duplicate prevention
   Future<void> _checkRegistrationLimit(int scheduleId) async {
     try {
+      // ✅ STEP 1: Check if user already registered for THIS schedule
+      if (_userRegisteredScheduleIds.contains(scheduleId)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.warning_amber, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    '⚠️ You have already registered for this session!',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+        return; // Stop here!
+      }
+
+      // ✅ STEP 2: Check slot availability (existing code)
       final url = '${AppConfig.hostname}/api/internship/schedules/$scheduleId/check-registration';
       print('Making request to: $url');
 
@@ -344,22 +433,28 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
         final data = jsonDecode(response.body);
         if (data['available'] == true) {
           // Navigate to the registration form
-          Navigator.push(
+          final result = await Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => RegistrationForm(
-                  scheduleId: scheduleId,
-                  userId: widget.userId), // Pass the schedule ID and user ID
+                scheduleId: scheduleId,
+                userId: widget.userId,
+              ),
             ),
           );
+
+          // ✅ Reload registrations after coming back
+          if (result == true) {
+            await _loadUserRegistrations();
+          }
         } else {
-          // Show a more informative error message
           final currentCount = data['currentRegistrations'] ?? 0;
           final maxCount = data['maxRegistrations'] ?? 5;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                  'Registration closed! This slot is full ($currentCount/$maxCount interns registered)'),
+                'Registration closed! This slot is full ($currentCount/$maxCount interns registered)'
+              ),
               backgroundColor: Colors.red,
             ),
           );
@@ -415,60 +510,60 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
   }
 
   void _showAddEditDialog(BuildContext context) {
-  showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Add Schedule'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _descriptionController,
-            decoration: const InputDecoration(hintText: 'Enter description'),
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Schedule'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _descriptionController,
+              decoration: const InputDecoration(hintText: 'Enter description'),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              if (_descriptionController.text.isNotEmpty &&
+                  _startDate != null &&
+                  _endDate != null) {
+                // Calculate duration
+                final duration = _endDate!.difference(_startDate!).inDays;
+
+                print('Duration calculated: $duration');
+
+                // ✅ FIXED: Add maxRegistrations field
+                Provider.of<ScheduleProvider>(context, listen: false)
+                    .addSchedule(Schedule(
+                  id: DateTime.now().millisecondsSinceEpoch,
+                  startDate: _startDate!,
+                  endDate: _endDate!,
+                  description: _descriptionController.text,
+                  duration: duration.toString(),
+                  maxRegistrations: 5, // ✅ ADDED: Default 5 slots
+                ));
+
+                _descriptionController.clear();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Schedule created successfully!')),
+                );
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Add'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: const Text('Cancel'),
           ),
         ],
       ),
-      actions: [
-        ElevatedButton(
-          onPressed: () {
-            if (_descriptionController.text.isNotEmpty &&
-                _startDate != null &&
-                _endDate != null) {
-              // Calculate duration
-              final duration = _endDate!.difference(_startDate!).inDays;
-
-              print('Duration calculated: $duration');
-
-              // ✅ FIXED: Add maxRegistrations field
-              Provider.of<ScheduleProvider>(context, listen: false)
-                  .addSchedule(Schedule(
-                id: DateTime.now().millisecondsSinceEpoch,
-                startDate: _startDate!,
-                endDate: _endDate!,
-                description: _descriptionController.text,
-                duration: duration.toString(),
-                maxRegistrations: 5, // ✅ ADDED: Default 5 slots
-              ));
-              
-              _descriptionController.clear();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Schedule created successfully!')),
-              );
-              Navigator.pop(context);
-            }
-          },
-          child: const Text('Add'),
-        ),
-        TextButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          child: const Text('Cancel'),
-        ),
-      ],
-    ),
-  );
-}
+    );
+  }
 
   Future<Map<String, dynamic>> _getRegistrationCount(int scheduleId) async {
     try {
