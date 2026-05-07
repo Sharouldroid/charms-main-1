@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:charms/HRproviders/attendances.dart';
 import 'package:charms/HRproviders/staffs.dart';
 import 'package:charms/HRmodels/staff.dart';
@@ -106,7 +107,7 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    staffName, // Staff Name instead of Staff ID
+                    staffName,
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -143,11 +144,44 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
                       ),
                     ],
                   ),
+
+                  // ── Clock-In Location Link ────────────────────────────────
+                  if (record['clock_in_location'] != null) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.location_on_rounded,
+                            size: 14, color: Colors.blue),
+                        const SizedBox(width: 4),
+                        GestureDetector(
+                          onTap: () {
+                            final uri = Uri.parse(
+                              'https://www.google.com/maps/search/?api=1&query=${record['clock_in_location']}',
+                            );
+                            launchUrl(uri,
+                                mode: LaunchMode.externalApplication);
+                          },
+                          child: const Text(
+                            'View Location',
+                            style: TextStyle(
+                              color: Colors.blue,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  // ─────────────────────────────────────────────────────────
+
                   const SizedBox(height: 12),
 
                   // Modern Status Pill
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: _getStatusColor(status).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
@@ -212,10 +246,12 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
                         value: 'edit',
                         child: Row(
                           children: [
-                            Icon(Icons.edit_rounded, color: Colors.blue, size: 20),
+                            Icon(Icons.edit_rounded,
+                                color: Colors.blue, size: 20),
                             SizedBox(width: 8),
                             Text('Edit',
-                                style: TextStyle(fontWeight: FontWeight.w500)),
+                                style:
+                                    TextStyle(fontWeight: FontWeight.w500)),
                           ],
                         ),
                       ),
@@ -227,7 +263,8 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
                                 color: Colors.red, size: 20),
                             SizedBox(width: 8),
                             Text('Delete',
-                                style: TextStyle(fontWeight: FontWeight.w500)),
+                                style:
+                                    TextStyle(fontWeight: FontWeight.w500)),
                           ],
                         ),
                       ),
@@ -246,7 +283,8 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
     showDialog(
       context: context,
       builder: (_) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         clipBehavior: Clip.antiAlias,
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -262,7 +300,8 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
               automaticallyImplyLeading: false,
               actions: [
                 IconButton(
-                  icon: const Icon(Icons.close_rounded, color: Colors.white),
+                  icon:
+                      const Icon(Icons.close_rounded, color: Colors.white),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
@@ -373,7 +412,8 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
                         ),
                       ),
                       onPressed: () => _pickDate(context),
-                      icon: const Icon(Icons.calendar_month_rounded, size: 20),
+                      icon: const Icon(Icons.calendar_month_rounded,
+                          size: 20),
                       label: const Text('Change',
                           style: TextStyle(fontWeight: FontWeight.bold)),
                     ),
@@ -385,21 +425,25 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
               Expanded(
                 child: isLoading
                     ? Center(
-                        child: CircularProgressIndicator(color: primaryBlue))
+                        child:
+                            CircularProgressIndicator(color: primaryBlue))
                     : attendanceRecords.isNotEmpty
                         ? ListView.builder(
-                            physics: const AlwaysScrollableScrollPhysics(),
+                            physics:
+                                const AlwaysScrollableScrollPhysics(),
                             padding: const EdgeInsets.only(bottom: 24),
                             itemCount: attendanceRecords.length,
-                            itemBuilder: (ctx, i) => _buildAttendanceCard(
-                                attendanceRecords[i], staffList),
+                            itemBuilder: (ctx, i) =>
+                                _buildAttendanceCard(
+                                    attendanceRecords[i], staffList),
                           )
                         : Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Icon(Icons.event_note_rounded,
-                                    size: 64, color: Colors.grey.shade300),
+                                    size: 64,
+                                    color: Colors.grey.shade300),
                                 const SizedBox(height: 16),
                                 Text(
                                   'No records for this date',
@@ -477,7 +521,8 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
         await _loadAttendances();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Attendance deleted successfully')),
+            const SnackBar(
+                content: Text('Attendance deleted successfully')),
           );
         }
       }
@@ -499,8 +544,8 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20)),
           title: const Text('Edit Attendance',
               style: TextStyle(fontWeight: FontWeight.bold)),
           content: Form(
@@ -518,8 +563,10 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
                         horizontal: 16, vertical: 12),
                   ),
                   items: const [
-                    DropdownMenuItem(value: 1, child: Text('Not Clocked In')),
-                    DropdownMenuItem(value: 2, child: Text('Clocked In')),
+                    DropdownMenuItem(
+                        value: 1, child: Text('Not Clocked In')),
+                    DropdownMenuItem(
+                        value: 2, child: Text('Clocked In')),
                   ],
                   onChanged: (value) => status = value ?? 1,
                 ),
@@ -529,8 +576,8 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child:
-                  const Text('Cancel', style: TextStyle(color: Colors.grey)),
+              child: const Text('Cancel',
+                  style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -544,7 +591,8 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
                   try {
                     final attendanceProvider =
                         Provider.of<Attendances>(context, listen: false);
-                    final success = await attendanceProvider.updateAttendance(
+                    final success =
+                        await attendanceProvider.updateAttendance(
                       record['attendance_id'],
                       {'attendance_status': status},
                     );
@@ -553,7 +601,8 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                              content: Text('Attendance updated successfully')),
+                              content:
+                                  Text('Attendance updated successfully')),
                         );
                       }
                     }
@@ -561,15 +610,15 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                            content:
-                                Text('Error updating attendance: $error')),
+                            content: Text(
+                                'Error updating attendance: $error')),
                       );
                     }
                   }
                 }
               },
-              child:
-                  const Text('Save', style: TextStyle(color: Colors.white)),
+              child: const Text('Save',
+                  style: TextStyle(color: Colors.white)),
             ),
           ],
         );

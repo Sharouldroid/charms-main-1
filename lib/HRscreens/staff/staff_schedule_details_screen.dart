@@ -1,11 +1,9 @@
-import 'dart:typed_data';
 import 'package:charms/HRproviders/attendances.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:image/image.dart' as img;
-import 'package:image_picker/image_picker.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class StaffScheduleDetailsScreen extends StatefulWidget {
   final String location;
@@ -41,11 +39,15 @@ class StaffScheduleDetailsScreen extends StatefulWidget {
 class _StaffScheduleDetailsScreenState
     extends State<StaffScheduleDetailsScreen> {
   bool isClockIn = false;
-  bool isClockOut = false; 
+  bool isClockOut = false;
   bool _isLoading = false;
   bool _isCheckingAttendance = true;
-  String? _clockInImageUrl; 
-  String? _clockOutTimeStr; 
+  String? _clockOutTimeStr;
+  String? _clockInLocationStr;
+
+  // ── Palette ──────────────────────────────────────────────────────────────────
+  final Color _primaryBlue = const Color(0xFF2563EB);
+  final Color _bgColor = const Color(0xFFF4F7FA);
 
   @override
   void initState() {
@@ -62,22 +64,20 @@ class _StaffScheduleDetailsScreenState
         scheduleId: widget.scheduleId,
       );
 
-      final imageUrl = attendanceProvider.lastCheckedImageUrl;
-      final clockOutTime = attendanceProvider.lastCheckedClockOutTime; 
+      final clockOutTime = attendanceProvider.lastCheckedClockOutTime;
+      final clockInLocation = attendanceProvider.lastCheckedClockInLocation;
 
       if (mounted) {
         setState(() {
           isClockIn = hasAttendance;
-          _clockInImageUrl = imageUrl;
           isClockOut = clockOutTime != null && clockOutTime.isNotEmpty;
           _clockOutTimeStr = clockOutTime;
+          _clockInLocationStr = clockInLocation;
           _isCheckingAttendance = false;
         });
       }
     } catch (_) {
-      if (mounted) {
-        setState(() => _isCheckingAttendance = false);
-      }
+      if (mounted) setState(() => _isCheckingAttendance = false);
     }
   }
 
@@ -86,61 +86,113 @@ class _StaffScheduleDetailsScreenState
     await _checkExistingAttendance();
   }
 
-  Future<Uint8List> _compressImageBytes(Uint8List rawBytes) async {
-    try {
-      final img.Image? originalImage = img.decodeImage(rawBytes);
-      if (originalImage == null) throw Exception('Failed to decode image');
-
-      const int maxWidth = 800;
-      img.Image finalImage = originalImage;
-
-      if (originalImage.width > maxWidth) {
-        final int targetHeight =
-            (originalImage.height * (maxWidth / originalImage.width)).round();
-        finalImage = img.copyResize(originalImage,
-            width: maxWidth, height: targetHeight);
+  // ── Open Google Maps ─────────────────────────────────────────────────────────
+  Future<void> _openGoogleMaps(String coordinates) async {
+    final uri = Uri.parse(
+      'https://www.google.com/maps/search/?api=1&query=$coordinates',
+    );
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not open Google Maps.'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
-
-      return Uint8List.fromList(img.encodeJpg(finalImage, quality: 70));
-    } catch (e) {
-      debugPrint('Error compressing image: $e');
-      return rawBytes;
     }
   }
 
+  // ── Get GPS location ─────────────────────────────────────────────────────────
+  Future<String?> _getCurrentLocation() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Location services are disabled. Please enable GPS.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return null;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Location permission denied.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return null;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Location permission permanently denied. Please enable it in settings.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return null;
+      }
+
+      final Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      return '${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}';
+    } catch (e) {
+      debugPrint('Error getting location: $e');
+      return null;
+    }
+  }
+
+  // ── Clock In ─────────────────────────────────────────────────────────────────
   Future<void> _handleClockIn() async {
     setState(() => _isLoading = true);
 
     try {
-      final ImagePicker picker = ImagePicker();
-
-      final XFile? picked = await picker.pickImage(
-        source: ImageSource.camera, 
-        preferredCameraDevice: CameraDevice.front,
-        imageQuality: 85,
-      );
-
-      if (picked == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('No image captured. Clock in cancelled.')),
-          );
-        }
-        return;
-      }
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Processing...'),
-            duration: Duration(seconds: 1),
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white),
+                ),
+                SizedBox(width: 12),
+                Text('Detecting your location...'),
+              ],
+            ),
+            duration: Duration(seconds: 3),
+            backgroundColor: Colors.blueGrey,
           ),
         );
       }
 
-      final Uint8List rawBytes = await picked.readAsBytes();
-      final Uint8List imageBytes = await _compressImageBytes(rawBytes);
+      final String? locationStr = await _getCurrentLocation();
+
+      if (locationStr == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
 
       final attendanceProvider =
           Provider.of<Attendances>(context, listen: false);
@@ -148,14 +200,14 @@ class _StaffScheduleDetailsScreenState
       final result = await attendanceProvider.recordAttendance(
         staffId: widget.staffId,
         scheduleId: widget.scheduleId,
-        image: imageBytes,
         clockInTime: DateTime.now().toIso8601String(),
+        clockInLocation: locationStr,
       );
 
       if (result['success'] == true && mounted) {
         setState(() {
           isClockIn = true;
-          _clockInImageUrl = result['imageUrl']; 
+          _clockInLocationStr = locationStr;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -185,12 +237,15 @@ class _StaffScheduleDetailsScreenState
     }
   }
 
+  // ── Clock Out ────────────────────────────────────────────────────────────────
   Future<void> _handleClockOut() async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Clock Out'),
-        content: const Text('Are you sure you are done with your shift and want to clock out?'),
+        content: const Text(
+            'Are you sure you are done with your shift and want to clock out?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -199,19 +254,19 @@ class _StaffScheduleDetailsScreenState
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Clock Out', style: TextStyle(color: Colors.white)),
+            child: const Text('Clock Out',
+                style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
 
     if (confirm != true) return;
-
     setState(() => _isLoading = true);
 
     try {
-      final attendanceProvider = Provider.of<Attendances>(context, listen: false);
-      
+      final attendanceProvider =
+          Provider.of<Attendances>(context, listen: false);
       final now = DateTime.now();
       final result = await attendanceProvider.clockOutAttendance(
         staffId: widget.staffId,
@@ -252,43 +307,6 @@ class _StaffScheduleDetailsScreenState
     }
   }
 
-  void _viewProofImage() {
-    if (_clockInImageUrl == null) return;
-    showDialog(
-      context: context,
-      builder: (_) => Dialog(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AppBar(
-              title: const Text('Attendance Proof',
-                  style: TextStyle(color: Colors.white)),
-              backgroundColor: Colors.blue,
-              automaticallyImplyLeading: false,
-              iconTheme: const IconThemeData(color: Colors.white),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            ),
-            InteractiveViewer(
-              child: Image.network(
-                _clockInImageUrl!,
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text('Failed to load image'),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_isCheckingAttendance) {
@@ -297,19 +315,27 @@ class _StaffScheduleDetailsScreenState
           title: const Text('Schedule Details',
               style: TextStyle(color: Colors.white)),
           centerTitle: true,
-          backgroundColor: Colors.blue,
+          backgroundColor: _primaryBlue,
+          iconTheme: const IconThemeData(color: Colors.white),
         ),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
+      backgroundColor: _bgColor,
       appBar: AppBar(
         title: const Text('Schedule Details',
-            style: TextStyle(color: Colors.white)),
+            style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.1)),
         centerTitle: true,
-        backgroundColor: Colors.blue,
+        backgroundColor: _primaryBlue,
         iconTheme: const IconThemeData(color: Colors.white),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
+        ),
       ),
       body: RefreshIndicator(
         onRefresh: _refreshData,
@@ -318,169 +344,265 @@ class _StaffScheduleDetailsScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Card(
-                elevation: 4,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
+
+              // ── Schedule Info Card ────────────────────────────────────────
+              _buildCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildCardTitle(
+                        'Schedule Information', Icons.event_note_rounded),
+                    const SizedBox(height: 12),
+                    _buildDetailsRow(
+                        Icons.location_on_rounded, 'Location', widget.location),
+                    _buildDetailsRow(
+                      Icons.calendar_today_rounded,
+                      'Date',
+                      DateFormat('dd MMM yyyy').format(widget.workDate),
+                    ),
+                    _buildDetailsRow(
+                        Icons.login_rounded, 'Start Time', widget.startTime),
+                    _buildDetailsRow(
+                        Icons.logout_rounded, 'End Time', widget.endTime),
+                    _buildDetailsRow(
+                      Icons.info_outline_rounded,
+                      'Status',
+                      isClockOut
+                          ? 'Shift Completed'
+                          : isClockIn
+                              ? 'Clocked In'
+                              : widget.status,
+                      valueColor:
+                          isClockIn || isClockOut ? Colors.green : Colors.red,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // ── Clock-In Location Card — shows after clock-in ─────────────
+              if (isClockIn && _clockInLocationStr != null) ...[
+                _buildCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Schedule Information',
-                        style: TextStyle(
-                            fontSize: 20, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 16),
-                      DetailsRow(
-                          label: 'Location', value: widget.location),
-                      DetailsRow(
-                        label: 'Date',
-                        value: DateFormat('dd MMM yyyy')
-                            .format(widget.workDate),
-                      ),
-                      DetailsRow(
-                          label: 'Start Time', value: widget.startTime),
-                      DetailsRow(
-                          label: 'End Time', value: widget.endTime),
-                      DetailsRow(
-                        label: 'Status',
-                        value: isClockOut 
-                               ? 'Shift Completed' 
-                               : isClockIn 
-                                    ? 'Clocked In' 
-                                    : widget.status,
-                        valueColor: isClockIn || isClockOut
-                            ? Colors.green
-                            : Colors.red,
+                      _buildCardTitle(
+                          'Clock-In Location', Icons.gps_fixed_rounded),
+                      const SizedBox(height: 12),
+                      GestureDetector(
+                        onTap: () => _openGoogleMaps(_clockInLocationStr!),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: Colors.green.withOpacity(0.3)),
+                          ),
+                          child: Row(
+                            children: [
+                              // Pin icon
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.withOpacity(0.15),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.location_pin,
+                                    color: Colors.green, size: 20),
+                              ),
+                              const SizedBox(width: 12),
+
+                              // Coordinates + tap hint
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Location Recorded',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                        color: Colors.green,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    // ── Clickable coordinates ────────────────
+                                    Row(
+                                      children: [
+                                        Text(
+                                          _clockInLocationStr!,
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.blue,
+                                            decoration:
+                                                TextDecoration.underline,
+                                            decorationColor: Colors.blue,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        const Icon(
+                                          Icons.open_in_new_rounded,
+                                          size: 13,
+                                          color: Colors.blue,
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    const Text(
+                                      'Tap to view on Google Maps',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey,
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-
-              // ✅ CHANGED: Now only shows if clocked in AND NOT clocked out
-              if (isClockIn && !isClockOut && _clockInImageUrl != null) ...[
-                Card(
-                  elevation: 4,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Attendance Proof',
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 12),
-                        GestureDetector(
-                          onTap: _viewProofImage,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              _clockInImageUrl!,
-                              height: 200,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => const Center(
-                                child: Text('Failed to load proof image'),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Tap image to view full screen',
-                          style:
-                              TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
               ],
 
-              // ✅ The Action Button Area
+              // ── Action Button ─────────────────────────────────────────────
               if (_isLoading)
                 const Center(child: CircularProgressIndicator())
               else if (!isClockIn)
-                // STAGE 1: Need to Clock In
                 ElevatedButton.icon(
                   onPressed: _handleClockIn,
-                  icon: const Icon(Icons.camera_alt),
-                  label: const Text('Clock In'),
+                  icon: const Icon(Icons.login_rounded),
+                  label: const Text(
+                    'Clock In',
+                    style:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
+                    backgroundColor: _primaryBlue,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
                   ),
                 )
               else if (isClockIn && !isClockOut)
-                // STAGE 2: Need to Clock Out
                 ElevatedButton.icon(
                   onPressed: _handleClockOut,
-                  icon: const Icon(Icons.exit_to_app),
-                  label: const Text('Clock Out'),
+                  icon: const Icon(Icons.logout_rounded),
+                  label: const Text(
+                    'Clock Out',
+                    style:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
                   ),
                 )
               else if (isClockOut)
-                // STAGE 3: Done for the day
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.green.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.green),
+                    borderRadius: BorderRadius.circular(14),
+                    border:
+                        Border.all(color: Colors.green.withOpacity(0.4)),
                   ),
-                  child: Center(
-                    child: Text(
-                      'Shift completed! Clocked out at ${_clockOutTimeStr ?? "Unknown Time"}',
-                      style: const TextStyle(
-                        color: Colors.green, 
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.check_circle_rounded,
+                          color: Colors.green),
+                      const SizedBox(width: 10),
+                      Flexible(
+                        child: Text(
+                          'Shift completed! Clocked out at ${_clockOutTimeStr ?? "Unknown Time"}',
+                          style: const TextStyle(
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                )
+                ),
             ],
           ),
         ),
       ),
     );
   }
-}
 
-class DetailsRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color? valueColor;
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+  Widget _buildCard({required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
 
-  const DetailsRow({
-    super.key,
-    required this.label,
-    required this.value,
-    this.valueColor,
-  });
+  Widget _buildCardTitle(String title, IconData icon) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: _primaryBlue.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: _primaryBlue, size: 18),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          title,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+      ],
+    );
+  }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildDetailsRow(IconData icon, String label, String value,
+      {Color? valueColor}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
+          Icon(icon, size: 16, color: Colors.grey.shade500),
+          const SizedBox(width: 8),
+          Text('$label: ',
               style: const TextStyle(
-                  fontWeight: FontWeight.w500, fontSize: 16)),
-          Text(value,
-              style: TextStyle(color: valueColor, fontSize: 16)),
+                  fontWeight: FontWeight.w500, fontSize: 14)),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                  fontSize: 14,
+                  color: valueColor ?? Colors.grey.shade700),
+              textAlign: TextAlign.end,
+            ),
+          ),
         ],
       ),
     );

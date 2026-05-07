@@ -1,14 +1,15 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dart:typed_data';
+//import 'dart:typed_data';
 
 class Attendances with ChangeNotifier {
   final String baseUrl = 'https://devcms.com.my/charmsAPI/api';
 
   // ✅ Store last checked image URL & Clock Out Time
-  String? lastCheckedImageUrl;
-  String? lastCheckedClockOutTime; 
+  //String? lastCheckedImageUrl;
+  String? lastCheckedClockOutTime;
+  String? lastCheckedClockInLocation; 
 
   // 1. CREATE ATTENDANCE — now returns Map with success + imageUrl
   Future<Map<String, dynamic>> recordAttendance({
@@ -16,7 +17,8 @@ class Attendances with ChangeNotifier {
     required int scheduleId,
     required String clockInTime,
     String? clockOutTime, // Made optional for clocking in
-    Uint8List? image,
+    //Uint8List? image,
+     String? clockInLocation,
   }) async {
     final uri = Uri.parse('$baseUrl/attendance/create');
 
@@ -28,15 +30,22 @@ class Attendances with ChangeNotifier {
       if (clockOutTime != null) {
         request.fields['clock_out_time'] = clockOutTime;
       }
-      request.fields['attendance_status'] = '2';
 
-      if (image != null) {
-        request.files.add(http.MultipartFile.fromBytes(
-          'clock_in_image',
-          image,
-          filename: 'attendance_$staffId.jpg',
-        ));
-      }
+      if (clockInLocation != null) {
+      request.fields['clock_in_location'] = clockInLocation; // ← ADD THIS
+    }
+
+      request.fields['attendance_status'] = '2';
+  
+      
+
+      // if (image != null) {
+      //   request.files.add(http.MultipartFile.fromBytes(
+      //     'clock_in_image',
+      //     image,
+      //     filename: 'attendance_$staffId.jpg',
+      //   ));
+      // }
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
@@ -48,13 +57,13 @@ class Attendances with ChangeNotifier {
         final data = json.decode(response.body);
         return {
           'success': true,
-          'imageUrl': data['clock_in_image_url'], 
+          'clockInLocation': data['clock_in_location'], 
         };
       }
-      return {'success': false, 'imageUrl': null};
+      return {'success': false, 'clockInLocation': null};
     } catch (error) {
       debugPrint('Error recording attendance: $error');
-      return {'success': false, 'imageUrl': null};
+      return {'success': false, 'clockInLocation': null};
     }
   }
 
@@ -73,9 +82,10 @@ class Attendances with ChangeNotifier {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
 
-        // ✅ Store image URL and Clock Out time for use in screen
-        lastCheckedImageUrl = data['clock_in_image_url'];
+        // ✅ Store clock in location and Clock Out time for use in screen
+        //lastCheckedImageUrl = data['clock_in_image_url'];
         lastCheckedClockOutTime = data['clock_out_time'];
+        lastCheckedClockInLocation = data['clock_in_location'];
 
         if (data['exists'] == true && data['attendance_status'] == 2) {
           return true;
