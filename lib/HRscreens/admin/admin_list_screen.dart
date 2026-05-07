@@ -7,11 +7,11 @@ import 'package:charms/HRscreens/admin/admin_dashboard_screen.dart';
 import 'package:charms/HRscreens/admin/manage_staff_screen.dart';
 import 'package:charms/HRscreens/admin/myself_screen.dart';
 import 'package:charms/HRscreens/admin/notification_screen.dart';
+import 'package:charms/HRscreens/admin/staff_details_screen.dart';
 import 'package:charms/HRwidgets/admin/bottom_nav_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-//import 'package:charms/HRproviders/auth.dart' as hr_auth;
-import 'package:charms/utils/logout_helper.dart'; // ← replaces inline logout
+import 'package:charms/utils/logout_helper.dart';
 
 class AdminListScreen extends StatefulWidget {
   final String username;
@@ -22,54 +22,64 @@ class AdminListScreen extends StatefulWidget {
 }
 
 class _AdminListScreenState extends State<AdminListScreen> {
-  List<Staff> _adminUsers = [];
   bool _isLoading = true;
   String _searchQuery = '';
   bool _isAscending = true;
   int _selectedIndex = 2;
+  Set<int> _activeFilters = {1, 2, 3}; // all shown by default
 
-  // ── Matches AdminDashboard palette ──────────────────────────────────────────
+  // ── Palette ──────────────────────────────────────────────────────────────────
   final Color _bgColor = const Color(0xFFF4F7FA);
   final Color _primaryBlue = const Color(0xFF2563EB);
+
+  // ── Category config ───────────────────────────────────────────────────────────
+  static const _categoryConfig = [
+    {
+      'label': 'SEATRU',
+      'category': 1,
+      'color': Color(0xFF2563EB),
+      'icon': Icons.water,
+    },
+    {
+      'label': 'CMS',
+      'category': 2,
+      'color': Color(0xFF16A34A),
+      'icon': Icons.business,
+    },
+    {
+      'label': 'Intern',
+      'category': 3,
+      'color': Color(0xFF9333EA),
+      'icon': Icons.school,
+    },
+  ];
 
   @override
   void initState() {
     super.initState();
-    _loadAdminUsers();
+    _loadStaffData();
   }
 
-  String _getDisplayName(Staff staff) {
-    final fullName = '${staff.firstname} ${staff.lastname}'.trim();
-    return fullName.isNotEmpty ? fullName : staff.username;
-  }
-
-  Future<void> _loadAdminUsers() async {
+  Future<void> _loadStaffData() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
-
     try {
-      final staffsProvider = context.read<Staffs>();
-      await staffsProvider.fetchStaff().timeout(const Duration(seconds: 12));
-
-      final admins =
-          staffsProvider.staffList.where((s) => s.usertype == 6).toList();
-
-      if (!mounted) return;
-      setState(() {
-        _adminUsers = admins;
-        _isLoading = false;
-      });
+      await context
+          .read<Staffs>()
+          .fetchStaff()
+          .timeout(const Duration(seconds: 12));
     } catch (error) {
       debugPrint('AdminList load error: $error');
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load admins. ${error.toString()}')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load staff: ${error.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  /// Full logout — clears both app_auth and hr_auth via LogoutHelper.
   Future<void> _logout() async {
     await LogoutHelper.fullLogout(context);
   }
@@ -77,7 +87,6 @@ class _AdminListScreenState extends State<AdminListScreen> {
   void _onItemTapped(int index) {
     if (index == _selectedIndex) return;
     setState(() => _selectedIndex = index);
-
     switch (index) {
       case 0:
         Navigator.pushReplacement(
@@ -104,31 +113,79 @@ class _AdminListScreenState extends State<AdminListScreen> {
     }
   }
 
-  void _showAdminDetail(Staff admin) {
+  String _getDisplayName(Staff staff) {
+    final fullName = '${staff.firstname} ${staff.lastname}'.trim();
+    return fullName.isNotEmpty ? fullName : staff.username;
+  }
+
+  List<Staff> _getFilteredByCategory(List<Staff> all, int category) {
+    if (!_activeFilters.contains(category)) return [];
+    return all.where((s) {
+      final matchesCategory = s.category == category;
+      final matchesSearch =
+          '${s.firstname} ${s.lastname} ${s.username} ${s.staffId}'
+              .toLowerCase()
+              .contains(_searchQuery.toLowerCase());
+      return matchesCategory && matchesSearch;
+    }).toList();
+  }
+
+  Future<void> _navigateToStaffDetails(Staff staff) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => StaffDetailsScreen(staff: staff)),
+    );
+    if (result == true && mounted) await _loadStaffData();
+  }
+
+  void _showStaffDetail(
+      Staff staff, Color categoryColor, String categoryLabel) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
             CircleAvatar(
               radius: 22,
-              backgroundColor: _primaryBlue.withOpacity(0.12),
-              backgroundImage: (admin.filepath != null &&
-                      admin.filepath!.isNotEmpty)
-                  ? NetworkImage(
-                      'https://devcms.com.my/charmsAPI/public/storage/${admin.filepath}')
-                  : null,
-              child: (admin.filepath == null || admin.filepath!.isEmpty)
-                  ? Icon(Icons.person, color: _primaryBlue)
+              backgroundColor: categoryColor.withOpacity(0.12),
+              backgroundImage:
+                  (staff.filepath != null && staff.filepath!.isNotEmpty)
+                      ? NetworkImage(
+                          'https://devcms.com.my/charmsAPI/public/storage/${staff.filepath}')
+                      : null,
+              child: (staff.filepath == null || staff.filepath!.isEmpty)
+                  ? Icon(Icons.person, color: categoryColor)
                   : null,
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                _getDisplayName(admin),
-                style: const TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.w800),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _getDisplayName(staff),
+                    style: const TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: categoryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      categoryLabel,
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: categoryColor),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -138,18 +195,38 @@ class _AdminListScreenState extends State<AdminListScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _dialogRow(
-                Icons.account_circle_rounded, 'Username', admin.username),
+                Icons.badge_rounded, 'Staff ID', '#${staff.staffId}'),
             const SizedBox(height: 10),
-            _dialogRow(Icons.email_rounded, 'Email', admin.email),
+            _dialogRow(Icons.account_circle_rounded, 'Username',
+                staff.username),
             const SizedBox(height: 10),
-            _dialogRow(Icons.badge_rounded, 'User Type',
-                admin.usertype.toString()),
+            _dialogRow(Icons.email_rounded, 'Email', staff.email),
+            const SizedBox(height: 10),
+            _dialogRow(Icons.work_rounded, 'Occupation',
+                staff.occupation.isNotEmpty ? staff.occupation : '—'),
+            const SizedBox(height: 10),
+            _dialogRow(Icons.phone_rounded, 'Phone',
+                staff.phone.isNotEmpty ? staff.phone : '—'),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text('Close', style: TextStyle(color: _primaryBlue)),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _primaryBlue,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            icon: const Icon(Icons.edit_rounded, size: 16),
+            label: const Text('Edit'),
+            onPressed: () {
+              Navigator.pop(context);
+              _navigateToStaffDetails(staff);
+            },
           ),
         ],
       ),
@@ -162,20 +239,22 @@ class _AdminListScreenState extends State<AdminListScreen> {
       children: [
         Icon(icon, size: 18, color: _primaryBlue),
         const SizedBox(width: 8),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label,
-                style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey.shade500,
-                    fontWeight: FontWeight.w600)),
-            Text(value,
-                style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1E293B))),
-          ],
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey.shade500,
+                      fontWeight: FontWeight.w600)),
+              Text(value,
+                  style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1E293B))),
+            ],
+          ),
         ),
       ],
     );
@@ -183,20 +262,13 @@ class _AdminListScreenState extends State<AdminListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    List<Staff> filteredAdmins = _adminUsers
-        .where((admin) =>
-            '${admin.firstname} ${admin.lastname} ${admin.username}'
-                .toLowerCase()
-                .contains(_searchQuery.toLowerCase()))
-        .toList();
+    final staffProvider = context.watch<Staffs>();
+    final allStaff = staffProvider.staffList;
 
-    if (_isAscending) {
-      filteredAdmins
-          .sort((a, b) => _getDisplayName(a).compareTo(_getDisplayName(b)));
-    } else {
-      filteredAdmins
-          .sort((a, b) => _getDisplayName(b).compareTo(_getDisplayName(a)));
-    }
+    // total visible across active filters
+    final totalVisible = _activeFilters
+        .map((cat) => _getFilteredByCategory(allStaff, cat).length)
+        .fold(0, (a, b) => a + b);
 
     return Scaffold(
       backgroundColor: _bgColor,
@@ -206,7 +278,7 @@ class _AdminListScreenState extends State<AdminListScreen> {
         iconTheme: const IconThemeData(color: Colors.white),
         automaticallyImplyLeading: false,
         title: const Text(
-          'CHARMS ADMIN',
+          'STAFF LIST',
           style: TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
@@ -215,42 +287,38 @@ class _AdminListScreenState extends State<AdminListScreen> {
         centerTitle: true,
         backgroundColor: _primaryBlue,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
+          borderRadius:
+              BorderRadius.vertical(bottom: Radius.circular(20)),
         ),
         actions: [
           Consumer3<Leaves, Payments, Claims>(
             builder: (context, leaves, payments, claims, child) {
-              int pendingLeaves =
-                  leaves.leaves.where((l) => l.status == 'Pending').length;
-              int pendingPayrolls =
-                  payments.payments.where((p) => p.status == 'Pending').length;
-              int pendingClaims =
+              final total =
+                  leaves.leaves.where((l) => l.status == 'Pending').length +
+                  payments.payments
+                      .where((p) => p.status == 'Pending')
+                      .length +
                   claims.claims.where((c) => c.status == 'Pending').length;
-              int totalPending =
-                  pendingLeaves + pendingPayrolls + pendingClaims;
-
               return IconButton(
-                icon: totalPending > 0
+                icon: total > 0
                     ? Badge(
-                        label: Text(totalPending.toString()),
+                        label: Text(total.toString()),
                         backgroundColor: Colors.redAccent,
                         child: const Icon(
                             Icons.notifications_none_rounded, size: 26),
                       )
-                    : const Icon(Icons.notifications_none_rounded, size: 26),
-                onPressed: () {
-                  Navigator.push(
+                    : const Icon(
+                        Icons.notifications_none_rounded, size: 26),
+                onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (_) => const NotificationScreen()),
-                  );
-                },
+                        builder: (_) => const NotificationScreen())),
               );
             },
           ),
           IconButton(
             icon: const Icon(Icons.logout_rounded),
-            tooltip: 'Back to Login',
+            tooltip: 'Logout',
             onPressed: _logout,
           ),
           const SizedBox(width: 8),
@@ -260,50 +328,27 @@ class _AdminListScreenState extends State<AdminListScreen> {
           ? Center(child: CircularProgressIndicator(color: _primaryBlue))
           : RefreshIndicator(
               color: _primaryBlue,
-              onRefresh: _loadAdminUsers,
+              onRefresh: _loadStaffData,
               child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [
+
+                  // ── Search + Filter header ──────────────────────────────
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // ── Page header ──────────────────────────────────
-                          Center(
-                            child: Column(
-                              children: [
-                                const Text(
-                                  'Admin List 👤',
-                                  style: TextStyle(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.w800,
-                                    color: Color(0xFF1E293B),
-                                    height: 1.2,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  'All registered administrators',
-                                  style: TextStyle(
-                                      color: Colors.grey.shade500,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 20),
 
-                          // ── Stats + Sort row ─────────────────────────────
+                          // ── Total count + Sort ────────────────────────────
                           Row(
                             children: [
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 14, vertical: 8),
                                 decoration: BoxDecoration(
-                                  color: _primaryBlue.withOpacity(0.10),
+                                  color: _primaryBlue.withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Row(
@@ -312,9 +357,9 @@ class _AdminListScreenState extends State<AdminListScreen> {
                                         size: 18, color: _primaryBlue),
                                     const SizedBox(width: 6),
                                     Text(
-                                      '${filteredAdmins.length} Admin${filteredAdmins.length == 1 ? '' : 's'}',
+                                      '$totalVisible Total Staff',
                                       style: TextStyle(
-                                          fontSize: 14,
+                                          fontSize: 13,
                                           fontWeight: FontWeight.w700,
                                           color: _primaryBlue),
                                     ),
@@ -333,7 +378,8 @@ class _AdminListScreenState extends State<AdminListScreen> {
                                     borderRadius: BorderRadius.circular(12),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withOpacity(0.04),
+                                        color:
+                                            Colors.black.withOpacity(0.04),
                                         blurRadius: 8,
                                         offset: const Offset(0, 3),
                                       )
@@ -362,7 +408,7 @@ class _AdminListScreenState extends State<AdminListScreen> {
                           ),
                           const SizedBox(height: 14),
 
-                          // ── Search bar ───────────────────────────────────
+                          // ── Search bar ────────────────────────────────────
                           Container(
                             decoration: BoxDecoration(
                               color: Colors.white,
@@ -377,9 +423,11 @@ class _AdminListScreenState extends State<AdminListScreen> {
                             ),
                             child: TextField(
                               decoration: InputDecoration(
-                                hintText: 'Search by name...',
-                                hintStyle:
-                                    TextStyle(color: Colors.grey.shade400),
+                                hintText:
+                                    'Search staff by name or ID...',
+                                hintStyle: TextStyle(
+                                    color: Colors.grey.shade400,
+                                    fontWeight: FontWeight.w500),
                                 prefixIcon: Icon(Icons.search_rounded,
                                     color: _primaryBlue),
                                 border: InputBorder.none,
@@ -390,128 +438,324 @@ class _AdminListScreenState extends State<AdminListScreen> {
                                   setState(() => _searchQuery = value),
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 12),
+
+                          // ── Filter chips ──────────────────────────────────
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                // All chip
+                                _buildFilterChip(
+                                  label: 'All',
+                                  isActive: _activeFilters.length == 3,
+                                  color: _primaryBlue,
+                                  onTap: () => setState(
+                                      () => _activeFilters = {1, 2, 3}),
+                                ),
+
+                                // SEATRU / CMS / Intern chips
+                                ...(_categoryConfig.map((config) {
+                                  final category =
+                                      config['category'] as int;
+                                  final label = config['label'] as String;
+                                  final color = config['color'] as Color;
+                                  final isActive =
+                                      _activeFilters.contains(category);
+                                  return _buildFilterChip(
+                                    label: label,
+                                    isActive: isActive,
+                                    color: color,
+                                    onTap: () {
+                                      setState(() {
+                                        if (isActive) {
+                                          // prevent deselecting last filter
+                                          if (_activeFilters.length > 1) {
+                                            _activeFilters.remove(category);
+                                          }
+                                        } else {
+                                          _activeFilters.add(category);
+                                        }
+                                      });
+                                    },
+                                  );
+                                })),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
                         ],
                       ),
                     ),
                   ),
 
-                  // ── List ─────────────────────────────────────────────────
-                  filteredAdmins.isEmpty
-                      ? SliverFillRemaining(
-                          child: Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.person_search_rounded,
-                                    size: 56, color: Colors.grey.shade300),
-                                const SizedBox(height: 12),
-                                Text(
-                                  'No admins found',
-                                  style: TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.grey.shade400,
-                                      fontWeight: FontWeight.w600),
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                      : SliverPadding(
-                          padding:
-                              const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                          sliver: SliverList(
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) {
-                                final admin = filteredAdmins[index];
-                                return GestureDetector(
-                                  onTap: () => _showAdminDetail(admin),
-                                  child: Container(
-                                    margin:
-                                        const EdgeInsets.only(bottom: 12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius:
-                                          BorderRadius.circular(16),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black
-                                              .withOpacity(0.04),
-                                          blurRadius: 10,
-                                          offset: const Offset(0, 4),
-                                        ),
-                                      ],
-                                    ),
-                                    child: ListTile(
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                              horizontal: 16, vertical: 8),
-                                      leading: CircleAvatar(
-                                        radius: 24,
-                                        backgroundColor:
-                                            _primaryBlue.withOpacity(0.12),
-                                        backgroundImage: (admin.filepath !=
-                                                    null &&
-                                                admin.filepath!.isNotEmpty)
-                                            ? NetworkImage(
-                                                'https://devcms.com.my/charmsAPI/public/storage/${admin.filepath}')
-                                            : null,
-                                        child: (admin.filepath == null ||
-                                                admin.filepath!.isEmpty)
-                                            ? Icon(Icons.person_rounded,
-                                                color: _primaryBlue)
-                                            : null,
-                                      ),
-                                      title: Text(
-                                        _getDisplayName(admin),
-                                        style: const TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w700,
-                                          color: Color(0xFF1E293B),
-                                        ),
-                                      ),
-                                      subtitle: Padding(
-                                        padding:
-                                            const EdgeInsets.only(top: 4),
-                                        child: Text(
-                                          admin.email,
-                                          style: TextStyle(
-                                              color: Colors.grey.shade500,
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w500),
-                                        ),
-                                      ),
-                                      trailing: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 10, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: Colors.green
-                                              .withOpacity(0.10),
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                        ),
-                                        child: const Text(
-                                          'Active',
-                                          style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w700,
-                                              color: Colors.green),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                              childCount: filteredAdmins.length,
-                            ),
-                          ),
-                        ),
+                  // ── Sections: SEATRU → CMS → Intern ──────────────────────
+                  for (final config in _categoryConfig) ...[
+                    if (_activeFilters
+                        .contains(config['category'] as int)) ...[
+                      _buildSectionHeader(
+                        label: config['label'] as String,
+                        category: config['category'] as int,
+                        color: config['color'] as Color,
+                        icon: config['icon'] as IconData,
+                        allStaff: allStaff,
+                      ),
+                      _buildSectionList(
+                        allStaff: allStaff,
+                        category: config['category'] as int,
+                        color: config['color'] as Color,
+                        label: config['label'] as String,
+                      ),
+                    ],
+                  ],
+
+                  // ── Bottom padding ────────────────────────────────────────
+                  const SliverToBoxAdapter(child: SizedBox(height: 100)),
                 ],
               ),
             ),
       bottomNavigationBar: BottomNavBar(
         selectedIndex: _selectedIndex,
         onItemTapped: _onItemTapped,
+      ),
+    );
+  }
+
+  // ── Filter chip ───────────────────────────────────────────────────────────────
+  Widget _buildFilterChip({
+    required String label,
+    required bool isActive,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        margin: const EdgeInsets.only(right: 8),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive ? color : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isActive ? color : Colors.grey.shade300,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: isActive ? Colors.white : Colors.grey.shade600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Section header ────────────────────────────────────────────────────────────
+  Widget _buildSectionHeader({
+    required String label,
+    required int category,
+    required Color color,
+    required IconData icon,
+    required List<Staff> allStaff,
+  }) {
+    final count = _getFilteredByCategory(allStaff, category).length;
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, size: 18, color: color),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: color,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 10, vertical: 3),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: color),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Section list ──────────────────────────────────────────────────────────────
+  Widget _buildSectionList({
+    required List<Staff> allStaff,
+    required int category,
+    required Color color,
+    required String label,
+  }) {
+    final filtered = _getFilteredByCategory(allStaff, category);
+
+    filtered.sort((a, b) => _isAscending
+        ? _getDisplayName(a).compareTo(_getDisplayName(b))
+        : _getDisplayName(b).compareTo(_getDisplayName(a)));
+
+    if (filtered.isEmpty) {
+      return SliverToBoxAdapter(
+        child: Padding(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.people_outline_rounded,
+                    color: Colors.grey.shade300, size: 22),
+                const SizedBox(width: 10),
+                Text(
+                  _searchQuery.isNotEmpty
+                      ? 'No $label staff match "$_searchQuery"'
+                      : 'No $label staff registered',
+                  style: TextStyle(
+                      color: Colors.grey.shade400,
+                      fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            final staff = filtered[index];
+            return _buildStaffCard(staff, color, label);
+          },
+          childCount: filtered.length,
+        ),
+      ),
+    );
+  }
+
+  // ── Staff card ────────────────────────────────────────────────────────────────
+  Widget _buildStaffCard(Staff staff, Color color, String categoryLabel) {
+    return GestureDetector(
+      onTap: () => _showStaffDetail(staff, color, categoryLabel),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ListTile(
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          leading: CircleAvatar(
+            radius: 24,
+            backgroundColor: color.withOpacity(0.12),
+            backgroundImage:
+                (staff.filepath != null && staff.filepath!.isNotEmpty)
+                    ? NetworkImage(
+                        'https://devcms.com.my/charmsAPI/public/storage/${staff.filepath}')
+                    : null,
+            child: (staff.filepath == null || staff.filepath!.isEmpty)
+                ? Icon(Icons.person_rounded, color: color)
+                : null,
+          ),
+          title: Text(
+            _getDisplayName(staff),
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF1E293B),
+            ),
+          ),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  staff.occupation.isNotEmpty ? staff.occupation : '—',
+                  style: TextStyle(
+                      color: Colors.grey.shade500,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(Icons.badge_outlined,
+                        size: 12, color: Colors.grey.shade400),
+                    const SizedBox(width: 4),
+                    Text(
+                      'ID: ${staff.staffId}',
+                      style: TextStyle(
+                          color: Colors.grey.shade400,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(width: 10),
+                    Icon(Icons.phone_rounded,
+                        size: 12, color: Colors.grey.shade400),
+                    const SizedBox(width: 4),
+                    Text(
+                      staff.phone.isNotEmpty ? staff.phone : '—',
+                      style: TextStyle(
+                          color: Colors.grey.shade400,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          trailing: Icon(Icons.arrow_forward_ios_rounded,
+              size: 14, color: Colors.grey.shade400),
+        ),
       ),
     );
   }
