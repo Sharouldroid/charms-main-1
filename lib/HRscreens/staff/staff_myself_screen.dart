@@ -13,9 +13,6 @@ import 'package:charms/HRscreens/staff/payroll_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/claim_dashboard.dart';
 import 'package:charms/HRscreens/staff/change_pass_screen.dart';
 import 'package:charms/HRwidgets/staff/bottom_nav_staff.dart';
-//import 'package:charms/screens/dashboard_screen.dart';
-//import 'package:charms/providers/auth.dart' as app_auth;
-//import 'package:charms/screens/auth_screen.dart';
 import 'package:charms/utils/logout_helper.dart';
 
 class StaffMySelfScreen extends StatefulWidget {
@@ -37,11 +34,12 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
 
   final _formKey = GlobalKey<FormState>();
 
-  // ── Matches StaffDashboardScreen palette ─────────────────────────────────────
+  // ── Palette ──────────────────────────────────────────────────────────────────
   final Color staffPrimary = const Color(0xFF4F46E5);
   final Color staffBg = const Color(0xFFF8FAFC);
   final Color staffCardBorder = const Color(0xFFE2E8F0);
 
+  // ── Controllers ──────────────────────────────────────────────────────────────
   late TextEditingController _nameController;
   late TextEditingController _icNumberController;
   late TextEditingController _dobController;
@@ -49,7 +47,7 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
   late TextEditingController _phoneController;
   late TextEditingController _nationalityController;
   late TextEditingController _religionController;
-  late TextEditingController _genderController;
+  late TextEditingController _genderController;          // personal gender
   late TextEditingController _maritalStatusController;
   late TextEditingController _statusController;
   late TextEditingController _addressController;
@@ -63,8 +61,12 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
   late TextEditingController _emergencyNameController;
   late TextEditingController _emergencyIcController;
   late TextEditingController _emergencyRelationController;
-  late TextEditingController _emergencyGenderController;
+  late TextEditingController _emergencyGenderController;  // emergency gender
   late TextEditingController _emergencyPhoneController;
+
+  // ── Dropdown state ───────────────────────────────────────────────────────────
+  String? _selectedGender;
+  String? _selectedEmergencyGender;
 
   @override
   void initState() {
@@ -128,18 +130,15 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
 
   void _updateControllers() {
     if (_currentStaff == null) return;
-    _nameController.text =
-        "${_currentStaff!.firstname} ${_currentStaff!.lastname}";
+
+    _nameController.text = "${_currentStaff!.firstname} ${_currentStaff!.lastname}";
     _icNumberController.text = _currentStaff!.idNum;
     _dobController.text = _currentStaff!.dob;
     _emailController.text = _currentStaff!.email;
     _phoneController.text = _currentStaff!.phone;
     _nationalityController.text = _currentStaff!.nationality;
     _religionController.text = _currentStaff!.religion;
-    _genderController.text =
-        _currentStaff!.emergencyGender == 1 ? "Male" : "Female";
-    _maritalStatusController.text =
-        _currentStaff!.maritalStatus == 1 ? "Single" : "Married";
+    _maritalStatusController.text = _currentStaff!.maritalStatus == 1 ? "Single" : "Married";
     _statusController.text = "Active";
     _addressController.text = _currentStaff!.address1;
     _address2Controller.text = _currentStaff!.address2;
@@ -152,9 +151,15 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
     _emergencyNameController.text = _currentStaff!.emergencyName;
     _emergencyIcController.text = _currentStaff!.emergencyIc;
     _emergencyRelationController.text = _currentStaff!.emergencyRelation;
-    _emergencyGenderController.text =
-        _currentStaff!.emergencyGender == 1 ? "Male" : "Female";
     _emergencyPhoneController.text = _currentStaff!.emergencyPhone;
+
+    // ── Personal gender — from staff's own gender field ──────────────────────
+    _selectedGender = _currentStaff!.gender == 1 ? "Male" : "Female";
+    _genderController.text = _selectedGender!;
+
+    // ── Emergency gender — separate field ────────────────────────────────────
+    _selectedEmergencyGender = _currentStaff!.emergencyGender == 1 ? "Male" : "Female";
+    _emergencyGenderController.text = _selectedEmergencyGender!;
   }
 
   Future<void> _pickImage() async {
@@ -194,10 +199,13 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
         religion: _religionController.text,
         maritalStatus: _maritalStatusController.text == "Single" ? 1 : 2,
         officePhone: _officePhoneController.text,
+        // ── Personal gender (independent) ────────────────────────────────────
+        gender: _selectedGender == "Male" ? 1 : 2,
+        // ── Emergency gender (independent) ───────────────────────────────────
         emergencyName: _emergencyNameController.text,
         emergencyIc: _emergencyIcController.text,
         emergencyRelation: _emergencyRelationController.text,
-        emergencyGender: _emergencyGenderController.text == "Male" ? 1 : 2,
+        emergencyGender: _selectedEmergencyGender == "Male" ? 1 : 2,
         emergencyPhone: _emergencyPhoneController.text,
         idNum: _icNumberController.text,
         dob: _dobController.text,
@@ -208,6 +216,7 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
         state: _stateController.text,
         country: _countryController.text,
         filepath: _currentStaff!.filepath,
+        filename: _currentStaff!.filename,
       );
 
       await context
@@ -229,13 +238,19 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully')),
+          const SnackBar(
+            content: Text('Profile updated successfully'),
+            backgroundColor: Colors.green,
+          ),
         );
       }
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update profile: $error')),
+          SnackBar(
+            content: Text('Failed to update profile: $error'),
+            backgroundColor: Colors.redAccent,
+          ),
         );
       }
     } finally {
@@ -244,8 +259,8 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
   }
 
   Future<void> _logout() async {
-  await LogoutHelper.fullLogout(context);
-}
+    await LogoutHelper.fullLogout(context);
+  }
 
   void _onItemTapped(int index) {
     if (index == _selectedIndex) return;
@@ -254,8 +269,7 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
     Widget nextScreen;
     switch (index) {
       case 0:
-        nextScreen =
-            StaffDashboardScreen(username: _currentStaff?.username ?? '');
+        nextScreen = StaffDashboardScreen(username: _currentStaff?.username ?? '');
         break;
       case 1:
         nextScreen = LeaveDashboardScreen(
@@ -264,8 +278,7 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
         );
         break;
       case 2:
-        nextScreen =
-            PayrollDashboardScreen(username: _currentStaff?.username ?? '');
+        nextScreen = PayrollDashboardScreen(username: _currentStaff?.username ?? '');
         break;
       case 3:
         nextScreen = ClaimDashboardScreen(
@@ -283,7 +296,7 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
         context, MaterialPageRoute(builder: (_) => nextScreen));
   }
 
-  // ── Field builder ─────────────────────────────────────────────────────────────
+  // ── Regular text field ───────────────────────────────────────────────────────
   Widget _buildInfoField(
     String label,
     TextEditingController controller,
@@ -297,51 +310,74 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
         controller: controller,
         enabled: active,
         style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF1E293B)),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: TextStyle(
-            color: active ? staffPrimary : Colors.grey.shade500,
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-          ),
-          prefixIcon: Icon(icon,
-              size: 20,
-              color: active ? staffPrimary : Colors.grey.shade400),
-          filled: true,
-          fillColor: active ? Colors.white : Colors.grey.shade100,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: staffPrimary.withOpacity(0.3)),
-          ),
-          disabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: staffCardBorder),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: staffPrimary, width: 1.5),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: Colors.red),
-          ),
-          focusedErrorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: Colors.red, width: 1.5),
-          ),
-        ),
-        validator: (value) =>
-            (value == null || value.isEmpty) ? 'Please enter $label' : null,
+            fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+        decoration: _buildDecoration(label, icon, active),
+        validator: (value) => null,
       ),
     );
   }
 
-  // ── Section header ────────────────────────────────────────────────────────────
+  // ── Dropdown field (for Gender / Marital Status) ─────────────────────────────
+  Widget _buildDropdownField({
+    required String label,
+    required IconData icon,
+    required String? value,
+    required List<String> items,
+    required ValueChanged<String?> onChanged,
+  }) {
+    final bool active = _isEditing;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: DropdownButtonFormField<String>(
+        value: value,
+        decoration: _buildDecoration(label, icon, active),
+        icon: Icon(Icons.keyboard_arrow_down_rounded, color: staffPrimary),
+        items: items
+            .map((item) => DropdownMenuItem(value: item, child: Text(item)))
+            .toList(),
+        onChanged: active ? onChanged : null,
+        validator: (value) => null,
+      ),
+    );
+  }
+
+  InputDecoration _buildDecoration(String label, IconData icon, bool active) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: TextStyle(
+        color: active ? staffPrimary : Colors.grey.shade500,
+        fontSize: 13,
+        fontWeight: FontWeight.w500,
+      ),
+      prefixIcon: Icon(icon,
+          size: 20, color: active ? staffPrimary : Colors.grey.shade400),
+      filled: true,
+      fillColor: active ? Colors.white : Colors.grey.shade100,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: staffPrimary.withOpacity(0.3)),
+      ),
+      disabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: staffCardBorder),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: staffPrimary, width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Colors.red),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Colors.red, width: 1.5),
+      ),
+    );
+  }
+
+  // ── Section header ───────────────────────────────────────────────────────────
   Widget _buildSectionHeader(String title, IconData icon) {
     return Padding(
       padding: const EdgeInsets.only(top: 8, bottom: 14),
@@ -406,7 +442,10 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
             IconButton(
               icon: const Icon(Icons.close_rounded, color: Colors.white),
               tooltip: 'Cancel',
-              onPressed: () => setState(() => _isEditing = false),
+              onPressed: () {
+                setState(() => _isEditing = false);
+                _updateControllers(); // reset changes on cancel
+              },
             ),
           if (!_isEditing)
             IconButton(
@@ -422,7 +461,7 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
           : SingleChildScrollView(
               child: Column(
                 children: [
-                  // ── Indigo banner with avatar — mirrors StaffDashboard ───────
+                  // ── Indigo banner ────────────────────────────────────────────
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.only(
@@ -435,7 +474,6 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
                     ),
                     child: Column(
                       children: [
-                        // Avatar
                         GestureDetector(
                           onTap: _isEditing ? _pickImage : null,
                           child: Stack(
@@ -445,8 +483,7 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
-                                      color:
-                                          Colors.black.withOpacity(0.25),
+                                      color: Colors.black.withOpacity(0.25),
                                       blurRadius: 20,
                                       offset: const Offset(0, 8),
                                     ),
@@ -454,26 +491,20 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
                                 ),
                                 child: CircleAvatar(
                                   radius: 52,
-                                  backgroundColor:
-                                      Colors.indigo.shade300,
+                                  backgroundColor: Colors.indigo.shade300,
                                   backgroundImage: _profileImage != null
                                       ? (kIsWeb
-                                          ? NetworkImage(
-                                                  _profileImage!.path)
+                                          ? NetworkImage(_profileImage!.path)
                                               as ImageProvider
-                                          : FileImage(
-                                              File(_profileImage!.path)))
+                                          : FileImage(File(_profileImage!.path)))
                                       : (_currentStaff?.filepath != null &&
-                                              _currentStaff!
-                                                  .filepath!.isNotEmpty)
+                                              _currentStaff!.filepath!.isNotEmpty)
                                           ? NetworkImage(
                                               'https://devcms.com.my/charmsAPI/public/storage/${_currentStaff!.filepath}')
                                           : null,
                                   child: (_profileImage == null &&
-                                          (_currentStaff?.filepath ==
-                                                  null ||
-                                              _currentStaff!
-                                                  .filepath!.isEmpty))
+                                          (_currentStaff?.filepath == null ||
+                                              _currentStaff!.filepath!.isEmpty))
                                       ? const Icon(Icons.person_rounded,
                                           size: 52, color: Colors.white)
                                       : null,
@@ -548,147 +579,131 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
                     ),
                   ),
 
-                  // ── Form body ─────────────────────────────────────────────
+                  // ── Form body ────────────────────────────────────────────────
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 20, 16, 120),
                     child: Form(
                       key: _formKey,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // ── Personal Details ───────────────────────────
-                            _buildSectionHeader(
-                                'Personal Details', Icons.person_rounded),
-                            _buildInfoField('Full Name', _nameController,
-                                Icons.badge_rounded,
-                                enabled: true),
-                            _buildInfoField(
-                                'IC Number', _icNumberController,
-                                Icons.credit_card_rounded,
-                                enabled: true),
-                            _buildInfoField(
-                                'Date of Birth', _dobController,
-                                Icons.cake_rounded,
-                                enabled: true),
-                            _buildInfoField('Email', _emailController,
-                                Icons.email_rounded,
-                                enabled: true),
-                            _buildInfoField('Phone', _phoneController,
-                                Icons.phone_rounded,
-                                enabled: true),
-                            _buildInfoField(
-                                'Nationality', _nationalityController,
-                                Icons.flag_rounded,
-                                enabled: true),
-                            _buildInfoField(
-                                'Religion', _religionController,
-                                Icons.auto_awesome_rounded,
-                                enabled: true),
-                            _buildInfoField('Gender', _genderController,
-                                Icons.wc_rounded,
-                                enabled: true),
-                            _buildInfoField(
-                                'Marital Status', _maritalStatusController,
-                                Icons.favorite_rounded,
-                                enabled: true),
-                            _buildInfoField('Status', _statusController,
-                                Icons.verified_rounded,
-                                enabled: false),
-                            _buildInfoField(
-                                'Occupation', _occupationController,
-                                Icons.work_rounded,
-                                enabled: true),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
 
-                            // ── Address ─────────────────────────────────────
-                            _buildSectionHeader(
-                                'Address Details',
-                                Icons.location_on_rounded),
-                            _buildInfoField(
-                                'Address Line 1', _addressController,
-                                Icons.location_on_rounded,
-                                enabled: true),
-                            _buildInfoField(
-                                'Address Line 2', _address2Controller,
-                                Icons.location_on_outlined,
-                                enabled: true),
-                            _buildInfoField('City', _cityController,
-                                Icons.location_city_rounded,
-                                enabled: true),
-                            _buildInfoField('State', _stateController,
-                                Icons.map_rounded,
-                                enabled: true),
-                            _buildInfoField('Country', _countryController,
-                                Icons.public_rounded,
-                                enabled: true),
-                            _buildInfoField(
-                                'Postcode', _postcodeController,
-                                Icons.pin_rounded,
-                                enabled: true),
-                            _buildInfoField(
-                                'Office Phone', _officePhoneController,
-                                Icons.phone_in_talk_rounded,
-                                enabled: true),
+                          // ── Personal Details ─────────────────────────────────
+                          _buildSectionHeader('Personal Details', Icons.person_rounded),
+                          _buildInfoField('Full Name', _nameController,
+                              Icons.badge_rounded, enabled: true),
+                          _buildInfoField('IC Number', _icNumberController,
+                              Icons.credit_card_rounded, enabled: true),
+                          _buildInfoField('Date of Birth', _dobController,
+                              Icons.cake_rounded, enabled: true),
+                          _buildInfoField('Email', _emailController,
+                              Icons.email_rounded, enabled: true),
+                          _buildInfoField('Phone', _phoneController,
+                              Icons.phone_rounded, enabled: true),
+                          _buildInfoField('Nationality', _nationalityController,
+                              Icons.flag_rounded, enabled: true),
+                          _buildInfoField('Religion', _religionController,
+                              Icons.auto_awesome_rounded, enabled: true),
 
-                            // ── Emergency Contact ───────────────────────────
-                            _buildSectionHeader(
-                                'Emergency Contact',
-                                Icons.emergency_rounded),
-                            _buildInfoField(
-                                'Contact Name', _emergencyNameController,
-                                Icons.person_pin_rounded,
-                                enabled: true),
-                            _buildInfoField(
-                                'Contact IC', _emergencyIcController,
-                                Icons.credit_card_rounded,
-                                enabled: true),
-                            _buildInfoField(
-                                'Relation', _emergencyRelationController,
-                                Icons.people_alt_rounded,
-                                enabled: true),
-                            _buildInfoField(
-                                'Gender', _emergencyGenderController,
-                                Icons.wc_rounded,
-                                enabled: true),
-                            _buildInfoField(
-                                'Contact Phone', _emergencyPhoneController,
-                                Icons.phone_rounded,
-                                enabled: true),
+                          // ── Personal Gender dropdown ──────────────────────────
+                          _buildDropdownField(
+                            label: 'Gender',
+                            icon: Icons.wc_rounded,
+                            value: _selectedGender,
+                            items: const ['Male', 'Female'],
+                            onChanged: (val) =>
+                                setState(() => _selectedGender = val),
+                          ),
 
-                            // ── Change Password ─────────────────────────────
-                            const SizedBox(height: 8),
-                            SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton.icon(
-                                icon: Icon(Icons.lock_outline_rounded,
-                                    color: staffPrimary),
-                                label: Text(
-                                  'Change Password',
-                                  style: TextStyle(
-                                      color: staffPrimary,
-                                      fontWeight: FontWeight.w700),
-                                ),
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 15),
-                                  side: BorderSide(
-                                      color: staffPrimary, width: 1.5),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(14)),
-                                ),
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (_) =>
-                                            const ChangePassScreen()),
-                                  );
-                                },
+                          // ── Marital Status dropdown ───────────────────────────
+                          _buildDropdownField(
+                            label: 'Marital Status',
+                            icon: Icons.favorite_rounded,
+                            value: _maritalStatusController.text.isNotEmpty
+                                ? _maritalStatusController.text
+                                : null,
+                            items: const ['Single', 'Married'],
+                            onChanged: (val) => setState(
+                                () => _maritalStatusController.text = val ?? ''),
+                          ),
+
+                          _buildInfoField('Status', _statusController,
+                              Icons.verified_rounded, enabled: false),
+                          _buildInfoField('Occupation', _occupationController,
+                              Icons.work_rounded, enabled: true),
+
+                          // ── Address ──────────────────────────────────────────
+                          _buildSectionHeader('Address Details', Icons.location_on_rounded),
+                          _buildInfoField('Address Line 1', _addressController,
+                              Icons.location_on_rounded, enabled: true),
+                          _buildInfoField('Address Line 2', _address2Controller,
+                              Icons.location_on_outlined, enabled: true),
+                          _buildInfoField('City', _cityController,
+                              Icons.location_city_rounded, enabled: true),
+                          _buildInfoField('State', _stateController,
+                              Icons.map_rounded, enabled: true),
+                          _buildInfoField('Country', _countryController,
+                              Icons.public_rounded, enabled: true),
+                          _buildInfoField('Postcode', _postcodeController,
+                              Icons.pin_rounded, enabled: true),
+                          _buildInfoField('Office Phone', _officePhoneController,
+                              Icons.phone_in_talk_rounded, enabled: true),
+
+                          // ── Emergency Contact ────────────────────────────────
+                          _buildSectionHeader('Emergency Contact', Icons.emergency_rounded),
+                          _buildInfoField('Contact Name', _emergencyNameController,
+                              Icons.person_pin_rounded, enabled: true),
+                          _buildInfoField('Contact IC', _emergencyIcController,
+                              Icons.credit_card_rounded, enabled: true),
+                          _buildInfoField('Relation', _emergencyRelationController,
+                              Icons.people_alt_rounded, enabled: true),
+
+                          // ── Emergency Gender dropdown (separate) ─────────────
+                          _buildDropdownField(
+                            label: 'Contact Gender',
+                            icon: Icons.wc_rounded,
+                            value: _selectedEmergencyGender,
+                            items: const ['Male', 'Female'],
+                            onChanged: (val) =>
+                                setState(() => _selectedEmergencyGender = val),
+                          ),
+
+                          _buildInfoField('Contact Phone', _emergencyPhoneController,
+                              Icons.phone_rounded, enabled: true),
+
+                          // ── Change Password ──────────────────────────────────
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              icon: Icon(Icons.lock_outline_rounded,
+                                  color: staffPrimary),
+                              label: Text(
+                                'Change Password',
+                                style: TextStyle(
+                                    color: staffPrimary,
+                                    fontWeight: FontWeight.w700),
                               ),
+                              style: OutlinedButton.styleFrom(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 15),
+                                side:
+                                    BorderSide(color: staffPrimary, width: 1.5),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14)),
+                              ),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) => const ChangePassScreen()),
+                                );
+                              },
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
+                    ),
                   ),
                 ],
               ),

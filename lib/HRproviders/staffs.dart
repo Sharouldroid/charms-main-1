@@ -58,6 +58,7 @@ class Staffs with ChangeNotifier {
           nationality: _toStr(data['nationality']),
           religion: _toStr(data['religion']),
           maritalStatus: _toInt(data['marital_status']),
+          gender: _toInt(data['gender']),   
           officePhone: _toStr(data['office_phone']),
           emergencyName: _toStr(data['emergency_name']),
           emergencyIc: _toStr(data['emergency_ic']),
@@ -159,6 +160,7 @@ class Staffs with ChangeNotifier {
           nationality: existing.nationality,
           religion: existing.religion,
           maritalStatus: existing.maritalStatus,
+          gender: existing.gender,   
           officePhone: existing.officePhone,
           emergencyName: existing.emergencyName,
           emergencyIc: existing.emergencyIc,
@@ -188,38 +190,38 @@ class Staffs with ChangeNotifier {
   Future<void> updateStaffDetails(int staffId, Staff updatedStaff) async {
     try {
       final payload = {
-        'staff_data': {
-          'category': updatedStaff.category.toString(),
-          'nationality': updatedStaff.nationality,
-          'religion': updatedStaff.religion,
-          'marital_status': updatedStaff.maritalStatus.toString(),
-          'office_phone': updatedStaff.officePhone,
-          'emergency_name': updatedStaff.emergencyName,
-          'emergency_ic': updatedStaff.emergencyIc,
-          'emergency_relation': updatedStaff.emergencyRelation,
-          'emergency_gender': updatedStaff.emergencyGender.toString(),
-          'emergency_phone': updatedStaff.emergencyPhone,
-        },
-        'user_data': {
-          'username': updatedStaff.username,
-          'email': updatedStaff.email,
-        },
-        'userdata_data': {
-          'firstname': updatedStaff.firstname,
-          'lastname': updatedStaff.lastname,
-          'idnum': updatedStaff.idNum,
-          'dob': updatedStaff.dob,
-          'phone': updatedStaff.phone,
-          'address1': updatedStaff.address1,
-          'address2': updatedStaff.address2,
-          'city': updatedStaff.city,
-          'postcode': updatedStaff.postcode.toString(),
-          'state': updatedStaff.state,
-          'country': updatedStaff.country,
-          'occupation': updatedStaff.occupation,
-        },
-      };
-
+    'staff_data': {
+      'category':           updatedStaff.category.toString(),
+      'nationality':        updatedStaff.nationality,        // String ✅
+      'religion':           updatedStaff.religion,           // String ✅
+      'marital_status':     updatedStaff.maritalStatus.toString(),
+      'office_phone':       updatedStaff.officePhone ?? '',  // String? ✅ keep
+      'emergency_name':     updatedStaff.emergencyName,      // String ✅
+      'emergency_ic':       updatedStaff.emergencyIc,        // String ✅
+      'emergency_relation': updatedStaff.emergencyRelation,  // String ✅
+      'emergency_gender':   updatedStaff.emergencyGender.toString(),
+      'emergency_phone':    updatedStaff.emergencyPhone,     // String ✅
+    },
+    'user_data': {
+      'username': updatedStaff.username,  // String ✅
+      'email':    updatedStaff.email,     // String ✅
+    },
+    'userdata_data': {
+      'firstname':  updatedStaff.firstname,   // String ✅
+      'lastname':   updatedStaff.lastname,    // String ✅
+      'idnum':      updatedStaff.idNum,       // String ✅
+      'dob':        updatedStaff.dob,         // String ✅
+      'phone':      updatedStaff.phone,       // String ✅
+      'address1':   updatedStaff.address1,    // String ✅
+      'address2':   updatedStaff.address2,    // String ✅
+      'city':       updatedStaff.city,        // String ✅
+      'postcode':   updatedStaff.postcode.toString(),
+      'state':      updatedStaff.state,       // String ✅
+      'country':    updatedStaff.country,     // String ✅
+      'occupation': updatedStaff.occupation,  // String ✅
+      'gender': updatedStaff.gender.toString(), // int ✅
+    },
+  };
       debugPrint('UPDATE STAFF URL: $_hostname/staff/$staffId');
       debugPrint('UPDATE STAFF PAYLOAD: ${json.encode(payload)}');
 
@@ -254,6 +256,7 @@ class Staffs with ChangeNotifier {
             nationality: updatedStaff.nationality,
             religion: updatedStaff.religion,
             maritalStatus: updatedStaff.maritalStatus,
+            gender: updatedStaff.gender,     
             officePhone: updatedStaff.officePhone,
             emergencyName: updatedStaff.emergencyName,
             emergencyIc: updatedStaff.emergencyIc,

@@ -171,6 +171,7 @@ class _InternMySelfScreenState extends State<InternMySelfScreen> {
         nationality: _currentStaff!.nationality,
         religion: _currentStaff!.religion,
         maritalStatus: _currentStaff!.maritalStatus,
+        gender: _currentStaff!.gender, // ✅ Editable
         officePhone: _currentStaff!.officePhone,
         emergencyName: _currentStaff!.emergencyName,
         emergencyIc: _currentStaff!.emergencyIc,

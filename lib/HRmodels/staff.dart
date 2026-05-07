@@ -12,6 +12,7 @@ class Staff {
   final String nationality;
   final String religion;
   final int maritalStatus;
+  final int gender;
   final String? officePhone;
   final String emergencyName;
   final String emergencyIc;
@@ -43,6 +44,7 @@ class Staff {
     required this.nationality,
     required this.religion,
     required this.maritalStatus,
+    required this.gender,
     this.officePhone,
     required this.emergencyName,
     required this.emergencyIc,
@@ -71,6 +73,7 @@ class Staff {
       firstname: json['firstname'] ?? '',
       lastname: json['lastname'] ?? '',
       occupation: json['occupation'] ?? '',
+      gender: int.tryParse(json['gender'].toString()) ?? 1,
       phone: json['phone'] ?? '',
       category: int.tryParse(json['category'].toString()) ?? 1,
       nationality: json['nationality'] ?? '',
@@ -105,6 +108,7 @@ class Staff {
       'firstname': firstname,
       'lastname': lastname,
       'occupation': occupation,
+      'gender': gender,
       'phone': phone,
       'category': category,
       'nationality': nationality,

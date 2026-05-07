@@ -55,7 +55,7 @@ class _EditStaffScreenState extends State<EditStaffScreen> {
     dobController = TextEditingController(text: widget.staff.dob);
     nationalityController = TextEditingController(text: widget.staff.nationality);
     religionController = TextEditingController(text: widget.staff.religion);
-    genderController = TextEditingController(text: widget.staff.emergencyGender == 1 ? "Male" : "Female");
+   genderController = TextEditingController(text: widget.staff.gender == 1 ? "Male" : "Female");
     maritalStatusController = TextEditingController(text: widget.staff.maritalStatus == 1 ? "Single" : "Married");
     statusController = TextEditingController(text: "Active"); // Default value
     addressController = TextEditingController(text: "${widget.staff.address1}, ${widget.staff.address2}");
@@ -294,6 +294,7 @@ class _EditStaffScreenState extends State<EditStaffScreen> {
       nationality: nationalityController.text,
       religion: religionController.text,
       maritalStatus: maritalStatusController.text == "Single" ? 1 : 2,
+      gender: genderController.text == "Male" ? 1 : 2,
       officePhone: officePhoneController.text,
       emergencyName: emergencyNameController.text,
       emergencyIc: emergencyIcController.text,

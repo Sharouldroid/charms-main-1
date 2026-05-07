@@ -133,6 +133,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
                             nationality: '',
                             religion: '',
                             maritalStatus: 0,
+                            gender: 0,
                             emergencyName: '',
                             emergencyIc: '',
                             emergencyRelation: '',

@@ -203,6 +203,44 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
     );
   }
 
+  // Helper for required input decoration (shows red asterisk)
+  InputDecoration _buildRequiredInputDecoration(String label, IconData icon) {
+    return InputDecoration(
+      label: RichText(
+        text: TextSpan(
+          text: label,
+          style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+          children: const [
+            TextSpan(
+              text: ' *',
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      ),
+      prefixIcon: Icon(icon, color: primaryBlue.withOpacity(0.7), size: 22),
+      filled: true,
+      fillColor: Colors.grey.shade50,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.shade200),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: primaryBlue, width: 2),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.redAccent),
+      ),
+    );
+  }
+
   // Helper for Section Headers
   Widget _buildSectionHeader(String title, IconData icon) {
     return Padding(
@@ -301,8 +339,9 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
                 // Account Details
                 _buildSectionHeader('Account Details', Icons.manage_accounts_rounded),
                 TextFormField(
-                  decoration: _buildInputDecoration('Username', Icons.alternate_email_rounded),
+                  decoration: _buildRequiredInputDecoration('Username', Icons.alternate_email_rounded),
                   textInputAction: TextInputAction.next,
+                  // ✅ KEEP: username validator
                   validator: (value) => value == null || value.trim().isEmpty ? 'Please enter a username' : null,
                   onSaved: (value) => _staffData['username'] = value!,
                 ),
@@ -311,15 +350,17 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
                 // Personal Information
                 _buildSectionHeader('Personal Information', Icons.badge_rounded),
                 TextFormField(
-                  decoration: _buildInputDecoration('First Name', Icons.person_outline_rounded),
+                  decoration: _buildRequiredInputDecoration('First Name', Icons.person_outline_rounded),
                   textInputAction: TextInputAction.next,
-                  validator: (value) => value == null || value.trim().isEmpty ? 'Please enter a first name' : null,
+                  // removed validator
+                   validator: (value) => value == null || value.trim().isEmpty ? 'Please enter a first name' : null,
                   onSaved: (value) => _staffData['firstname'] = value!,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
-                  decoration: _buildInputDecoration('Last Name', Icons.person_outline_rounded),
+                  decoration: _buildRequiredInputDecoration('Last Name', Icons.person_outline_rounded),
                   textInputAction: TextInputAction.next,
+                  // removed validator
                   validator: (value) => value == null || value.trim().isEmpty ? 'Please enter a last name' : null,
                   onSaved: (value) => _staffData['lastname'] = value!,
                 ),
@@ -327,8 +368,8 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
                 TextFormField(
                   decoration: _buildInputDecoration('ID Number', Icons.credit_card_rounded),
                   textInputAction: TextInputAction.next,
-                  validator: (value) => value == null || value.trim().isEmpty ? 'Please enter identity card number' : null,
-                  onSaved: (value) => _staffData['id_num'] = value!,
+                  // removed validator
+                  onSaved: (value) => _staffData['id_num'] = value ?? '',
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -348,21 +389,21 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
                     DropdownMenuItem(value: '2', child: Text('Female')),
                   ],
                   onChanged: (value) => setState(() => _staffData['gender'] = value!),
-                  validator: (value) => value == null ? 'Please choose a gender' : null,
+                  // removed validator
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   decoration: _buildInputDecoration('Nationality', Icons.flag_rounded),
                   textInputAction: TextInputAction.next,
-                  validator: (value) => value == null || value.trim().isEmpty ? 'Please enter nationality' : null,
-                  onSaved: (value) => _staffData['nationality'] = value!,
+                  // removed validator
+                  onSaved: (value) => _staffData['nationality'] = value ?? '',
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   decoration: _buildInputDecoration('Religion', Icons.mosque_rounded),
                   textInputAction: TextInputAction.next,
-                  validator: (value) => value == null || value.trim().isEmpty ? 'Please enter religion' : null,
-                  onSaved: (value) => _staffData['religion'] = value!,
+                  // removed validator
+                  onSaved: (value) => _staffData['religion'] = value ?? '',
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
@@ -381,13 +422,14 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
                   decoration: _buildInputDecoration('Phone', Icons.phone_android_rounded),
                   keyboardType: TextInputType.phone,
                   textInputAction: TextInputAction.next,
-                  onSaved: (value) => _staffData['phone'] = value!,
+                  onSaved: (value) => _staffData['phone'] = value ?? '',
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
-                  decoration: _buildInputDecoration('Email', Icons.email_rounded),
+                  decoration: _buildRequiredInputDecoration('Email', Icons.email_rounded),
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
+                  // ✅ KEEP: email validator
                   validator: (value) => value == null || !value.contains('@') ? 'Please enter a valid email' : null,
                   onSaved: (value) => _staffData['email'] = value!,
                 ),
@@ -395,13 +437,13 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
                 TextFormField(
                   decoration: _buildInputDecoration('Address Line 1', Icons.home_rounded),
                   textInputAction: TextInputAction.next,
-                  onSaved: (value) => _staffData['address1'] = value!,
+                  onSaved: (value) => _staffData['address1'] = value ?? '',
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   decoration: _buildInputDecoration('Address Line 2 (Optional)', Icons.home_work_rounded),
                   textInputAction: TextInputAction.next,
-                  onSaved: (value) => _staffData['address2'] = value!,
+                  onSaved: (value) => _staffData['address2'] = value ?? '',
                 ),
                 const SizedBox(height: 16),
                 Row(
@@ -410,7 +452,7 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
                       child: TextFormField(
                         decoration: _buildInputDecoration('City', Icons.location_city_rounded),
                         textInputAction: TextInputAction.next,
-                        onSaved: (value) => _staffData['city'] = value!,
+                        onSaved: (value) => _staffData['city'] = value ?? '',
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -419,7 +461,7 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
                         decoration: _buildInputDecoration('Zip Code', Icons.markunread_mailbox_rounded),
                         keyboardType: TextInputType.number,
                         textInputAction: TextInputAction.next,
-                        onSaved: (value) => _staffData['postcode'] = value!,
+                        onSaved: (value) => _staffData['postcode'] = value ?? '',
                       ),
                     ),
                   ],
@@ -431,7 +473,7 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
                       child: TextFormField(
                         decoration: _buildInputDecoration('State', Icons.map_rounded),
                         textInputAction: TextInputAction.next,
-                        onSaved: (value) => _staffData['state'] = value!,
+                        onSaved: (value) => _staffData['state'] = value ?? '',
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -439,7 +481,7 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
                       child: TextFormField(
                         decoration: _buildInputDecoration('Country', Icons.public_rounded),
                         textInputAction: TextInputAction.next,
-                        onSaved: (value) => _staffData['country'] = value!,
+                        onSaved: (value) => _staffData['country'] = value ?? '',
                       ),
                     ),
                   ],
@@ -448,7 +490,7 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
                 // Employment Details
                 _buildSectionHeader('Employment Details', Icons.work_rounded),
                 DropdownButtonFormField<String>(
-                  decoration: _buildInputDecoration('Category', Icons.corporate_fare_rounded),
+                  decoration: _buildRequiredInputDecoration('Category', Icons.corporate_fare_rounded),
                   icon: Icon(Icons.keyboard_arrow_down_rounded, color: primaryBlue),
                   items: const [
                     DropdownMenuItem(value: '1', child: Text('SEATRU')),
@@ -457,11 +499,12 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
                   ],
                   onChanged: (value) => setState(() => _staffData['category'] = value!),
                   onSaved: (value) => _staffData['category'] = value!,
+                  // ✅ KEEP: category validator
                   validator: (value) => value == null ? 'Please select a category' : null,
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  decoration: _buildInputDecoration('Role', Icons.admin_panel_settings_rounded),
+                  decoration: _buildRequiredInputDecoration('Role', Icons.admin_panel_settings_rounded),
                   icon: Icon(Icons.keyboard_arrow_down_rounded, color: primaryBlue),
                   items: const [
                     DropdownMenuItem(value: '6', child: Text('Staff Admin')),
@@ -471,20 +514,21 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
                     DropdownMenuItem(value: '10', child: Text('Trainee')),
                   ],
                   onChanged: (value) => setState(() => _staffData['usertype'] = value!),
+                  // ✅ KEEP: role validator
                   validator: (value) => value == null ? 'Please select a role' : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   decoration: _buildInputDecoration('Occupation', Icons.work_outline_rounded),
                   textInputAction: TextInputAction.next,
-                  onSaved: (value) => _staffData['occupation'] = value!,
+                  onSaved: (value) => _staffData['occupation'] = value ?? '',
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   decoration: _buildInputDecoration('Office Phone', Icons.phone_in_talk_rounded),
                   keyboardType: TextInputType.phone,
                   textInputAction: TextInputAction.next,
-                  onSaved: (value) => _staffData['office_phone'] = value!,
+                  onSaved: (value) => _staffData['office_phone'] = value ?? '',
                 ),
 
                 // Emergency Contact
@@ -492,21 +536,21 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
                 TextFormField(
                   decoration: _buildInputDecoration('Contact Name', Icons.person_rounded),
                   textInputAction: TextInputAction.next,
-                  validator: (value) => value == null || value.trim().isEmpty ? 'Please enter contact name' : null,
-                  onSaved: (value) => _staffData['emergency_name'] = value!,
+                  // removed validator
+                  onSaved: (value) => _staffData['emergency_name'] = value ?? '',
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   decoration: _buildInputDecoration('Contact IC Number', Icons.credit_card_rounded),
                   textInputAction: TextInputAction.next,
-                  onSaved: (value) => _staffData['emergency_ic'] = value!,
+                  onSaved: (value) => _staffData['emergency_ic'] = value ?? '',
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   decoration: _buildInputDecoration('Relation', Icons.diversity_1_rounded),
                   textInputAction: TextInputAction.next,
-                  validator: (value) => value == null || value.trim().isEmpty ? 'Please enter relation' : null,
-                  onSaved: (value) => _staffData['emergency_relation'] = value!,
+                  // removed validator
+                  onSaved: (value) => _staffData['emergency_relation'] = value ?? '',
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
@@ -523,8 +567,8 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
                   decoration: _buildInputDecoration('Contact Phone', Icons.phone_rounded),
                   keyboardType: TextInputType.phone,
                   textInputAction: TextInputAction.done,
-                  validator: (value) => value == null || value.trim().isEmpty ? 'Please enter contact phone' : null,
-                  onSaved: (value) => _staffData['emergency_phone'] = value!,
+                  // removed validator
+                  onSaved: (value) => _staffData['emergency_phone'] = value ?? '',
                 ),
                 const SizedBox(height: 32),
 

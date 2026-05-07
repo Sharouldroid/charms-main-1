@@ -193,6 +193,7 @@ class _MySelfScreenState extends State<MySelfScreen> {
           firstname: _firstNameController.text,
           lastname: _lastNameController.text,
           occupation: _occupationController.text,
+          gender: _genderController.text == 'Male' ? 1 : 2, 
           phone: _phoneController.text,
           category: _currentStaff!.category,
           nationality: _currentStaff!.nationality,
@@ -340,8 +341,7 @@ class _MySelfScreenState extends State<MySelfScreen> {
             borderSide: const BorderSide(color: Colors.red, width: 1.5),
           ),
         ),
-        validator: (v) =>
-            (v == null || v.isEmpty) ? 'Please enter $label' : null,
+        validator: (v) => null,
       ),
     );
   }
