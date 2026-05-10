@@ -216,7 +216,7 @@ class Attendances with ChangeNotifier {
 
   // 7. GET ATTENDANCE BY STAFF ID
 Future<List<Map<String, dynamic>>> getAttendanceByStaffId(int staffId) async {
-  final uri = Uri.parse('$baseUrl/attendance/staff/$staffId');
+  final uri = Uri.parse('$baseUrl/attendance/staff/$staffId'); // ✅ now works
   try {
     final response = await http.get(uri);
     if (response.statusCode == 200) {
