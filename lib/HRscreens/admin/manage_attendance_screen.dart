@@ -43,33 +43,150 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
   }
 
   // ── Load both attendance + schedules ──────────────────────────────────────────
-  Future<void> _loadData() async {
-    setState(() => isLoading = true);
+  // ── Fix _loadData: load attendance INDEPENDENTLY from schedules ───────────────
+Future<void> _loadData() async {
+  setState(() => isLoading = true);
+  try {
+    final attProvider   = Provider.of<Attendances>(context, listen: false);
+    final staffProvider = Provider.of<Staffs>(context, listen: false);
+    final schedProvider = Provider.of<Schedules>(context, listen: false);
+
+    // ✅ Load staff + attendance together (must succeed)
+    await staffProvider.fetchStaff();
+    final records = await attProvider.getAllAttendances();
+
+    // ✅ Load schedules SEPARATELY — if it fails, still show attendance records
+    List<Schedule> schedules = [];
     try {
-      await Future.wait([
-        Provider.of<Staffs>(context, listen: false).fetchStaff(),
-        Provider.of<Schedules>(context, listen: false).fetchSchedules(),
-      ]);
-
-      final attProvider = Provider.of<Attendances>(context, listen: false);
-      final records     = await attProvider.getAllAttendances();
-
-      final schedProvider = Provider.of<Schedules>(context, listen: false);
-
-      setState(() {
-        _allRecords   = records;
-        _allSchedules = schedProvider.schedules;
-        isLoading     = false;
-      });
-    } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading data: $error')),
-        );
-      }
-      setState(() => isLoading = false);
+      await schedProvider.fetchSchedules();
+      schedules = schedProvider.schedules;
+    } catch (e) {
+      debugPrint('Schedules failed to load (non-critical): $e');
+      // Don't rethrow — attendance records still show without schedules
     }
+
+    setState(() {
+      _allRecords   = records;
+      _allSchedules = schedules;
+      isLoading     = false;
+    });
+  } catch (error) {
+    debugPrint('Error loading attendance data: $error');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading data: $error')),
+      );
+    }
+    setState(() => isLoading = false);
   }
+}
+
+// ── Fix _markAbsent: use createAbsentRecord instead of recordAttendance ────────
+Future<void> _markAbsent(Map<String, dynamic> item, List<Staff> staffList) async {
+  final staffName = _getStaffName(item['staff_id'], staffList);
+  final date      = item['_display_date'] as DateTime?;
+  final dateStr   = date != null ? DateFormat('dd MMM yyyy').format(date) : '—';
+  final schedule  = item['_schedule'] as Schedule?;
+
+  final confirm = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: const Row(
+        children: [
+          Icon(Icons.cancel_rounded, color: Colors.redAccent, size: 22),
+          SizedBox(width: 8),
+          Text('Mark as Absent',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Staff: $staffName',
+              style: const TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          Text('Date: $dateStr',
+              style: TextStyle(color: Colors.grey.shade600)),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.07),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.orange.withOpacity(0.2)),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.info_outline_rounded, size: 15, color: Colors.orange),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'This will create an official Absent record. Staff will see this in their history.',
+                    style: TextStyle(fontSize: 12, color: Colors.orange),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+        ),
+        ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.redAccent,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          icon: const Icon(Icons.cancel_rounded, size: 16),
+          label: const Text('Mark Absent'),
+          onPressed: () => Navigator.pop(ctx, true),
+        ),
+      ],
+    ),
+  );
+
+  if (confirm != true) return;
+
+  try {
+    final attProvider = Provider.of<Attendances>(context, listen: false);
+
+    // ✅ Use the new createAbsentRecord method — sends status=1, no clock_in_time
+    final success = await attProvider.createAbsentRecord(
+      staffId:    item['staff_id'],
+      scheduleId: schedule?.schedId ?? item['schedule_id'],
+      workDate:   date != null
+          ? DateFormat('yyyy-MM-dd').format(date)
+          : DateFormat('yyyy-MM-dd').format(DateTime.now()),
+    );
+
+    if (!mounted) return;
+
+    if (success) {
+      await _loadData(); // refresh list
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$staffName marked as absent for $dateStr'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to mark absent — check API')),
+      );
+    }
+  } catch (e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error: $e')),
+    );
+  }
+}
 
   // ── Build unified list: attendance records + orphan schedules (no clock-in) ───
   List<Map<String, dynamic>> _buildMergedList(List<Staff> staffList) {
@@ -283,108 +400,108 @@ class _ManageAttendanceScreenState extends State<ManageAttendanceScreen> {
   }
 
   // ── Mark Absent dialog ────────────────────────────────────────────────────────
-  Future<void> _markAbsent(Map<String, dynamic> item, List<Staff> staffList) async {
-    final staffName = _getStaffName(item['staff_id'], staffList);
-    final date      = item['_display_date'] as DateTime?;
-    final dateStr   = date != null ? DateFormat('dd MMM yyyy').format(date) : '—';
-    final schedule  = item['_schedule'] as Schedule?;
+  // Future<void> _markAbsent(Map<String, dynamic> item, List<Staff> staffList) async {
+  //   final staffName = _getStaffName(item['staff_id'], staffList);
+  //   final date      = item['_display_date'] as DateTime?;
+  //   final dateStr   = date != null ? DateFormat('dd MMM yyyy').format(date) : '—';
+  //   final schedule  = item['_schedule'] as Schedule?;
 
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.cancel_rounded, color: Colors.redAccent, size: 22),
-            SizedBox(width: 8),
-            Text('Mark as Absent',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Staff: $staffName',
-                style: const TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 4),
-            Text('Date: $dateStr',
-                style: TextStyle(color: Colors.grey.shade600)),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.07),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.orange.withOpacity(0.2)),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.info_outline_rounded,
-                      size: 15, color: Colors.orange),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'This will create an official Absent record. Staff will see this in their history.',
-                      style: TextStyle(fontSize: 12, color: Colors.orange),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-            ),
-            icon: const Icon(Icons.cancel_rounded, size: 16),
-            label: const Text('Mark Absent'),
-            onPressed: () => Navigator.pop(ctx, true),
-          ),
-        ],
-      ),
-    );
+  //   final confirm = await showDialog<bool>(
+  //     context: context,
+  //     builder: (ctx) => AlertDialog(
+  //       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+  //       title: const Row(
+  //         children: [
+  //           Icon(Icons.cancel_rounded, color: Colors.redAccent, size: 22),
+  //           SizedBox(width: 8),
+  //           Text('Mark as Absent',
+  //               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+  //         ],
+  //       ),
+  //       content: Column(
+  //         mainAxisSize: MainAxisSize.min,
+  //         crossAxisAlignment: CrossAxisAlignment.start,
+  //         children: [
+  //           Text('Staff: $staffName',
+  //               style: const TextStyle(fontWeight: FontWeight.w600)),
+  //           const SizedBox(height: 4),
+  //           Text('Date: $dateStr',
+  //               style: TextStyle(color: Colors.grey.shade600)),
+  //           const SizedBox(height: 12),
+  //           Container(
+  //             padding: const EdgeInsets.all(10),
+  //             decoration: BoxDecoration(
+  //               color: Colors.orange.withOpacity(0.07),
+  //               borderRadius: BorderRadius.circular(10),
+  //               border: Border.all(color: Colors.orange.withOpacity(0.2)),
+  //             ),
+  //             child: const Row(
+  //               children: [
+  //                 Icon(Icons.info_outline_rounded,
+  //                     size: 15, color: Colors.orange),
+  //                 SizedBox(width: 8),
+  //                 Expanded(
+  //                   child: Text(
+  //                     'This will create an official Absent record. Staff will see this in their history.',
+  //                     style: TextStyle(fontSize: 12, color: Colors.orange),
+  //                   ),
+  //                 ),
+  //               ],
+  //             ),
+  //           ),
+  //         ],
+  //       ),
+  //       actions: [
+  //         TextButton(
+  //           onPressed: () => Navigator.pop(ctx, false),
+  //           child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+  //         ),
+  //         ElevatedButton.icon(
+  //           style: ElevatedButton.styleFrom(
+  //             backgroundColor: Colors.redAccent,
+  //             foregroundColor: Colors.white,
+  //             shape: RoundedRectangleBorder(
+  //                 borderRadius: BorderRadius.circular(10)),
+  //           ),
+  //           icon: const Icon(Icons.cancel_rounded, size: 16),
+  //           label: const Text('Mark Absent'),
+  //           onPressed: () => Navigator.pop(ctx, true),
+  //         ),
+  //       ],
+  //     ),
+  //   );
 
-    if (confirm != true) return;
+  //   if (confirm != true) return;
 
-    try {
-      final attProvider = Provider.of<Attendances>(context, listen: false);
-      // Re-use existing POST /attendance/create with status=1
-      await attProvider.recordAttendance(
-        staffId:    item['staff_id'],
-        scheduleId: schedule?.schedId ?? item['schedule_id'],
-        clockInTime: DateFormat("yyyy-MM-dd HH:mm:ss")
-            .format(date ?? DateTime.now()),
-        // No actual clock_in_time — we'll send the work date start time
-      );
+  //   try {
+  //     final attProvider = Provider.of<Attendances>(context, listen: false);
+  //     // Re-use existing POST /attendance/create with status=1
+  //     await attProvider.recordAttendance(
+  //       staffId:    item['staff_id'],
+  //       scheduleId: schedule?.schedId ?? item['schedule_id'],
+  //       clockInTime: DateFormat("yyyy-MM-dd HH:mm:ss")
+  //           .format(date ?? DateTime.now()),
+  //       // No actual clock_in_time — we'll send the work date start time
+  //     );
 
-      // Then immediately update the status to 1 (Absent) via the returned record
-      // OR: we call a direct absent create — let's use the provider properly
-      await _loadData();
+  //     // Then immediately update the status to 1 (Absent) via the returned record
+  //     // OR: we call a direct absent create — let's use the provider properly
+  //     await _loadData();
 
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('$staffName marked as absent for $dateStr'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to mark absent: $e')),
-      );
-    }
-  }
+  //     if (!mounted) return;
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       SnackBar(
+  //         content: Text('$staffName marked as absent for $dateStr'),
+  //         backgroundColor: Colors.redAccent,
+  //       ),
+  //     );
+  //   } catch (e) {
+  //     if (!mounted) return;
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       SnackBar(content: Text('Failed to mark absent: $e')),
+  //     );
+  //   }
+  // }
 
   // ── Edit (status change for existing records) ─────────────────────────────────
   Future<void> _editAttendance(

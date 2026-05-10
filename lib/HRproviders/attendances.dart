@@ -1,64 +1,40 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-//import 'dart:typed_data';
 
 class Attendances with ChangeNotifier {
   final String baseUrl = 'https://devcms.com.my/charmsAPI/api';
 
-  // ✅ Store last checked image URL & Clock Out Time
-  //String? lastCheckedImageUrl;
   String? lastCheckedClockOutTime;
-  String? lastCheckedClockInLocation; 
+  String? lastCheckedClockInLocation;
 
-  // 1. CREATE ATTENDANCE — now returns Map with success + imageUrl
+  // 1. CREATE ATTENDANCE (staff clock-in) — status always 2
   Future<Map<String, dynamic>> recordAttendance({
     required int staffId,
     required int scheduleId,
     required String clockInTime,
-    String? clockOutTime, // Made optional for clocking in
-    //Uint8List? image,
-     String? clockInLocation,
+    String? clockOutTime,
+    String? clockInLocation,
   }) async {
     final uri = Uri.parse('$baseUrl/attendance/create');
-
     try {
       final request = http.MultipartRequest('POST', uri);
-      request.fields['staff_id'] = staffId.toString();
-      request.fields['schedule_id'] = scheduleId.toString();
-      request.fields['clock_in_time'] = clockInTime;
-      if (clockOutTime != null) {
-        request.fields['clock_out_time'] = clockOutTime;
-      }
-
-      if (clockInLocation != null) {
-      request.fields['clock_in_location'] = clockInLocation; // ← ADD THIS
-    }
-
-      request.fields['attendance_status'] = '2';
-  
-      
-
-      // if (image != null) {
-      //   request.files.add(http.MultipartFile.fromBytes(
-      //     'clock_in_image',
-      //     image,
-      //     filename: 'attendance_$staffId.jpg',
-      //   ));
-      // }
+      request.fields['staff_id']          = staffId.toString();
+      request.fields['schedule_id']       = scheduleId.toString();
+      request.fields['clock_in_time']     = clockInTime;
+      request.fields['attendance_status'] = '2'; // Present
+      if (clockOutTime != null)    request.fields['clock_out_time']    = clockOutTime;
+      if (clockInLocation != null) request.fields['clock_in_location'] = clockInLocation;
 
       final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+      final response         = await http.Response.fromStream(streamedResponse);
 
       debugPrint('recordAttendance status: ${response.statusCode}');
       debugPrint('recordAttendance body: ${response.body}');
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         final data = json.decode(response.body);
-        return {
-          'success': true,
-          'clockInLocation': data['clock_in_location'], 
-        };
+        return {'success': true, 'clockInLocation': data['clock_in_location']};
       }
       return {'success': false, 'clockInLocation': null};
     } catch (error) {
@@ -67,29 +43,48 @@ class Attendances with ChangeNotifier {
     }
   }
 
-  // 2. CHECK ATTENDANCE — also stores imageUrl and clockOutTime
+  // 1b. ✅ NEW — CREATE ABSENT RECORD (HR marks staff as absent)
+  Future<bool> createAbsentRecord({
+    required int staffId,
+    required int scheduleId,
+    required String workDate, // format: 'yyyy-MM-dd'
+  }) async {
+    final uri = Uri.parse('$baseUrl/attendance/create');
+    try {
+      final request = http.MultipartRequest('POST', uri);
+      request.fields['staff_id']          = staffId.toString();
+      request.fields['schedule_id']       = scheduleId.toString();
+      request.fields['attendance_status'] = '1'; // ✅ Absent
+      // No clock_in_time — leave null for absent records
+
+      final streamedResponse = await request.send();
+      final response         = await http.Response.fromStream(streamedResponse);
+
+      debugPrint('createAbsentRecord status: ${response.statusCode}');
+      debugPrint('createAbsentRecord body: ${response.body}');
+
+      return response.statusCode == 201 || response.statusCode == 200;
+    } catch (error) {
+      debugPrint('Error creating absent record: $error');
+      return false;
+    }
+  }
+
+  // 2. CHECK ATTENDANCE
   Future<bool> checkAttendance({
     required int staffId,
     required int scheduleId,
   }) async {
     final uri = Uri.parse(
         '$baseUrl/attendance/check?staff_id=$staffId&schedule_id=$scheduleId');
-
     try {
       final response = await http.get(uri);
       debugPrint('checkAttendance: ${response.body}');
-
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-
-        // ✅ Store clock in location and Clock Out time for use in screen
-        //lastCheckedImageUrl = data['clock_in_image_url'];
-        lastCheckedClockOutTime = data['clock_out_time'];
+        lastCheckedClockOutTime    = data['clock_out_time'];
         lastCheckedClockInLocation = data['clock_in_location'];
-
-        if (data['exists'] == true && data['attendance_status'] == 2) {
-          return true;
-        }
+        if (data['exists'] == true && data['attendance_status'] == 2) return true;
       }
       return false;
     } catch (error) {
@@ -98,30 +93,24 @@ class Attendances with ChangeNotifier {
     }
   }
 
-  // ✅ 2.5 CLOCK OUT ATTENDANCE
+  // 2.5. CLOCK OUT
   Future<Map<String, dynamic>> clockOutAttendance({
     required int staffId,
     required int scheduleId,
     required String clockOutTime,
   }) async {
-    // Depending on your Laravel API, this might be a PUT or POST. 
-    // Usually, it's a POST to a specific endpoint, or a PUT to update the existing record.
-    final uri = Uri.parse('$baseUrl/attendance/clock-out'); // Adjust this URL to match your backend!
-
+    final uri = Uri.parse('$baseUrl/attendance/clock-out');
     try {
       final response = await http.post(
         uri,
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
-          'staff_id': staffId,
-          'schedule_id': scheduleId,
+          'staff_id':       staffId,
+          'schedule_id':    scheduleId,
           'clock_out_time': clockOutTime,
         }),
       );
-
       debugPrint('clockOutAttendance status: ${response.statusCode}');
-      debugPrint('clockOutAttendance body: ${response.body}');
-
       if (response.statusCode == 200 || response.statusCode == 201) {
         notifyListeners();
         return {'success': true};
@@ -136,17 +125,13 @@ class Attendances with ChangeNotifier {
   // 3. GET ALL ATTENDANCE
   Future<List<Map<String, dynamic>>> getAllAttendances() async {
     final uri = Uri.parse('$baseUrl/attendance');
-
     try {
       final response = await http.get(uri);
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-        return data
-            .map((item) => Map<String, dynamic>.from(item))
-            .toList();
+        return data.map((item) => Map<String, dynamic>.from(item)).toList();
       } else {
-        throw Exception(
-            'Failed to load attendances: ${response.statusCode}');
+        throw Exception('Failed to load attendances: ${response.statusCode}');
       }
     } catch (error) {
       debugPrint('Error fetching attendances: $error');
@@ -157,7 +142,6 @@ class Attendances with ChangeNotifier {
   // 4. GET ATTENDANCE BY ID
   Future<Map<String, dynamic>> getAttendanceById(int id) async {
     final uri = Uri.parse('$baseUrl/attendance/$id');
-
     try {
       final response = await http.get(uri);
       if (response.statusCode == 200) {
@@ -174,16 +158,13 @@ class Attendances with ChangeNotifier {
   // 5. UPDATE ATTENDANCE
   Future<bool> updateAttendance(int id, Map<String, dynamic> data) async {
     final uri = Uri.parse('$baseUrl/attendance/$id');
-
     try {
       final response = await http.put(
         uri,
         headers: {'Content-Type': 'application/json'},
         body: json.encode(data),
       );
-
       debugPrint('updateAttendance: ${response.statusCode}');
-
       if (response.statusCode == 200) {
         notifyListeners();
         return true;
@@ -198,11 +179,9 @@ class Attendances with ChangeNotifier {
   // 6. DELETE ATTENDANCE
   Future<bool> deleteAttendance(int id) async {
     final uri = Uri.parse('$baseUrl/attendance/$id');
-
     try {
       final response = await http.delete(uri);
       debugPrint('deleteAttendance: ${response.statusCode}');
-
       if (response.statusCode == 204 || response.statusCode == 200) {
         notifyListeners();
         return true;
@@ -215,19 +194,19 @@ class Attendances with ChangeNotifier {
   }
 
   // 7. GET ATTENDANCE BY STAFF ID
-Future<List<Map<String, dynamic>>> getAttendanceByStaffId(int staffId) async {
-  final uri = Uri.parse('$baseUrl/attendance/staff/$staffId'); // ✅ now works
-  try {
-    final response = await http.get(uri);
-    if (response.statusCode == 200) {
-      final List<dynamic> data = json.decode(response.body);
-      return data.map((item) => Map<String, dynamic>.from(item)).toList();
-    } else {
-      throw Exception('Failed to load attendance: ${response.statusCode}');
+  Future<List<Map<String, dynamic>>> getAttendanceByStaffId(int staffId) async {
+    final uri = Uri.parse('$baseUrl/attendance/staff/$staffId');
+    try {
+      final response = await http.get(uri);
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((item) => Map<String, dynamic>.from(item)).toList();
+      } else {
+        throw Exception('Failed to load attendance: ${response.statusCode}');
+      }
+    } catch (error) {
+      debugPrint('Error fetching attendance by staff ID: $error');
+      rethrow;
     }
-  } catch (error) {
-    debugPrint('Error fetching attendance by staff ID: $error');
-    rethrow;
   }
-}
 }
