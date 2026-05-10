@@ -17,7 +17,8 @@ import 'package:charms/HRscreens/staff/staff_notification_screen.dart';
 import 'package:charms/HRscreens/admin/admin_dashboard_screen.dart';
 import 'package:charms/constants/user_roles.dart';
 import 'package:charms/HRproviders/auth.dart' as hr_auth;
-import 'package:charms/utils/logout_helper.dart'; // ← replaces inline logout
+import 'package:charms/utils/logout_helper.dart';
+import 'package:charms/HRscreens/staff/staff_attendance_history_screen.dart';
 
 class StaffDashboardScreen extends StatefulWidget {
   final String username;
@@ -321,6 +322,61 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                 ],
               ),
             ],
+          ),
+        ),
+
+        // ── Attendance History Card ───────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+          child: GestureDetector(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => StaffAttendanceHistoryScreen(
+                  staffId: _currentStaff?.staffId ?? 0,
+                  username: widget.username,
+                ),
+              ),
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: staffCardBorder),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: staffPrimary.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.history_rounded,
+                        color: staffPrimary, size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Attendance History',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                                color: Color(0xFF1E293B))),
+                        Text('View your clock in/out records',
+                            style:
+                                TextStyle(fontSize: 12, color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.arrow_forward_ios_rounded,
+                      size: 14, color: Colors.grey.shade400),
+                ],
+              ),
+            ),
           ),
         ),
 

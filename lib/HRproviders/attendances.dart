@@ -213,4 +213,21 @@ class Attendances with ChangeNotifier {
       rethrow;
     }
   }
+
+  // 7. GET ATTENDANCE BY STAFF ID
+Future<List<Map<String, dynamic>>> getAttendanceByStaffId(int staffId) async {
+  final uri = Uri.parse('$baseUrl/attendance/staff/$staffId');
+  try {
+    final response = await http.get(uri);
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(response.body);
+      return data.map((item) => Map<String, dynamic>.from(item)).toList();
+    } else {
+      throw Exception('Failed to load attendance: ${response.statusCode}');
+    }
+  } catch (error) {
+    debugPrint('Error fetching attendance by staff ID: $error');
+    rethrow;
+  }
+}
 }
