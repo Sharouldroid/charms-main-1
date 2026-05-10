@@ -360,6 +360,47 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
                           ],
                         ),
                       ),
+
+                      // Show rejection reason for rejected claims
+                      if (claim.status == 'Rejected' &&
+                          claim.rejectionReason != null &&
+                          claim.rejectionReason!.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.info_outline_rounded,
+                                  size: 16, color: Colors.redAccent),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Rejection Reason',
+                                        style: TextStyle(
+                                            color: Colors.redAccent,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 12)),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      claim.rejectionReason!,
+                                      style: const TextStyle(
+                                          color: Colors.redAccent, fontSize: 13),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

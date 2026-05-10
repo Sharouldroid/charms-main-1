@@ -131,10 +131,11 @@ class Leaves with ChangeNotifier {
 
   Future<void> updateLeave(Leave leave) async {
     try {
-      // Aligned with Laravel: Route::put('/{id}', [HRLeaveController::class, 'updateLeave'])
-      final Map<String, dynamic> updateData = {
-        'status': leave.status,
-      };
+    final Map<String, dynamic> updateData = {
+      'status': leave.status,
+      if (leave.rejectionReason != null)
+        'rejection_reason': leave.rejectionReason,
+    };
 
       final response = await http.put(
         Uri.parse('$_hostname/leave/${leave.leaveId}'),

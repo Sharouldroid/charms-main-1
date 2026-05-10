@@ -100,30 +100,36 @@ class Claims with ChangeNotifier {
 
   /// 4) UPDATE CLAIM STATUS (JSON)
   /// If only status update is needed, keep this.
-  Future<void> updateClaim(int claimId, String status) async {
-    try {
-      final response = await http.put(
-        Uri.parse('$_hostname/claim/$claimId'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({'status': status}),
-      );
+  Future<void> updateClaim(int claimId, String status,
+    {String? rejectionReason}) async { // ← ADD parameter
+  try {
+    final response = await http.put(
+      Uri.parse('$_hostname/claim/$claimId'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'status': status,
+        if (rejectionReason != null)
+          'rejection_reason': rejectionReason, // ← ADD
+      }),
+    );
 
-      if (response.statusCode == 200) {
-        final index = _claims.indexWhere((claim) => claim.claimId == claimId);
-        if (index != -1) {
-          _claims[index] = _claims[index].copyWith(
-            status: status,
-            updatedAt: DateTime.now(),
-          );
-          notifyListeners();
-        }
-      } else {
-        throw Exception('Failed to update claim: ${response.body}');
+    if (response.statusCode == 200) {
+      final index = _claims.indexWhere((claim) => claim.claimId == claimId);
+      if (index != -1) {
+        _claims[index] = _claims[index].copyWith(
+          status: status,
+          rejectionReason: rejectionReason, // ← ADD
+          updatedAt: DateTime.now(),
+        );
+        notifyListeners();
       }
-    } catch (error) {
-      throw Exception('Error updating claim: $error');
+    } else {
+      throw Exception('Failed to update claim: ${response.body}');
     }
+  } catch (error) {
+    throw Exception('Error updating claim: $error');
   }
+}
 
   /// 5) OPTIONAL: UPDATE CLAIM WITH FILE (MULTIPART PUT via _method)
   Future<void> updateClaimWithFile(

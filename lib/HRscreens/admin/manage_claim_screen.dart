@@ -59,19 +59,23 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
     }
   }
 
-  Future<void> _rejectClaim(Claim claim) async {
-    try {
-      final claimsProvider = Provider.of<Claims>(context, listen: false);
-      await claimsProvider.updateClaim(claim.claimId, 'Rejected');
-      await _fetchClaims();
-      if (mounted) setState(() => selectedClaims.clear());
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to reject claim: $error')),
-      );
-    }
+  Future<void> _rejectClaim(Claim claim, String rejectionReason) async {
+  try {
+    final claimsProvider = Provider.of<Claims>(context, listen: false);
+    await claimsProvider.updateClaim(
+      claim.claimId,
+      'Rejected',
+      rejectionReason: rejectionReason, 
+    );
+    await _fetchClaims();
+    if (mounted) setState(() => selectedClaims.clear());
+  } catch (error) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Failed to reject claim: $error')),
+    );
   }
+}
 
   Future<void> _deleteClaim(Claim claim) async {
     if (_processing) return;
@@ -132,43 +136,79 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
   }
 
   void _showRejectDialog(List<Claim> claims) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Reject Claims',
-            style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Text(
-            'Are you sure you want to reject the ${selectedClaims.length} selected claims?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child:
-                const Text('Cancel', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
+  final controller = TextEditingController();
+  final formKey = GlobalKey<FormState>();
+
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: const Row(
+        children: [
+          Icon(Icons.cancel_rounded, color: Colors.redAccent, size: 22),
+          SizedBox(width: 8),
+          Text('Rejection Reason',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        ],
+      ),
+      content: Form(
+        key: formKey,
+        child: TextFormField(
+          controller: controller,
+          maxLines: 3,
+          decoration: InputDecoration(
+            hintText: 'Enter reason for rejection...',
+            hintStyle: TextStyle(color: Colors.grey.shade400),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade200),
             ),
-            onPressed: () async {
-              Navigator.pop(context);
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide:
+                  const BorderSide(color: Colors.redAccent, width: 2),
+            ),
+          ),
+          validator: (value) =>
+              (value == null || value.trim().isEmpty)
+                  ? 'Please provide a reason'
+                  : null,
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel',
+              style: TextStyle(color: Colors.grey)),
+        ),
+        ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.redAccent,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10)),
+          ),
+          icon: const Icon(Icons.send_rounded, size: 16),
+          label: const Text('Reject'),
+          onPressed: () async {
+            if (formKey.currentState!.validate()) {
+              final reason = controller.text.trim();
+              Navigator.pop(ctx);
               for (var claimId in selectedClaims) {
                 final claim =
                     claims.firstWhere((c) => c.claimId == claimId);
-                await _rejectClaim(claim);
+                await _rejectClaim(claim, reason); 
               }
-            },
-            child:
-                const Text('Reject', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
+            }
+          },
+        ),
+      ],
+    ),
+  );
+}
 
   void _showApproveDialog(List<Claim> claims) {
     showDialog(

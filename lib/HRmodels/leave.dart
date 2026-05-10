@@ -15,6 +15,7 @@ class Leave {
   final String status;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String? rejectionReason;
 
   Leave({
     required this.leaveId,
@@ -28,6 +29,7 @@ class Leave {
     this.proofFile,
     this.proofFilePath,
     this.proofFileUrl,
+    this.rejectionReason,
     required this.status,
     required this.createdAt,
     required this.updatedAt,
@@ -76,6 +78,7 @@ class Leave {
       status: json['status'] ?? 'Pending',
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
+      rejectionReason: json['rejection_reason'],
     );
   }
 
@@ -91,6 +94,7 @@ class Leave {
       'proof_file_type': proofFileType,
       'proof_file': proofFile != null ? base64Encode(proofFile!) : proofFilePath,
       'status': status,
+      'rejection_reason': rejectionReason,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };

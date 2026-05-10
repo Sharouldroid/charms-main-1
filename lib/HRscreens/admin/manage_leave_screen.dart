@@ -47,52 +47,125 @@ class _ManageLeaveScreenState extends State<ManageLeaveScreen>
   }
 
   Future<void> _handleLeaveAction(Leave leave, String action) async {
-    if (_processing) return;
-    setState(() => _processing = true);
+  if (_processing) return;
 
-    try {
-      final updatedLeave = Leave(
-        leaveId: leave.leaveId,
-        staffId: leave.staffId,
-        leaveType: leave.leaveType,
-        startDate: leave.startDate,
-        endDate: leave.endDate,
-        reason: leave.reason,
-        proofFileName: leave.proofFileName,
-        proofFileType: leave.proofFileType,
-        proofFile: leave.proofFile,
-        proofFilePath: leave.proofFilePath,
-        proofFileUrl: leave.proofFileUrl,
-        status: action == 'approve' ? 'Approved' : 'Rejected',
-        createdAt: leave.createdAt,
-        updatedAt: DateTime.now(),
-      );
-
-      await Provider.of<Leaves>(context, listen: false)
-          .updateLeave(updatedLeave);
-      await _fetchLeaves();
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            action == 'approve'
-                ? 'Leave approved successfully'
-                : 'Leave rejected successfully',
-          ),
-          backgroundColor:
-              action == 'approve' ? Colors.teal : Colors.redAccent,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update leave: $e')),
-      );
-    } finally {
-      if (mounted) setState(() => _processing = false);
-    }
+  // ── If rejecting, ask for reason first ──────────────────────────────────
+  String? rejectionReason;
+  if (action == 'reject') {
+    rejectionReason = await _showRejectionReasonDialog();
+    if (rejectionReason == null) return; // HR cancelled
   }
+
+  setState(() => _processing = true);
+  try {
+    final updatedLeave = Leave(
+      leaveId:         leave.leaveId,
+      staffId:         leave.staffId,
+      leaveType:       leave.leaveType,
+      startDate:       leave.startDate,
+      endDate:         leave.endDate,
+      reason:          leave.reason,
+      proofFileName:   leave.proofFileName,
+      proofFileType:   leave.proofFileType,
+      proofFile:       leave.proofFile,
+      proofFilePath:   leave.proofFilePath,
+      proofFileUrl:    leave.proofFileUrl,
+      status:          action == 'approve' ? 'Approved' : 'Rejected',
+      rejectionReason: action == 'reject' ? rejectionReason : null, // ← NEW
+      createdAt:       leave.createdAt,
+      updatedAt:       DateTime.now(),
+    );
+
+    await Provider.of<Leaves>(context, listen: false).updateLeave(updatedLeave);
+    await _fetchLeaves();
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(action == 'approve'
+            ? 'Leave approved successfully'
+            : 'Leave rejected successfully'),
+        backgroundColor: action == 'approve' ? Colors.teal : Colors.redAccent,
+      ),
+    );
+  } catch (e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Failed to update leave: $e')),
+    );
+  } finally {
+    if (mounted) setState(() => _processing = false);
+  }
+}
+
+// ── Rejection reason dialog ────────────────────────────────────────────────
+Future<String?> _showRejectionReasonDialog() async {
+  final controller = TextEditingController();
+  final formKey = GlobalKey<FormState>();
+
+  return showDialog<String>(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: const Row(
+        children: [
+          Icon(Icons.cancel_rounded, color: Colors.redAccent, size: 22),
+          SizedBox(width: 8),
+          Text('Rejection Reason',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        ],
+      ),
+      content: Form(
+        key: formKey,
+        child: TextFormField(
+          controller: controller,
+          maxLines: 3,
+          decoration: InputDecoration(
+            hintText: 'Enter reason for rejection...',
+            hintStyle: TextStyle(color: Colors.grey.shade400),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade200),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.redAccent, width: 2),
+            ),
+          ),
+          validator: (value) =>
+              (value == null || value.trim().isEmpty)
+                  ? 'Please provide a reason'
+                  : null,
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, null),
+          child: const Text('Cancel',
+              style: TextStyle(color: Colors.grey)),
+        ),
+        ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.redAccent,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10)),
+          ),
+          icon: const Icon(Icons.send_rounded, size: 16),
+          label: const Text('Reject'),
+          onPressed: () {
+            if (formKey.currentState!.validate()) {
+              Navigator.pop(ctx, controller.text.trim());
+            }
+          },
+        ),
+      ],
+    ),
+  );
+}
 
   Future<void> _handleLeaveDelete(Leave leave) async {
     if (_processing) return;
@@ -328,6 +401,41 @@ class _ManageLeaveScreenState extends State<ManageLeaveScreen>
                 ),
               ],
             ),
+
+            // Show rejection reason for rejected leaves
+            if (status == 'rejected' &&
+                leave.rejectionReason != null &&
+                leave.rejectionReason!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.info_outline_rounded,
+                        size: 16, color: Colors.redAccent),
+                    const SizedBox(width: 8),
+                    Text('Rejection Reason: ',
+                        style: TextStyle(
+                            color: Colors.redAccent,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13)),
+                    Expanded(
+                      child: Text(
+                        leave.rejectionReason!,
+                        style: const TextStyle(
+                            color: Colors.redAccent, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
 
             const SizedBox(height: 12),
 

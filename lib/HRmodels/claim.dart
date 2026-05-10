@@ -16,6 +16,7 @@ class Claim {
   final String? proofFileUrl;  // NEW
 
   final String status;
+  final String? rejectionReason;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -32,6 +33,7 @@ class Claim {
     this.proofFilePath,
     this.proofFileUrl,
     required this.status,
+    this.rejectionReason,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -76,6 +78,7 @@ class Claim {
       proofFilePath: proofPath,
       proofFileUrl: proofUrl,
       status: json['status'] ?? 'Pending',
+      rejectionReason: json['rejection_reason'],
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
     );
@@ -93,6 +96,7 @@ class Claim {
       'proof_file_type': proofFileType,
       'proof_file': proofFile != null ? base64Encode(proofFile!) : proofFilePath,
       'status': status,
+      'rejection_reason': rejectionReason,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
@@ -106,6 +110,7 @@ class Claim {
     DateTime? claimDate,
     String? description,
     String? status,
+    String? rejectionReason,
     String? proofFileType,
     String? proofFileName,
     List<int>? proofFile,
@@ -127,6 +132,7 @@ class Claim {
       proofFile: proofFile ?? this.proofFile,
       proofFilePath: proofFilePath ?? this.proofFilePath,
       proofFileUrl: proofFileUrl ?? this.proofFileUrl,
+      rejectionReason: rejectionReason ?? this.rejectionReason,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
