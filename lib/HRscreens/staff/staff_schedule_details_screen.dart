@@ -95,19 +95,25 @@ class _StaffScheduleDetailsScreenState
 
   // ── Accept schedule ────────────────────────────────────────────────────────
   Future<void> _handleAccept() async {
-    setState(() => _isLoading = true);
-    final success = await Provider.of<Schedules>(context, listen: false)
-        .acceptSchedule(widget.scheduleId);
-    setState(() {
-      _isLoading = false;
-      if (success) _acceptanceStatus = 1;
-    });
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(success ? '✅ Schedule accepted!' : 'Failed to accept.'),
-      backgroundColor: success ? Colors.green : Colors.red,
-    ));
+  setState(() => _isLoading = true);
+  final success = await Provider.of<Schedules>(context, listen: false)
+      .acceptSchedule(widget.scheduleId);
+  setState(() {
+    _isLoading = false;
+    if (success) _acceptanceStatus = 1;
+  });
+  if (!mounted) return;
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    content: Text(success ? '✅ Schedule accepted!' : 'Failed to accept.'),
+    backgroundColor: success ? Colors.green : Colors.red,
+  ));
+
+  // ✅ ADD THIS — tell dashboard to refresh
+  if (success && mounted) {
+    await Future.delayed(const Duration(milliseconds: 800));
+    if (mounted) Navigator.pop(context, {'refreshDashboard': true});
   }
+}
 
   // ── Reject schedule ────────────────────────────────────────────────────────
   Future<void> _handleReject() async {
@@ -174,6 +180,12 @@ class _StaffScheduleDetailsScreenState
       content: Text(success ? '❌ Schedule rejected.' : 'Failed to reject.'),
       backgroundColor: success ? Colors.redAccent : Colors.grey,
     ));
+
+    // ✅ ADD THIS — tell dashboard to refresh
+    if (success && mounted) {
+      await Future.delayed(const Duration(milliseconds: 800));
+      if (mounted) Navigator.pop(context, {'refreshDashboard': true});
+    }
   }
 
   // ── Request Exchange ───────────────────────────────────────────────────────

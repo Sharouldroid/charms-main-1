@@ -565,6 +565,43 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                                         ),
                                       ],
                                     ),
+
+                                    // ── Acceptance status badge ───────────
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: schedule.acceptanceStatus == 1
+                                                ? Colors.green.withOpacity(0.1)
+                                                : schedule.acceptanceStatus == 2
+                                                    ? Colors.red.withOpacity(0.1)
+                                                    : Colors.orange.withOpacity(0.1),
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            schedule.acceptanceStatus == 1
+                                                ? '✅ Accepted'
+                                                : schedule.acceptanceStatus == 2
+                                                    ? '❌ Rejected'
+                                                    : '⏳ Pending',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w700,
+                                              color: schedule.acceptanceStatus == 1
+                                                  ? Colors.green
+                                                  : schedule.acceptanceStatus == 2
+                                                      ? Colors.red
+                                                      : Colors.orange,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    // ── End acceptance status badge ───────
                                   ],
                                 ),
                               ),
