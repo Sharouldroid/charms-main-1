@@ -17,6 +17,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
 import 'package:charms/utils/logout_helper.dart';
+import 'package:charms/HRproviders/schedule_exchanges.dart'; 
 
 class AdminDashboard extends StatelessWidget {
   final String username;
@@ -81,6 +82,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         leavesProvider.fetchLeaves(),
         schedulesProvider.fetchSchedules(),
         claimsProvider.fetchClaims(),
+        Provider.of<ScheduleExchanges>(context, listen: false).fetchPendingForHR(),
       ]);
 
       final currentDate = DateTime.now();
@@ -98,10 +100,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             .length;
 
         todayAttendance = attendances
-            .where((attendance) =>
-                DateTime.parse(attendance['clock_in_time']).day ==
-                currentDate.day)
-            .length;
+        .where((attendance) {
+          final clockIn = attendance['clock_in_time'];
+          if (clockIn == null) return false; // ✅ skip null
+          return DateTime.parse(clockIn.toString()).day == currentDate.day;
+        })
+        .length;
 
         pendingPayroll = totalEmployees -
             paymentsProvider.payments
@@ -322,33 +326,24 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             tooltip: 'Switch View',
             onPressed: _showSwitchMenu,
           ),
-          Consumer3<Leaves, Payments, Claims>(
-            builder: (context, leaves, payments, claims, child) {
-              int pendingLeaves =
-                  leaves.leaves.where((l) => l.status == 'Pending').length;
-              int pendingPayrolls =
-                  payments.payments.where((p) => p.status == 'Pending').length;
-              int pendingClaimsCount =
-                  claims.claims.where((c) => c.status == 'Pending').length;
-              int totalPending =
-                  pendingLeaves + pendingPayrolls + pendingClaimsCount;
+          Consumer4<Leaves, Payments, Claims, ScheduleExchanges>(
+            builder: (context, leaves, payments, claims, exchanges, child) {
+              int pendingLeaves    = leaves.leaves.where((l) => l.status == 'Pending').length;
+              int pendingPayrolls  = payments.payments.where((p) => p.status == 'Pending').length;
+              int pendingClaimsCount = claims.claims.where((c) => c.status == 'Pending').length;
+              int pendingExchanges = exchanges.exchanges.where((e) => e.status == 1).length; // ✅
+              int totalPending = pendingLeaves + pendingPayrolls + pendingClaimsCount + pendingExchanges;
 
               return IconButton(
                 icon: totalPending > 0
                     ? Badge(
                         label: Text(totalPending.toString()),
                         backgroundColor: Colors.redAccent,
-                        child: const Icon(
-                            Icons.notifications_none_rounded, size: 26),
+                        child: const Icon(Icons.notifications_none_rounded, size: 26),
                       )
                     : const Icon(Icons.notifications_none_rounded, size: 26),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const NotificationScreen()),
-                  );
-                },
+                onPressed: () => Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const NotificationScreen())),
               );
             },
           ),

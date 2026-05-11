@@ -7,6 +7,8 @@ import 'package:charms/HRscreens/admin/manage_payroll_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:charms/HRproviders/schedule_exchanges.dart';
+import 'package:charms/HRmodels/schedule_exchange.dart';
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
@@ -33,22 +35,25 @@ class _NotificationScreenState extends State<NotificationScreen> {
   Future<void> initializeNotifications() async {
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
-    
+
     final InitializationSettings initializationSettings =
         InitializationSettings(android: initializationSettingsAndroid);
-    
+
     await flutterLocalNotificationsPlugin.initialize(initializationSettings);
   }
 
+  // ✅ Step 2 — also fetch pending exchanges for HR
   Future<void> loadNotifications() async {
-    final leavesProvider = Provider.of<Leaves>(context, listen: false);
-    final paymentsProvider = Provider.of<Payments>(context, listen: false);
-    final claimsProvider = Provider.of<Claims>(context, listen: false);
+    final leavesProvider    = Provider.of<Leaves>(context, listen: false);
+    final paymentsProvider  = Provider.of<Payments>(context, listen: false);
+    final claimsProvider    = Provider.of<Claims>(context, listen: false);
+    final exchangesProvider = Provider.of<ScheduleExchanges>(context, listen: false); // ✅
 
     await Future.wait([
       leavesProvider.fetchLeaves(),
       paymentsProvider.fetchPayments(),
       claimsProvider.fetchClaims(),
+      exchangesProvider.fetchPendingForHR(), // ✅
     ]);
 
     // Show system notifications for pending items
@@ -95,21 +100,205 @@ class _NotificationScreenState extends State<NotificationScreen> {
     );
   }
 
+  // ✅ Step 4 — exchange approval card
+  Widget _buildExchangeCard(ScheduleExchange exchange) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.indigo.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.swap_horiz_rounded,
+                    color: Colors.indigo, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Schedule Exchange Approval',
+                        style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1E293B))),
+                    Text('Both staff have agreed to swap',
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.grey.shade500)),
+                  ],
+                ),
+              ),
+            ]),
+            const SizedBox(height: 12),
+
+            // Schedule comparison card
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(children: [
+                _exchangeRow(
+                  label: exchange.requesterName ?? 'Staff A',
+                  date: exchange.requesterWorkDate ?? '—',
+                  time: exchange.requesterStartTime ?? '—',
+                  dept: exchange.requesterDepartment,
+                  icon: Icons.arrow_forward_rounded,
+                ),
+                const Divider(height: 16),
+                _exchangeRow(
+                  label: exchange.targetName ?? 'Staff B',
+                  date: exchange.targetWorkDate ?? '—',
+                  time: exchange.targetStartTime ?? '—',
+                  dept: exchange.targetDepartment,
+                  icon: Icons.arrow_back_rounded,
+                ),
+              ]),
+            ),
+
+            if (exchange.requesterNote != null &&
+                exchange.requesterNote!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text('Note: "${exchange.requesterNote}"',
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey.shade500,
+                      fontStyle: FontStyle.italic)),
+            ],
+            const SizedBox(height: 14),
+
+            // Approve / Reject buttons
+            Row(children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: () => _hrRespondExchange(exchange, true),
+                  icon: const Icon(Icons.check_rounded, size: 16),
+                  label: const Text('Approve Swap',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.redAccent,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: () => _hrRespondExchange(exchange, false),
+                  icon: const Icon(Icons.close_rounded, size: 16),
+                  label: const Text('Reject Swap',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ]),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ✅ Step 4 — helper row inside comparison card
+  Widget _exchangeRow({
+    required String label,
+    required String date,
+    required String time,
+    String? dept,
+    required IconData icon,
+  }) {
+    return Row(children: [
+      Icon(icon, size: 16, color: Colors.indigo),
+      const SizedBox(width: 8),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label,
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 12)),
+            if (dept != null && dept.isNotEmpty)
+              Text(dept,
+                  style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.teal.shade600,
+                      fontWeight: FontWeight.w600)),
+            Text('$date  •  $time',
+                style:
+                    TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+          ],
+        ),
+      ),
+    ]);
+  }
+
+  // ✅ Step 4 — HR approve/reject handler
+  Future<void> _hrRespondExchange(
+      ScheduleExchange exchange, bool approve) async {
+    final success =
+        await Provider.of<ScheduleExchanges>(context, listen: false)
+            .hrRespond(exchange.exchangeId, approve);
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(success
+          ? approve
+              ? '✅ Exchange approved! Schedules have been swapped.'
+              : '❌ Exchange rejected.'
+          : 'Failed. Try again.'),
+      backgroundColor: success
+          ? approve ? Colors.green : Colors.redAccent
+          : Colors.grey,
+    ));
+
+    if (success) {
+      Provider.of<ScheduleExchanges>(context, listen: false)
+          .fetchPendingForHR();
+      setState(() {});
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: bgColor, // Modern Background
+      backgroundColor: bgColor,
       appBar: AppBar(
         elevation: 0,
         backgroundColor: primaryBlue,
         iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text('NOTIFICATIONS', 
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1.2
-          )
-        ),
+        title: const Text('NOTIFICATIONS',
+            style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2)),
         centerTitle: true,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
@@ -117,31 +306,37 @@ class _NotificationScreenState extends State<NotificationScreen> {
           ),
         ),
       ),
-      body: Consumer3<Leaves, Payments, Claims>(
-        builder: (context, leaves, payments, claims, child) {
+      // ✅ Step 3 — Consumer3 → Consumer4
+      body: Consumer4<Leaves, Payments, Claims, ScheduleExchanges>(
+        builder: (context, leaves, payments, claims, exchanges, child) {
           final pendingLeaves =
               leaves.leaves.where((l) => l.status == 'Pending').toList();
           final pendingPayrolls =
               payments.payments.where((p) => p.status == 'Pending').toList();
           final pendingClaims =
               claims.claims.where((c) => c.status == 'Pending').toList();
+          // ✅ status == 1: target accepted, waiting for HR final approval
+          final pendingExchanges =
+              exchanges.exchanges.where((e) => e.status == 1).toList();
 
+          // ✅ updated empty check includes exchanges
           if (pendingLeaves.isEmpty &&
               pendingPayrolls.isEmpty &&
-              pendingClaims.isEmpty) {
+              pendingClaims.isEmpty &&
+              pendingExchanges.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.notifications_off_rounded, size: 64, color: Colors.grey.shade300),
+                  Icon(Icons.notifications_off_rounded,
+                      size: 64, color: Colors.grey.shade300),
                   const SizedBox(height: 16),
                   Text(
                     'No pending notifications',
                     style: TextStyle(
-                      color: Colors.grey.shade500, 
-                      fontSize: 16, 
-                      fontWeight: FontWeight.w600
-                    ),
+                        color: Colors.grey.shade500,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
@@ -163,10 +358,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   ),
                 ),
               ),
+
+              // ── Leave notifications ──────────────────────────────────
               ...pendingLeaves.map(
                 (leave) => NotificationItem(
                   title: 'Leave Request Pending',
-                  subtitle: 'Staff ID: ${leave.staffId} • Type: ${leave.leaveType}',
+                  subtitle:
+                      'Staff ID: ${leave.staffId} • Type: ${leave.leaveType}',
                   iconData: Icons.beach_access_rounded,
                   iconColor: Colors.redAccent,
                   onTap: () async {
@@ -180,6 +378,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   },
                 ),
               ),
+
+              // ── Payroll notifications ────────────────────────────────
               ...pendingPayrolls.map(
                 (payroll) => NotificationItem(
                   title: 'Payroll Pending',
@@ -197,10 +397,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   },
                 ),
               ),
+
+              // ── Claim notifications ──────────────────────────────────
               ...pendingClaims.map(
                 (claim) => NotificationItem(
                   title: 'Claim Request Pending',
-                  subtitle: 'Staff ID: ${claim.staffId} • Amount: RM${claim.amount}',
+                  subtitle:
+                      'Staff ID: ${claim.staffId} • Amount: RM${claim.amount}',
                   iconData: Icons.request_page_rounded,
                   iconColor: Colors.orange,
                   onTap: () async {
@@ -214,6 +417,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   },
                 ),
               ),
+
+              // ✅ Step 3 — Exchange approval cards
+              ...pendingExchanges.map(
+                  (exchange) => _buildExchangeCard(exchange)),
             ],
           );
         },
