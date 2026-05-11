@@ -166,7 +166,7 @@ class _ScheduleExchangeScreenState extends State<ScheduleExchangeScreen> {
             filteredStaff.isEmpty
                 ? _emptyBox('No staff found for this department')
                 : SizedBox(
-                    height: 110,
+                    height: 130,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
                       itemCount: filteredStaff.length,
@@ -177,8 +177,8 @@ class _ScheduleExchangeScreenState extends State<ScheduleExchangeScreen> {
                           onTap: () => _onStaffSelected(staff),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 180),
-                            width: 90,
-                            margin: const EdgeInsets.only(right: 10),
+                            width: 95,
+                            margin: const EdgeInsets.only(right: 10, bottom: 4),
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
                               color: selected ? primaryBlue.withOpacity(0.1) : Colors.white,

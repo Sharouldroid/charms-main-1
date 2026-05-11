@@ -138,6 +138,51 @@ class _AdminListScreenState extends State<AdminListScreen> {
     if (result == true && mounted) await _loadStaffData();
   }
 
+  // ── Department tag widget ─────────────────────────────────────────────────────
+  Widget _buildDepartmentTag(String? department) {
+    final String label;
+    final Color color;
+    final IconData icon;
+
+    if (department == 'Marine Biologist') {
+      label = 'Marine Biologist';
+      color = const Color(0xFF0891B2); // cyan
+      icon  = Icons.water_rounded;
+    } else if (department == 'Taaras') {
+      label = 'Taaras';
+      color = const Color(0xFFD97706); // amber
+      icon  = Icons.villa_rounded;
+    } else {
+      label = 'General';
+      color = const Color(0xFF64748B); // slate
+      icon  = Icons.people_rounded;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showStaffDetail(
       Staff staff, Color categoryColor, String categoryLabel) {
     showDialog(
@@ -170,20 +215,26 @@ class _AdminListScreenState extends State<AdminListScreen> {
                         fontSize: 15, fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: categoryColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      categoryLabel,
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: categoryColor),
-                    ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: categoryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          categoryLabel,
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: categoryColor),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      _buildDepartmentTag(staff.department),
+                    ],
                   ),
                 ],
               ),
@@ -724,6 +775,9 @@ class _AdminListScreenState extends State<AdminListScreen> {
                       fontSize: 12,
                       fontWeight: FontWeight.w500),
                 ),
+                const SizedBox(height: 6),
+                // ── Department tag ────────────────────────────────────
+                _buildDepartmentTag(staff.department),
                 const SizedBox(height: 4),
                 Row(
                   children: [

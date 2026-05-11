@@ -4,24 +4,23 @@ import 'package:charms/HRproviders/payments.dart';
 import 'package:charms/HRscreens/admin/manage_claim_screen.dart';
 import 'package:charms/HRscreens/admin/manage_leave_screen.dart';
 import 'package:charms/HRscreens/admin/manage_payroll_screen.dart';
+import 'package:charms/HRproviders/schedule_exchanges.dart'; // ScheduleExchanges provider
+import 'package:charms/HRmodels/schedule_exchange.dart';     // ScheduleExchange model
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:charms/HRproviders/schedule_exchanges.dart';
-import 'package:charms/HRmodels/schedule_exchange.dart';
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
 
   @override
-  _NotificationScreenState createState() => _NotificationScreenState();
+  State<NotificationScreen> createState() => _NotificationScreenState();
 }
 
 class _NotificationScreenState extends State<NotificationScreen> {
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
-  // Modern Color Palette Constants
   final Color bgColor = const Color(0xFFF4F7FA);
   final Color primaryBlue = const Color(0xFF2563EB);
 
@@ -35,28 +34,25 @@ class _NotificationScreenState extends State<NotificationScreen> {
   Future<void> initializeNotifications() async {
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
-
     final InitializationSettings initializationSettings =
         InitializationSettings(android: initializationSettingsAndroid);
-
     await flutterLocalNotificationsPlugin.initialize(initializationSettings);
   }
 
-  // ✅ Step 2 — also fetch pending exchanges for HR
+  // Fetch ALL notification data (including schedule exchanges)
   Future<void> loadNotifications() async {
     final leavesProvider    = Provider.of<Leaves>(context, listen: false);
     final paymentsProvider  = Provider.of<Payments>(context, listen: false);
     final claimsProvider    = Provider.of<Claims>(context, listen: false);
-    final exchangesProvider = Provider.of<ScheduleExchanges>(context, listen: false); // ✅
+    final exchangesProvider = Provider.of<ScheduleExchanges>(context, listen: false);
 
     await Future.wait([
       leavesProvider.fetchLeaves(),
       paymentsProvider.fetchPayments(),
       claimsProvider.fetchClaims(),
-      exchangesProvider.fetchPendingForHR(), // ✅
+      exchangesProvider.fetchPendingForHR(),
     ]);
 
-    // Show system notifications for pending items
     showSystemNotifications(
       leavesProvider.leaves.where((l) => l.status == 'Pending').length,
       paymentsProvider.payments.where((p) => p.status == 'Pending').length,
@@ -67,16 +63,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
   Future<void> showSystemNotifications(
       int leaves, int payrolls, int claims) async {
     if (leaves > 0) {
-      await _showNotification(
-          'Pending Leaves', 'You have $leaves pending leave requests');
+      await _showNotification('Pending Leaves', 'You have $leaves pending leave requests');
     }
     if (payrolls > 0) {
-      await _showNotification(
-          'Pending Payrolls', 'You have $payrolls pending payroll items');
+      await _showNotification('Pending Payrolls', 'You have $payrolls pending payroll items');
     }
     if (claims > 0) {
-      await _showNotification(
-          'Pending Claims', 'You have $claims pending claim requests');
+      await _showNotification('Pending Claims', 'You have $claims pending claim requests');
     }
   }
 
@@ -88,32 +81,25 @@ class _NotificationScreenState extends State<NotificationScreen> {
       importance: Importance.max,
       priority: Priority.high,
     );
-
     const NotificationDetails platformChannelSpecifics =
         NotificationDetails(android: androidPlatformChannelSpecifics);
-
     await flutterLocalNotificationsPlugin.show(
-      0,
-      title,
-      body,
-      platformChannelSpecifics,
+      0, title, body, platformChannelSpecifics,
     );
   }
 
-  // ✅ Step 4 — exchange approval card
+  // Exchange approval card
   Widget _buildExchangeCard(ScheduleExchange exchange) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          )
-        ],
+        boxShadow: [BoxShadow(
+          color: Colors.black.withOpacity(0.03),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        )],
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -227,7 +213,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
     );
   }
 
-  // ✅ Step 4 — helper row inside comparison card
   Widget _exchangeRow({
     required String label,
     required String date,
@@ -260,7 +245,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
     ]);
   }
 
-  // ✅ Step 4 — HR approve/reject handler
+  // Handle HR approve/reject action and refresh UI
   Future<void> _hrRespondExchange(
       ScheduleExchange exchange, bool approve) async {
     final success =
@@ -280,8 +265,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
     ));
 
     if (success) {
-      Provider.of<ScheduleExchanges>(context, listen: false)
+      await Provider.of<ScheduleExchanges>(context, listen: false)
           .fetchPendingForHR();
+
+      // This triggers either the Consumer4 to rebuild or, if needed, you can force:
       setState(() {});
     }
   }
@@ -306,7 +293,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
           ),
         ),
       ),
-      // ✅ Step 3 — Consumer3 → Consumer4
       body: Consumer4<Leaves, Payments, Claims, ScheduleExchanges>(
         builder: (context, leaves, payments, claims, exchanges, child) {
           final pendingLeaves =
@@ -315,11 +301,11 @@ class _NotificationScreenState extends State<NotificationScreen> {
               payments.payments.where((p) => p.status == 'Pending').toList();
           final pendingClaims =
               claims.claims.where((c) => c.status == 'Pending').toList();
-          // ✅ status == 1: target accepted, waiting for HR final approval
+
+          /// status == 1: target staff accepted, waiting for HR
           final pendingExchanges =
               exchanges.exchanges.where((e) => e.status == 1).toList();
 
-          // ✅ updated empty check includes exchanges
           if (pendingLeaves.isEmpty &&
               pendingPayrolls.isEmpty &&
               pendingClaims.isEmpty &&
@@ -359,7 +345,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 ),
               ),
 
-              // ── Leave notifications ──────────────────────────────────
+              // Leave notifications
               ...pendingLeaves.map(
                 (leave) => NotificationItem(
                   title: 'Leave Request Pending',
@@ -379,7 +365,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 ),
               ),
 
-              // ── Payroll notifications ────────────────────────────────
+              // Payroll notifications
               ...pendingPayrolls.map(
                 (payroll) => NotificationItem(
                   title: 'Payroll Pending',
@@ -398,7 +384,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 ),
               ),
 
-              // ── Claim notifications ──────────────────────────────────
+              // Claim notifications
               ...pendingClaims.map(
                 (claim) => NotificationItem(
                   title: 'Claim Request Pending',
@@ -418,7 +404,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 ),
               ),
 
-              // ✅ Step 3 — Exchange approval cards
+              // Exchange approval cards
               ...pendingExchanges.map(
                   (exchange) => _buildExchangeCard(exchange)),
             ],
@@ -509,10 +495,10 @@ class NotificationItem extends StatelessWidget {
                     color: Colors.grey.shade50,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(
+                  child: const Icon(
                     Icons.arrow_forward_ios_rounded,
                     size: 16,
-                    color: Colors.grey.shade400,
+                    color: Colors.grey,
                   ),
                 ),
               ],
