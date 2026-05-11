@@ -75,6 +75,7 @@ class Staffs with ChangeNotifier {
           country: _toStr(data['country']),
           filepath: data['filepath'],   // ✅ nullable
           filename: data['filename'],   // ✅ nullable
+          department: data['department'],
         );
       }).toList();
 
@@ -177,6 +178,7 @@ class Staffs with ChangeNotifier {
           country: existing.country,
           filepath: newFilepath,
           filename: newFilename,
+          department: existing.department,
         );
         notifyListeners();
       }
@@ -273,6 +275,7 @@ class Staffs with ChangeNotifier {
             country: updatedStaff.country,
             filepath: _staffList[index].filepath, // ✅ preserve photo
             filename: _staffList[index].filename, // ✅ preserve photo
+            department: updatedStaff.department,
           );
           notifyListeners();
         }
@@ -284,6 +287,16 @@ class Staffs with ChangeNotifier {
       rethrow;
     }
   }
+
+  List<Staff> getStaffByCategoryAndDepartment(int category, String? department) {
+  return _staffList.where((staff) {
+    final matchesCategory   = staff.category == category;
+    final matchesDepartment = department == null || 
+                              department.isEmpty || 
+                              staff.department == department;
+    return matchesCategory && matchesDepartment;
+  }).toList();
+}
 
   // Delete Staff
   Future<void> deleteStaff(int staffId) async {

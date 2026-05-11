@@ -78,6 +78,7 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
     'emergency_relation': '',
     'emergency_gender': '',
     'emergency_phone': '',
+    'department': '', // ✅ NEW
   };
 
   bool _isLoading = false;
@@ -503,6 +504,21 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
                   validator: (value) => value == null ? 'Please select a category' : null,
                 ),
                 const SizedBox(height: 16),
+
+                // ✅ Department dropdown (after Category)
+                DropdownButtonFormField<String>(
+                  decoration: _buildInputDecoration('Department', Icons.account_tree_rounded),
+                  icon: Icon(Icons.keyboard_arrow_down_rounded, color: primaryBlue),
+                  items: const [
+                    DropdownMenuItem(value: '',                 child: Text('General (No Department)')),
+                    DropdownMenuItem(value: 'Marine Biologist', child: Text('Marine Biologist')),
+                    DropdownMenuItem(value: 'Taaras',           child: Text('Taaras')),
+                  ],
+                  onChanged: (value) => setState(() => _staffData['department'] = value ?? ''),
+                  onSaved:   (value) => _staffData['department'] = value ?? '',
+                ),
+                const SizedBox(height: 16),
+
                 DropdownButtonFormField<String>(
                   decoration: _buildRequiredInputDecoration('Role', Icons.admin_panel_settings_rounded),
                   icon: Icon(Icons.keyboard_arrow_down_rounded, color: primaryBlue),

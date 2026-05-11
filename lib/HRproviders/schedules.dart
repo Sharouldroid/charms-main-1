@@ -157,4 +157,80 @@ class Schedules with ChangeNotifier {
       rethrow;
     }
   }
+
+  // Accept a schedule assignment
+  Future<bool> acceptSchedule(int schedId) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$_hostname/staff-schedule/$schedId/accept'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      debugPrint('acceptSchedule: ${response.statusCode}');
+      if (response.statusCode == 200) {
+        // Update local list
+        final idx = _schedules.indexWhere((s) => s.schedId == schedId);
+        if (idx != -1) {
+          final old = _schedules[idx];
+          _schedules[idx] = Schedule(
+            schedId:          old.schedId,
+            staffId:          old.staffId,
+            workDate:         old.workDate,
+            workLocation:     old.workLocation,
+            staffType:        old.staffType,
+            internSlot:       old.internSlot,
+            workStartTime:    old.workStartTime,
+            workEndTime:      old.workEndTime,
+            breakStartTime:   old.breakStartTime,
+            breakEndTime:     old.breakEndTime,
+            acceptanceStatus: 1,
+            staffNote:        old.staffNote,
+          );
+          notifyListeners();
+        }
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error accepting schedule: $e');
+      return false;
+    }
+  }
+
+  // Reject a schedule assignment with a reason
+  Future<bool> rejectSchedule(int schedId, String reason) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$_hostname/staff-schedule/$schedId/reject'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'staff_note': reason}),
+      );
+      debugPrint('rejectSchedule: ${response.statusCode}');
+      if (response.statusCode == 200) {
+        final idx = _schedules.indexWhere((s) => s.schedId == schedId);
+        if (idx != -1) {
+          final old = _schedules[idx];
+          _schedules[idx] = Schedule(
+            schedId:          old.schedId,
+            staffId:          old.staffId,
+            workDate:         old.workDate,
+            workLocation:     old.workLocation,
+            staffType:        old.staffType,
+            internSlot:       old.internSlot,
+            workStartTime:    old.workStartTime,
+            workEndTime:      old.workEndTime,
+            breakStartTime:   old.breakStartTime,
+            breakEndTime:     old.breakEndTime,
+            acceptanceStatus: 2,
+            staffNote:        reason,
+          );
+          notifyListeners();
+        }
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error rejecting schedule: $e');
+      return false;
+    }
+  }
 }

@@ -29,6 +29,7 @@ class Staff {
   final String country;
   final String? filepath;
   final String? filename;
+  final String? department;
 
   Staff({
     required this.staffId,
@@ -61,6 +62,7 @@ class Staff {
     required this.country,
     this.filepath,
     this.filename,
+    this.department,
   });
 
   factory Staff.fromJson(Map<String, dynamic> json) {
@@ -95,6 +97,7 @@ class Staff {
       country: json['country'] ?? '',
       filepath: json['filepath'],   // ✅ nullable, no default needed
       filename: json['filename'],   // ✅ nullable, no default needed
+      department: json['department'], // ✅ nullable, no default needed
     );
   }
 
@@ -130,6 +133,7 @@ class Staff {
       'country': country,
       // ✅ filepath and filename NOT included in toJson
       // — these are managed by uploadStaffPhoto endpoint only
+      'department': department,
     };
   }
 }

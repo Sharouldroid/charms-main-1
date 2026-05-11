@@ -52,6 +52,7 @@ import 'package:charms/HRproviders/staffs.dart';
 import 'package:charms/HRproviders/theme_provider.dart';
 import 'package:charms/HRproviders/users.dart' as hr_users;
 import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
+import 'package:charms/HRproviders/schedule_exchanges.dart';
 
 // 🌟 ADDED CHARMS MAINTENANCE PAGES
 import 'campsite_maintenance.dart';
@@ -154,6 +155,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (ctx) => Leaves()),
         ChangeNotifierProvider(create: (ctx) => Claims()),
         ChangeNotifierProvider(create: (ctx) => ThemeProvider()),
+        ChangeNotifierProvider(create: (ctx) => ScheduleExchanges()),
       ],
       child: OverlaySupport.global(
         child: Consumer<app_auth.Auth>(

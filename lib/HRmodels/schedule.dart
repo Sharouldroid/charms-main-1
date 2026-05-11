@@ -19,6 +19,9 @@ class Schedule {
   final List<WorkingPeriod>? workingPeriods;
   final List<BreakPeriod>? breakPeriods;
 
+  final int acceptanceStatus; // 0=Pending, 1=Accepted, 2=Rejected
+  final String? staffNote;
+
   Schedule({
     required this.schedId,
     required this.staffId,
@@ -32,6 +35,8 @@ class Schedule {
     this.breakEndTime,
     this.workingPeriods,
     this.breakPeriods,
+    this.acceptanceStatus = 0,
+    this.staffNote,
   });
 
   factory Schedule.fromJson(Map<String, dynamic> json) {
@@ -57,6 +62,8 @@ class Schedule {
             .map((period) => BreakPeriod.fromJson(period))
             .toList()
         : null,
+        acceptanceStatus: int.tryParse(json['acceptance_status']?.toString() ?? '') ?? 0,
+      staffNote: json['staff_note'],
   );
 }
 
@@ -74,6 +81,8 @@ class Schedule {
       'break_end_time': breakEndTime,
       'working_periods': workingPeriods?.map((period) => period.toJson()).toList(),
       'break_periods': breakPeriods?.map((period) => period.toJson()).toList(),
+       'acceptance_status': acceptanceStatus,
+      'staff_note':      staffNote,
     };
   }
 }

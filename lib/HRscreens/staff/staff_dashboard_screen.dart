@@ -155,9 +155,6 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
     );
   }
 
-  /// Full logout — clears BOTH app_auth and hr_auth, then goes to AuthScreen.
-  /// Uses LogoutHelper so the stack is fully cleared and no stale screen
-  /// remains underneath after the next login.
   Future<void> _logout() async {
     await LogoutHelper.fullLogout(context);
   }
@@ -197,7 +194,6 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
         centerTitle: true,
         backgroundColor: staffPrimary,
         actions: [
-          // Switch to Admin Mode (only for HR admins)
           if (_currentStaff != null &&
               UserRoles.hrAdmin.contains(_currentStaff!.usertype))
             IconButton(
@@ -213,7 +209,6 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                 );
               },
             ),
-          // Staff Notification Badge
           Consumer3<Leaves, Claims, Schedules>(
             builder: (context, leaves, claims, schedules, child) {
               int staffId = _currentStaff?.staffId ?? 0;
@@ -481,6 +476,8 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                                     : 'Not clocked in',
                                 scheduleId: schedule.schedId,
                                 staffId: _currentStaff?.staffId ?? 0,
+                                acceptanceStatus: schedule.acceptanceStatus, // ✅ NEW
+                                staffNote: schedule.staffNote,               // ✅ NEW
                               ),
                             ),
                           );
