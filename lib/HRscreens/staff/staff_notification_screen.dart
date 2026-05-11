@@ -413,27 +413,32 @@ class _StaffNotificationScreenState extends State<StaffNotificationScreen> {
   }
 
   // ✅ Step 8 — respond to an incoming exchange
-  Future<void> _respondToExchange(
-      ScheduleExchange exchange, bool accept) async {
-    final success =
-        await Provider.of<ScheduleExchanges>(context, listen: false)
-            .targetRespond(exchange.exchangeId, accept);
+  Future<void> _respondToExchange(ScheduleExchange exchange, bool accept) async {
+  final success = await Provider.of<ScheduleExchanges>(context, listen: false)
+      .targetRespond(exchange.exchangeId, accept);
 
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(success
-          ? accept ? '✅ Exchange accepted!' : '❌ Exchange rejected.'
-          : 'Failed to respond. Try again.'),
-      backgroundColor: success
-          ? accept ? Colors.green : Colors.redAccent
-          : Colors.grey,
-    ));
+  if (!mounted) return;
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    content: Text(success
+        ? accept ? '✅ Exchange accepted! Waiting for HR approval.' : '❌ Exchange rejected.'
+        : 'Failed to respond. Try again.'),
+    backgroundColor: success
+        ? accept ? Colors.green : Colors.redAccent
+        : Colors.grey,
+  ));
 
-    if (success) {
-      Provider.of<ScheduleExchanges>(context, listen: false)
-          .fetchExchangesByStaff(widget.staffId);
+  if (success) {
+    // Refresh exchanges list
+    Provider.of<ScheduleExchanges>(context, listen: false)
+        .fetchExchangesByStaff(widget.staffId);
+
+    // ✅ Also refresh schedules — pop back to dashboard with refresh signal
+    if (accept && mounted) {
+      await Future.delayed(const Duration(milliseconds: 600));
+      if (mounted) Navigator.pop(context, {'refreshDashboard': true});
     }
   }
+}
 
   @override
   Widget build(BuildContext context) {

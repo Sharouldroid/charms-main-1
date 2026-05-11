@@ -59,6 +59,16 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
     _loadStaffData();
   }
 
+  // ✅ Fix 4 — auto-refresh every time the dashboard becomes the active route
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route != null && route.isCurrent && !_isLoading) {
+      _loadStaffData();
+    }
+  }
+
   @override
   void dispose() {
     _mounted = false;
@@ -243,8 +253,9 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                             const Icon(Icons.notifications_active_rounded),
                       )
                     : const Icon(Icons.notifications_none_rounded),
-                onPressed: () {
-                  Navigator.push(
+                // ✅ Fix 3 — await result and refresh if notified
+                onPressed: () async {
+                  final result = await Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => StaffNotificationScreen(
@@ -252,6 +263,10 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                       ),
                     ),
                   );
+                  // ✅ Refresh dashboard if notification screen signals so
+                  if (result != null && result['refreshDashboard'] == true) {
+                    await _loadStaffData();
+                  }
                 },
               );
             },

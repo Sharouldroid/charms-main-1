@@ -86,19 +86,22 @@ class ScheduleExchanges with ChangeNotifier {
     }
   }
 
-  // HR: approve or reject
-  Future<bool> hrRespond(int exchangeId, bool approve, {String? note}) async {
-    try {
-      final response = await http.put(
-        Uri.parse('$_hostname/schedule-exchange/$exchangeId/hr-respond'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({'approve': approve, 'hr_note': note}),
-      );
-      if (response.statusCode == 200) { notifyListeners(); return true; }
-      return false;
-    } catch (e) {
-      debugPrint('Error HR respond: $e');
-      return false;
+ // HR: approve or reject
+Future<bool> hrRespond(int exchangeId, bool approve, {String? note}) async {
+  try {
+    final response = await http.put(
+      Uri.parse('$_hostname/schedule-exchange/$exchangeId/hr-respond'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'approve': approve, 'hr_note': note}),
+    );
+    if (response.statusCode == 200) {
+      notifyListeners();
+      return true;
     }
+    return false;
+  } catch (e) {
+    debugPrint('Error HR respond: $e');
+    return false;
   }
+}
 }
