@@ -134,6 +134,7 @@ class _PayrollDashboardScreenState extends State<PayrollDashboardScreen> {
             totalBonus: payment.totalBonus,
             totalDeduction: payment.totalDeduction,
             totalSalary: payment.totalSalary,
+            staffCategory:  _currentStaff?.category ?? 1,
           ),
         ),
       );

@@ -1,5 +1,6 @@
 import 'dart:typed_data';
-import 'package:charms/utils/pdf_download.dart';
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -14,6 +15,7 @@ class StaffPayrollDetailsScreen extends StatefulWidget {
   final double totalBonus;
   final double totalDeduction;
   final double totalSalary;
+  final int staffCategory; // 1=SEATRU, 2=CMS, 3=Intern
 
   const StaffPayrollDetailsScreen({
     super.key,
@@ -26,6 +28,7 @@ class StaffPayrollDetailsScreen extends StatefulWidget {
     required this.totalBonus,
     required this.totalDeduction,
     required this.totalSalary,
+    this.staffCategory = 1, // default SEATRU
   });
 
   @override
@@ -36,17 +39,73 @@ class StaffPayrollDetailsScreen extends StatefulWidget {
 class _StaffPayrollDetailsScreenState
     extends State<StaffPayrollDetailsScreen> {
   bool _downloading = false;
+  bool _logosReady = false;  // ✅ tracks logo preload status
 
-  // ── Matches StaffDashboardScreen palette ─────────────────────────────────────
-  static const Color staffPrimary = Color(0xFF4F46E5);
-  static const Color staffBg = Color(0xFFF8FAFC);
+  // Preloaded logos — ready before user taps Download
+  pw.MemoryImage? _logoLeft;
+  pw.MemoryImage? _logoRight;
+
+  static const Color staffPrimary    = Color(0xFF4F46E5);
+  static const Color staffBg         = Color(0xFFF8FAFC);
   static const Color staffCardBorder = Color(0xFFE2E8F0);
+
+  @override
+  void initState() {
+    super.initState();
+    _preloadLogos();
+  }
+
+  // ── Preload logos as soon as screen opens ────────────────────────────────
+  Future<void> _preloadLogos() async {
+    switch (widget.staffCategory) {
+      case 2: // CMS
+        _logoLeft  = await _loadLogo('assets/images/logo/cmslogo.png');
+        _logoRight = await _loadLogo('assets/images/logo/logoumt.png');
+        break;
+      case 3: // Intern
+        _logoLeft  = await _loadLogo('assets/images/logo/inos.png');
+        _logoRight = null;
+        break;
+      default: // SEATRU
+        _logoLeft  = await _loadLogo('assets/images/logo/seatrulogo1.png');
+        _logoRight = await _loadLogo('assets/images/logo/logoumt.png');
+        break;
+    }
+    debugPrint('Logos preloaded — left: ${_logoLeft != null}, right: ${_logoRight != null}');
+    if (mounted) setState(() => _logosReady = true);  // ✅ triggers button update
+  }
+
+  String get _orgLabel {
+    switch (widget.staffCategory) {
+      case 2:  return 'CMS';
+      case 3:  return 'Intern';
+      default: return 'SEATRU';
+    }
+  }
 
   String _rm(num value) => 'RM ${value.toStringAsFixed(2)}';
 
-  // ── PDF generation (unchanged) ───────────────────────────────────────────────
+  // ── Fetch logo via browser HTTP — reliable on Web & PWA ──────────────────
+  Future<pw.MemoryImage?> _loadLogo(String assetPath) async {
+    try {
+      final request = await html.HttpRequest.request(
+        assetPath,
+        responseType: 'arraybuffer',
+      ).timeout(const Duration(seconds: 5));
+      final bytes = Uint8List.view(request.response as ByteBuffer);
+      return pw.MemoryImage(bytes);
+    } catch (e) {
+      debugPrint('Logo skipped ($assetPath): $e');
+      return null; // PDF still generates without logo
+    }
+  }
+
   Future<Uint8List> _generatePayslipPdfBytes() async {
     final pdf = pw.Document();
+
+    // ── Use preloaded logos (already fetched in initState) ──────────────
+    final logoLeft  = _logoLeft;
+    final logoRight = _logoRight;
 
     pdf.addPage(
       pw.Page(
@@ -56,27 +115,48 @@ class _StaffPayrollDetailsScreenState
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Center(
-                child: pw.Text(
-                  'SEATRU X CMS',
-                  style: pw.TextStyle(
-                      fontSize: 24, fontWeight: pw.FontWeight.bold),
+
+              // ── Logos: left-aligned, side-by-side ────────────────────
+              if (logoLeft != null || logoRight != null)
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.start,
+                  crossAxisAlignment: pw.CrossAxisAlignment.center,
+                  children: [
+                    if (logoLeft != null)
+                      pw.Image(logoLeft,
+                          width: 60, height: 60, fit: pw.BoxFit.contain),
+                    if (logoLeft != null && logoRight != null)
+                      pw.SizedBox(width: 12),
+                    if (logoRight != null)
+                      pw.Image(logoRight,
+                          width: 60, height: 60, fit: pw.BoxFit.contain),
+                  ],
                 ),
+
+              pw.SizedBox(height: 12),
+
+              // ── Org name ──────────────────────────────────────────────
+              pw.Text(
+                _orgLabel,
+                style: pw.TextStyle(
+                    fontSize: 20, fontWeight: pw.FontWeight.bold),
               ),
-              pw.SizedBox(height: 8),
-              pw.Center(
-                child: pw.Text(
-                  'Payslip for ${widget.month} ${widget.year}',
-                  style: pw.TextStyle(
-                      fontSize: 18, fontWeight: pw.FontWeight.bold),
-                ),
+              pw.SizedBox(height: 4),
+              pw.Text(
+                'Payslip for ${widget.month} ${widget.year}',
+                style: pw.TextStyle(
+                    fontSize: 14,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.grey700),
               ),
-              pw.SizedBox(height: 20),
+
+              pw.SizedBox(height: 16),
               pw.Divider(),
-              _pdfRow('Staff ID', widget.staffId),
-              _pdfRow('Name', widget.staffName),
-              _pdfRow('Basic Pay', _rm(widget.basicPay)),
-              _pdfRow('Total Bonus', _rm(widget.totalBonus)),
+
+              // ── Payslip rows ──────────────────────────────────────────
+              _pdfRow('Name',            widget.staffName),
+              _pdfRow('Basic Pay',       _rm(widget.basicPay)),
+              _pdfRow('Total Bonus',     _rm(widget.totalBonus)),
               _pdfRow('Total Deduction', _rm(widget.totalDeduction)),
               pw.Divider(),
               _pdfRow(
@@ -85,7 +165,10 @@ class _StaffPayrollDetailsScreenState
                 valueStyle: pw.TextStyle(
                     fontWeight: pw.FontWeight.bold, fontSize: 13),
               ),
+
               pw.Spacer(),
+
+              // ── Disclaimer ────────────────────────────────────────────
               pw.Container(
                 padding: const pw.EdgeInsets.all(10),
                 decoration: pw.BoxDecoration(
@@ -106,8 +189,7 @@ class _StaffPayrollDetailsScreenState
     return pdf.save();
   }
 
-  pw.Widget _pdfRow(String label, String value,
-      {pw.TextStyle? valueStyle}) {
+  pw.Widget _pdfRow(String label, String value, {pw.TextStyle? valueStyle}) {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 6),
       child: pw.Row(
@@ -121,8 +203,7 @@ class _StaffPayrollDetailsScreenState
             child: pw.Align(
               alignment: pw.Alignment.centerRight,
               child: pw.Text(value,
-                  style:
-                      valueStyle ?? const pw.TextStyle(fontSize: 12)),
+                  style: valueStyle ?? const pw.TextStyle(fontSize: 12)),
             ),
           ),
         ],
@@ -130,6 +211,7 @@ class _StaffPayrollDetailsScreenState
     );
   }
 
+  // ── Web/PWA download via browser blob ────────────────────────────────────
   Future<void> _downloadPdf() async {
     if (_downloading) return;
     setState(() => _downloading = true);
@@ -139,10 +221,17 @@ class _StaffPayrollDetailsScreenState
           widget.month.replaceAll(' ', '_').replaceAll('/', '-');
       final fileName =
           'payslip_${widget.staffId}_${safeMonth}_${widget.year}.pdf';
-      await savePdf(bytes: bytes, fileName: fileName);
+
+      final blob   = html.Blob([bytes], 'application/pdf');
+      final url    = html.Url.createObjectUrlFromBlob(blob);
+      final anchor = html.AnchorElement(href: url)
+        ..setAttribute('download', fileName)
+        ..click();
+      html.Url.revokeObjectUrl(url);
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('PDF ready for download/print')),
+        const SnackBar(content: Text('PDF downloaded!')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -154,40 +243,34 @@ class _StaffPayrollDetailsScreenState
     }
   }
 
-  // ── Row for payslip detail lines ─────────────────────────────────────────────
-  Widget _detailRow(String label, String value,
-      {bool isTotal = false}) {
+  Widget _detailRow(String label, String value, {bool isTotal = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         children: [
           Expanded(
             flex: 2,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight:
-                    isTotal ? FontWeight.w800 : FontWeight.w500,
-                color: isTotal
-                    ? const Color(0xFF1E293B)
-                    : Colors.grey.shade600,
-              ),
-            ),
+            child: Text(label,
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight:
+                        isTotal ? FontWeight.w800 : FontWeight.w500,
+                    color: isTotal
+                        ? const Color(0xFF1E293B)
+                        : Colors.grey.shade600)),
           ),
           Expanded(
             flex: 3,
             child: Align(
               alignment: Alignment.centerRight,
-              child: Text(
-                value,
-                style: TextStyle(
-                  fontSize: isTotal ? 16 : 14,
-                  fontWeight:
-                      isTotal ? FontWeight.w900 : FontWeight.w600,
-                  color: isTotal ? staffPrimary : const Color(0xFF1E293B),
-                ),
-              ),
+              child: Text(value,
+                  style: TextStyle(
+                      fontSize: isTotal ? 16 : 14,
+                      fontWeight:
+                          isTotal ? FontWeight.w900 : FontWeight.w600,
+                      color: isTotal
+                          ? staffPrimary
+                          : const Color(0xFF1E293B))),
             ),
           ),
         ],
@@ -195,16 +278,14 @@ class _StaffPayrollDetailsScreenState
     );
   }
 
-  // ── Small labeled info chip (Staff ID / Name row) ─────────────────────────────
   Widget _infoChip(IconData icon, String label, String value) {
     return Row(
       children: [
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: staffPrimary.withOpacity(0.10),
-            shape: BoxShape.circle,
-          ),
+              color: staffPrimary.withOpacity(0.10),
+              shape: BoxShape.circle),
           child: Icon(icon, size: 16, color: staffPrimary),
         ),
         const SizedBox(width: 10),
@@ -231,28 +312,25 @@ class _StaffPayrollDetailsScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: staffBg,
-        appBar: AppBar(
-          elevation: 0,
-          title: const Text(
-            'PAYROLL DETAILS',
+      appBar: AppBar(
+        elevation: 0,
+        title: const Text('PAYROLL DETAILS',
             style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.2,
-            ),
-          ),
-          centerTitle: true,
-          backgroundColor: staffPrimary,
-          iconTheme: const IconThemeData(color: Colors.white),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-            onPressed: () => Navigator.pop(context),
-          ),
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2)),
+        centerTitle: true,
+        backgroundColor: staffPrimary,
+        iconTheme: const IconThemeData(color: Colors.white),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
         ),
+      ),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // ── Indigo header banner ─────────────────────────────────────
+            // ── Indigo header banner ──────────────────────────────────────
             Container(
               width: double.infinity,
               padding: const EdgeInsets.only(
@@ -265,48 +343,45 @@ class _StaffPayrollDetailsScreenState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    '${widget.month} ${widget.year}',
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(20),
                     ),
+                    child: Text(_orgLabel,
+                        style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700)),
                   ),
+                  const SizedBox(height: 10),
+                  Text('${widget.month} ${widget.year}',
+                      style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white)),
                   const SizedBox(height: 4),
-                  Text(
-                    'Payslip Summary',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.indigo.shade200,
-                    ),
-                  ),
+                  Text('Payslip Summary',
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.indigo.shade200)),
                   const SizedBox(height: 20),
-                  // Staff info chips
-                  Row(
-                    children: [
-                      _infoChip(Icons.badge_rounded, 'Staff ID',
-                          widget.staffId),
-                      const SizedBox(width: 24),
-                      Expanded(
-                        child: _infoChip(Icons.person_rounded, 'Name',
-                            widget.staffName),
-                      ),
-                    ],
-                  ),
+                  _infoChip(Icons.person_rounded, 'Name', widget.staffName),
                 ],
               ),
             ),
 
-            // ── Payslip card (pulled up over banner) ────────────────────
+            // ── Payslip card ──────────────────────────────────────────────
             Transform.translate(
               offset: const Offset(0, -24),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
                 child: Column(
                   children: [
-                    // ── Earnings & Deductions card ─────────────────────
+                    // ── Breakdown card ────────────────────────────────────
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(20),
@@ -316,58 +391,43 @@ class _StaffPayrollDetailsScreenState
                         border: Border.all(color: staffCardBorder),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
-                            blurRadius: 16,
-                            offset: const Offset(0, 6),
-                          ),
+                              color: Colors.black.withOpacity(0.04),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6))
                         ],
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Section label
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color:
-                                      staffPrimary.withOpacity(0.10),
-                                  borderRadius:
-                                      BorderRadius.circular(10),
-                                ),
-                                child: const Icon(
-                                    Icons.receipt_long_rounded,
-                                    size: 16,
-                                    color: staffPrimary),
-                              ),
-                              const SizedBox(width: 10),
-                              const Text(
-                                'Breakdown',
+                          Row(children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                  color: staffPrimary.withOpacity(0.10),
+                                  borderRadius: BorderRadius.circular(10)),
+                              child: const Icon(Icons.receipt_long_rounded,
+                                  size: 16, color: staffPrimary),
+                            ),
+                            const SizedBox(width: 10),
+                            const Text('Breakdown',
                                 style: TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w800,
-                                    color: Color(0xFF1E293B)),
-                              ),
-                            ],
-                          ),
+                                    color: Color(0xFF1E293B))),
+                          ]),
                           const SizedBox(height: 16),
-
-                          _detailRow('Basic Pay',
-                              _rm(widget.basicPay)),
+                          _detailRow('Basic Pay',       _rm(widget.basicPay)),
                           _buildDivider(),
-                          _detailRow('Total Bonus',
-                              _rm(widget.totalBonus)),
+                          _detailRow('Total Bonus',     _rm(widget.totalBonus)),
                           _buildDivider(),
-                          _detailRow('Total Deduction',
-                              _rm(widget.totalDeduction)),
+                          _detailRow('Total Deduction', _rm(widget.totalDeduction)),
                         ],
                       ),
                     ),
 
                     const SizedBox(height: 14),
 
-                    // ── Total salary highlight card ────────────────────
+                    // ── Total salary card ─────────────────────────────────
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
@@ -377,45 +437,34 @@ class _StaffPayrollDetailsScreenState
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: staffPrimary.withOpacity(0.25),
-                            blurRadius: 16,
-                            offset: const Offset(0, 6),
-                          ),
+                              color: staffPrimary.withOpacity(0.25),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6))
                         ],
                       ),
                       child: Row(
-                        mainAxisAlignment:
-                            MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Total Salary',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.indigo.shade200,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                _rm(widget.totalSalary),
-                                style: const TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Total Salary',
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.indigo.shade200,
+                                        fontWeight: FontWeight.w600)),
+                                const SizedBox(height: 4),
+                                Text(_rm(widget.totalSalary),
+                                    style: const TextStyle(
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.w900,
+                                        color: Colors.white)),
+                              ]),
                           Container(
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.15),
-                              shape: BoxShape.circle,
-                            ),
+                                color: Colors.white.withOpacity(0.15),
+                                shape: BoxShape.circle),
                             child: const Icon(
                                 Icons.account_balance_wallet_rounded,
                                 color: Colors.white,
@@ -427,38 +476,35 @@ class _StaffPayrollDetailsScreenState
 
                     const SizedBox(height: 14),
 
-                    // ── Disclaimer ─────────────────────────────────────
+                    // ── Disclaimer ────────────────────────────────────────
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: staffCardBorder),
-                      ),
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: staffCardBorder)),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Icon(Icons.info_outline_rounded,
-                              size: 16,
-                              color: Colors.grey.shade400),
+                              size: 16, color: Colors.grey.shade400),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               'This is a computer generated payslip. Signature is not required.',
                               style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade500,
-                                fontWeight: FontWeight.w500,
-                                height: 1.5,
-                              ),
+                                  fontSize: 12,
+                                  color: Colors.grey.shade500,
+                                  fontWeight: FontWeight.w500,
+                                  height: 1.5),
                             ),
                           ),
                         ],
                       ),
                     ),
 
-                    const SizedBox(height: 100), // space for bottom button
+                    const SizedBox(height: 100),
                   ],
                 ),
               ),
@@ -466,34 +512,32 @@ class _StaffPayrollDetailsScreenState
           ],
         ),
       ),
-
-      // ── Download button ──────────────────────────────────────────────────
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         child: SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
-            onPressed: _downloading ? null : _downloadPdf,
-            icon: _downloading
+            onPressed: (_downloading || !_logosReady) ? null : _downloadPdf,
+            icon: (_downloading || !_logosReady)
                 ? const SizedBox(
                     height: 18,
                     width: 18,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white),
-                  )
-                : const Icon(Icons.download_rounded,
-                    color: Colors.white),
+                        strokeWidth: 2, color: Colors.white))
+                : const Icon(Icons.download_rounded, color: Colors.white),
             label: Text(
-              _downloading ? 'Preparing PDF...' : 'Download Payslip',
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700),
-            ),
+                _downloading
+                    ? 'Preparing PDF...'
+                    : !_logosReady
+                        ? 'Loading...'
+                        : 'Download Payslip',
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700)),
             style: ElevatedButton.styleFrom(
               backgroundColor: staffPrimary,
-              disabledBackgroundColor:
-                  staffPrimary.withOpacity(0.6),
+              disabledBackgroundColor: staffPrimary.withOpacity(0.6),
               padding: const EdgeInsets.symmetric(vertical: 15),
               elevation: 0,
               shape: RoundedRectangleBorder(
@@ -505,9 +549,6 @@ class _StaffPayrollDetailsScreenState
     );
   }
 
-  Widget _buildDivider() => Divider(
-        color: staffCardBorder,
-        height: 1,
-        thickness: 1,
-      );
+  Widget _buildDivider() =>
+      Divider(color: staffCardBorder, height: 1, thickness: 1);
 }
