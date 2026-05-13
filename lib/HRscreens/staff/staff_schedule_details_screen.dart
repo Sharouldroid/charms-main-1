@@ -1,9 +1,9 @@
 import 'package:charms/HRmodels/schedule.dart';
-import 'package:charms/HRmodels/staff.dart';
+//import 'package:charms/HRmodels/staff.dart';
 import 'package:charms/HRproviders/attendances.dart';
 import 'package:charms/HRproviders/schedules.dart';
-import 'package:charms/HRproviders/schedule_exchanges.dart';
-import 'package:charms/HRproviders/staffs.dart';
+//import 'package:charms/HRproviders/schedule_exchanges.dart';
+//import 'package:charms/HRproviders/staffs.dart';
 import 'package:charms/HRscreens/staff/schedule_exchange_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
