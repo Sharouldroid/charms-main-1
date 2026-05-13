@@ -7,6 +7,7 @@
     "theme_color": "#0175C2",
     "description": "Charms app",
     "orientation": "portrait-primary",
+    "prefer_related_applications": false,
     "icons": [
         {
             "src": "icons/Icon-192.png",
