@@ -17,7 +17,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
 import 'package:charms/utils/logout_helper.dart';
-import 'package:charms/HRproviders/schedule_exchanges.dart'; 
+import 'package:charms/HRproviders/schedule_exchanges.dart';
 
 class AdminDashboard extends StatelessWidget {
   final String username;
@@ -40,13 +40,14 @@ class AdminDashboardScreen extends StatefulWidget {
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   int _selectedIndex = 0;
 
-  int totalEmployees = 0;
-  int onLeaveCount = 0;
-  int todayAttendance = 0;
-  int pendingPayroll = 0;
-  int pendingClaims = 0;
-  String lastLoginTime = '';
-  bool isLoading = true;
+  int totalEmployees    = 0;
+  int onLeaveCount      = 0;
+  int todayAttendance   = 0;
+  int pendingPayroll    = 0;
+  int pendingClaims     = 0;
+  int scheduleAlerts    = 0; // ✅ exchanges + rejections combined
+  String lastLoginTime  = '';
+  bool isLoading        = true;
 
   Map<String, int> locationStaffCounts = {
     'Chagar Hutang': 0,
@@ -54,7 +55,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     'UMT': 0,
   };
 
-  final Color bgColor = const Color(0xFFF4F7FA);
+  final Color bgColor     = const Color(0xFFF4F7FA);
   final Color primaryBlue = const Color(0xFF2563EB);
 
   @override
@@ -70,24 +71,25 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   Future<void> _loadDashboardData() async {
     try {
-      final staffsProvider = Provider.of<Staffs>(context, listen: false);
-      final leavesProvider = Provider.of<Leaves>(context, listen: false);
+      final staffsProvider      = Provider.of<Staffs>(context, listen: false);
+      final leavesProvider      = Provider.of<Leaves>(context, listen: false);
       final attendancesProvider = Provider.of<Attendances>(context, listen: false);
-      final paymentsProvider = Provider.of<Payments>(context, listen: false);
-      final schedulesProvider = Provider.of<Schedules>(context, listen: false);
-      final claimsProvider = Provider.of<Claims>(context, listen: false);
+      final paymentsProvider    = Provider.of<Payments>(context, listen: false);
+      final schedulesProvider   = Provider.of<Schedules>(context, listen: false);
+      final claimsProvider      = Provider.of<Claims>(context, listen: false);
+      final exchangesProvider   = Provider.of<ScheduleExchanges>(context, listen: false);
 
       await Future.wait([
         staffsProvider.fetchStaff(),
         leavesProvider.fetchLeaves(),
         schedulesProvider.fetchSchedules(),
         claimsProvider.fetchClaims(),
-        Provider.of<ScheduleExchanges>(context, listen: false).fetchPendingForHR(),
+        exchangesProvider.fetchPendingForHR(),
       ]);
 
-      final currentDate = DateTime.now();
-      final formattedDate = DateFormat('yyyy-MM-dd').format(currentDate);
-      final attendances = await attendancesProvider.getAllAttendances();
+      final currentDate    = DateTime.now();
+      final formattedDate  = DateFormat('yyyy-MM-dd').format(currentDate);
+      final attendances    = await attendancesProvider.getAllAttendances();
       await paymentsProvider.fetchPaymentsByMonth(
           currentDate.year, currentDate.month);
 
@@ -100,12 +102,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             .length;
 
         todayAttendance = attendances
-        .where((attendance) {
-          final clockIn = attendance['clock_in_time'];
-          if (clockIn == null) return false; // ✅ skip null
-          return DateTime.parse(clockIn.toString()).day == currentDate.day;
-        })
-        .length;
+            .where((attendance) {
+              final clockIn = attendance['clock_in_time'];
+              if (clockIn == null) return false;
+              return DateTime.parse(clockIn.toString()).day == currentDate.day;
+            })
+            .length;
 
         pendingPayroll = totalEmployees -
             paymentsProvider.payments
@@ -117,6 +119,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         pendingClaims = claimsProvider.claims
             .where((c) => c.status == 'Pending')
             .length;
+
+        // ✅ Combined: pending exchanges (status=1) + rejected schedules (acceptanceStatus=2)
+        final pendingExchanges = exchangesProvider.exchanges
+            .where((e) => e.status == 1)
+            .length;
+        final rejectedSchedules = schedulesProvider.schedules
+            .where((s) => s.acceptanceStatus == 2)
+            .length;
+        scheduleAlerts = pendingExchanges + rejectedSchedules;
 
         final schedules = schedulesProvider.schedules;
         locationStaffCounts = {
@@ -157,24 +168,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       case 0:
         return;
       case 1:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-              builder: (_) => ManageStaffScreen(username: widget.username)),
-        );
+        Navigator.pushReplacement(context, MaterialPageRoute(
+            builder: (_) => ManageStaffScreen(username: widget.username)));
         break;
       case 2:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-              builder: (_) => AdminListScreen(username: widget.username)),
-        );
+        Navigator.pushReplacement(context, MaterialPageRoute(
+            builder: (_) => AdminListScreen(username: widget.username)));
         break;
       case 3:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const MySelfScreen()),
-        );
+        Navigator.pushReplacement(context, MaterialPageRoute(
+            builder: (_) => const MySelfScreen()));
         break;
     }
   }
@@ -196,8 +199,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             children: [
               Center(
                 child: Container(
-                  width: 40,
-                  height: 4,
+                  width: 40, height: 4,
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
                     color: Colors.grey.shade300,
@@ -205,17 +207,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   ),
                 ),
               ),
-              const Text(
-                'Switch View',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E293B),
-                ),
-              ),
+              const Text('Switch View',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E293B))),
               const SizedBox(height: 12),
 
-              // Option 1 — Staff Mode
               ListTile(
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
@@ -223,35 +219,27 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.green.shade100,
-                    shape: BoxShape.circle,
-                  ),
+                      color: Colors.green.shade100, shape: BoxShape.circle),
                   child: const Icon(Icons.badge_outlined,
                       color: Colors.green, size: 22),
                 ),
-                title: const Text(
-                  'Staff Mode',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF1E293B)),
-                ),
+                title: const Text('Staff Mode',
+                    style: TextStyle(fontWeight: FontWeight.w600,
+                        color: Color(0xFF1E293B))),
                 subtitle: const Text('View as a staff member'),
                 trailing: const Icon(Icons.chevron_right, color: Colors.green),
                 onTap: () {
                   Navigator.pop(ctx);
-                  // ── pushAndRemoveUntil clears entire stack ──
                   Navigator.of(context).pushAndRemoveUntil(
                     MaterialPageRoute(
-                      builder: (_) =>
-                          StaffDashboardScreen(username: widget.username),
-                    ),
+                        builder: (_) =>
+                            StaffDashboardScreen(username: widget.username)),
                     (route) => false,
                   );
                 },
               ),
               const SizedBox(height: 10),
 
-              // Option 2 — CHARMS Main Dashboard
               ListTile(
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
@@ -259,23 +247,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade100,
-                    shape: BoxShape.circle,
-                  ),
+                      color: Colors.blue.shade100, shape: BoxShape.circle),
                   child: const Icon(Icons.dashboard_outlined,
                       color: Colors.blue, size: 22),
                 ),
-                title: const Text(
-                  'CHARMS Dashboard',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF1E293B)),
-                ),
+                title: const Text('CHARMS Dashboard',
+                    style: TextStyle(fontWeight: FontWeight.w600,
+                        color: Color(0xFF1E293B))),
                 subtitle: const Text('Back to main app dashboard'),
                 trailing: const Icon(Icons.chevron_right, color: Colors.blue),
                 onTap: () {
                   Navigator.pop(ctx);
-                  // ── pushAndRemoveUntil clears entire stack ──
                   Navigator.of(context).pushAndRemoveUntil(
                     MaterialPageRoute(
                       builder: (_) => DashboardScreen(
@@ -316,9 +298,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         centerTitle: true,
         backgroundColor: primaryBlue,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(20),
-          ),
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
         ),
         actions: [
           IconButton(
@@ -328,22 +308,31 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
           Consumer4<Leaves, Payments, Claims, ScheduleExchanges>(
             builder: (context, leaves, payments, claims, exchanges, child) {
-              int pendingLeaves    = leaves.leaves.where((l) => l.status == 'Pending').length;
-              int pendingPayrolls  = payments.payments.where((p) => p.status == 'Pending').length;
+              final schedulesProvider =
+                  Provider.of<Schedules>(context, listen: false);
+
+              int pendingLeaves      = leaves.leaves.where((l) => l.status == 'Pending').length;
+              int pendingPayrolls    = payments.payments.where((p) => p.status == 'Pending').length;
               int pendingClaimsCount = claims.claims.where((c) => c.status == 'Pending').length;
-              int pendingExchanges = exchanges.exchanges.where((e) => e.status == 1).length; // ✅
-              int totalPending = pendingLeaves + pendingPayrolls + pendingClaimsCount + pendingExchanges;
+              int pendingExchanges   = exchanges.exchanges.where((e) => e.status == 1).length;
+              int rejectedSchedules  = schedulesProvider.schedules
+                  .where((s) => s.acceptanceStatus == 2)
+                  .length;
+              int totalPending = pendingLeaves + pendingPayrolls +
+                  pendingClaimsCount + pendingExchanges + rejectedSchedules;
 
               return IconButton(
                 icon: totalPending > 0
                     ? Badge(
                         label: Text(totalPending.toString()),
                         backgroundColor: Colors.redAccent,
-                        child: const Icon(Icons.notifications_none_rounded, size: 26),
+                        child: const Icon(Icons.notifications_none_rounded,
+                            size: 26),
                       )
                     : const Icon(Icons.notifications_none_rounded, size: 26),
                 onPressed: () => Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => const NotificationScreen())),
+                    MaterialPageRoute(
+                        builder: (_) => const NotificationScreen())),
               );
             },
           ),
@@ -411,67 +400,78 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ),
               const SizedBox(height: 24),
 
-              Row(
-                children: [
-                  Expanded(
-                    child: SummaryCard(
-                      title: 'Total Employees',
-                      count: totalEmployees,
-                      icon: Icons.people_alt_rounded,
-                      iconColor: Colors.blue,
-                    ),
+              // ── Row 1 ─────────────────────────────────────────────────────
+              Row(children: [
+                Expanded(
+                  child: SummaryCard(
+                    title: 'Total Employees',
+                    count: totalEmployees,
+                    icon: Icons.people_alt_rounded,
+                    iconColor: Colors.blue,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: SummaryCard(
-                      title: 'Leave Pending',
-                      count: onLeaveCount,
-                      icon: Icons.beach_access_rounded,
-                      iconColor: Colors.red,
-                    ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: SummaryCard(
+                    title: 'Leave Pending',
+                    count: onLeaveCount,
+                    icon: Icons.beach_access_rounded,
+                    iconColor: Colors.red,
                   ),
-                ],
-              ),
+                ),
+              ]),
               const SizedBox(height: 12),
 
-              Row(
-                children: [
-                  Expanded(
-                    child: SummaryCard(
-                      title: "Today's Attendance",
-                      count: todayAttendance,
-                      icon: Icons.timer_rounded,
-                      iconColor: Colors.green,
-                    ),
+              // ── Row 2 ─────────────────────────────────────────────────────
+              Row(children: [
+                Expanded(
+                  child: SummaryCard(
+                    title: "Today's Attendance",
+                    count: todayAttendance,
+                    icon: Icons.timer_rounded,
+                    iconColor: Colors.green,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: SummaryCard(
-                      title: 'Payroll Pending',
-                      count: pendingPayroll,
-                      icon: Icons.receipt_long_rounded,
-                      iconColor: Colors.teal,
-                    ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: SummaryCard(
+                    title: 'Payroll Pending',
+                    count: pendingPayroll,
+                    icon: Icons.receipt_long_rounded,
+                    iconColor: Colors.teal,
                   ),
-                ],
-              ),
+                ),
+              ]),
               const SizedBox(height: 12),
 
-              Row(
-                children: [
-                  const Spacer(flex: 1),
-                  Expanded(
-                    flex: 2,
+              // ── Row 3 ─────────────────────────────────────────────────────
+              Row(children: [
+                Expanded(
+                  child: SummaryCard(
+                    title: 'Claim Pending',
+                    count: pendingClaims,
+                    icon: Icons.request_page_rounded,
+                    iconColor: Colors.orange,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // ✅ NEW — combined Schedule Alerts card (tappable → NotificationScreen)
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const NotificationScreen()),
+                    ),
                     child: SummaryCard(
-                      title: 'Claim Pending',
-                      count: pendingClaims,
-                      icon: Icons.request_page_rounded,
-                      iconColor: Colors.orange,
+                      title: 'Schedule Alerts',
+                      count: scheduleAlerts,
+                      icon: Icons.swap_horiz_rounded,
+                      iconColor: Colors.purple,
                     ),
                   ),
-                  const Spacer(flex: 1),
-                ],
-              ),
+                ),
+              ]),
 
               const SizedBox(height: 32),
               _buildMovementCards(),
@@ -492,22 +492,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              "Today's Schedule",
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E293B),
-              ),
-            ),
-            Text(
-              today,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.blue,
-              ),
-            ),
+            const Text("Today's Schedule",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E293B))),
+            Text(today,
+                style: const TextStyle(fontSize: 14,
+                    fontWeight: FontWeight.w600, color: Colors.blue)),
           ],
         ),
         const SizedBox(height: 16),
@@ -518,11 +508,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
+                BoxShadow(color: Colors.black.withOpacity(0.03),
+                    blurRadius: 10, offset: const Offset(0, 4)),
               ],
             ),
             child: ListTile(
@@ -531,51 +518,33 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               leading: Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
+                    color: Colors.blue.withOpacity(0.1), shape: BoxShape.circle),
                 child: const Icon(Icons.location_on_rounded,
                     size: 24, color: Colors.blue),
               ),
-              title: Text(
-                entry.key,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF334155),
-                ),
-              ),
+              title: Text(entry.key,
+                  style: const TextStyle(fontSize: 16,
+                      fontWeight: FontWeight.bold, color: Color(0xFF334155))),
               subtitle: Padding(
                 padding: const EdgeInsets.only(top: 4.0),
-                child: Text(
-                  'Staff scheduled: ${entry.value}',
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+                child: Text('Staff scheduled: ${entry.value}',
+                    style: TextStyle(color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w500)),
               ),
               trailing: Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(10),
-                ),
+                decoration: BoxDecoration(color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(10)),
                 child: const Icon(Icons.arrow_forward_ios_rounded,
                     size: 16, color: Colors.blue),
               ),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16)),
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ScheduleListScreen(
-                      location: entry.key,
-                      date: DateTime.now(),
-                    ),
-                  ),
-                );
+                Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => ScheduleListScreen(
+                      location: entry.key, date: DateTime.now()),
+                ));
               },
             ),
           );
@@ -608,11 +577,8 @@ class SummaryCard extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 15,
-              offset: const Offset(0, 5),
-            ),
+            BoxShadow(color: Colors.black.withOpacity(0.04),
+                blurRadius: 15, offset: const Offset(0, 5)),
           ],
         ),
         child: Padding(
@@ -623,32 +589,21 @@ class SummaryCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.12),
-                  shape: BoxShape.circle,
-                ),
+                    color: iconColor.withOpacity(0.12), shape: BoxShape.circle),
                 child: Icon(icon, size: 28, color: iconColor),
               ),
               const SizedBox(height: 12),
-              Text(
-                count.toString(),
-                style: const TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFF1E293B),
-                ),
-              ),
+              Text(count.toString(),
+                  style: const TextStyle(fontSize: 26,
+                      fontWeight: FontWeight.w900, color: Color(0xFF1E293B))),
               const SizedBox(height: 4),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade600,
-                ),
-              ),
+              Text(title,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade600)),
             ],
           ),
         ),

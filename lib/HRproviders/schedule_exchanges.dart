@@ -53,7 +53,7 @@ class ScheduleExchanges with ChangeNotifier {
     }
   }
 
-  // Fetch all pending for HR
+  // Fetch all pending for HR (notification screen)
   Future<List<ScheduleExchange>> fetchPendingForHR() async {
     try {
       final response = await http.get(
@@ -70,6 +70,36 @@ class ScheduleExchanges with ChangeNotifier {
     }
   }
 
+  // ✅ NEW — Fetch ALL exchanges and store to _exchanges (for HR schedule view)
+  Future<void> fetchAllForHR() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_hostname/schedule-exchange/all'),
+        headers: {'Accept': 'application/json'},
+      );
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body);
+        final List<dynamic> data =
+            decoded is List ? decoded : (decoded['data'] ?? []);
+        _exchanges = data.map((e) => ScheduleExchange.fromJson(e)).toList();
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error fetching all exchanges: $e');
+    }
+  }
+
+  // ✅ NEW — Find exchange for a given schedId (either as requester or target)
+  ScheduleExchange? findByScheduleId(int schedId) {
+    try {
+      return _exchanges.firstWhere(
+        (e) => e.requesterSched == schedId || e.targetSched == schedId,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
   // Target staff: accept or reject
   Future<bool> targetRespond(int exchangeId, bool accept, {String? note}) async {
     try {
@@ -78,7 +108,10 @@ class ScheduleExchanges with ChangeNotifier {
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'accept': accept, 'target_note': note}),
       );
-      if (response.statusCode == 200) { notifyListeners(); return true; }
+      if (response.statusCode == 200) {
+        notifyListeners();
+        return true;
+      }
       return false;
     } catch (e) {
       debugPrint('Error target respond: $e');
@@ -86,22 +119,22 @@ class ScheduleExchanges with ChangeNotifier {
     }
   }
 
- // HR: approve or reject
-Future<bool> hrRespond(int exchangeId, bool approve, {String? note}) async {
-  try {
-    final response = await http.put(
-      Uri.parse('$_hostname/schedule-exchange/$exchangeId/hr-respond'),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode({'approve': approve, 'hr_note': note}),
-    );
-    if (response.statusCode == 200) {
-      notifyListeners();
-      return true;
+  // HR: approve or reject
+  Future<bool> hrRespond(int exchangeId, bool approve, {String? note}) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$_hostname/schedule-exchange/$exchangeId/hr-respond'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'approve': approve, 'hr_note': note}),
+      );
+      if (response.statusCode == 200) {
+        notifyListeners();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error HR respond: $e');
+      return false;
     }
-    return false;
-  } catch (e) {
-    debugPrint('Error HR respond: $e');
-    return false;
   }
-}
 }
