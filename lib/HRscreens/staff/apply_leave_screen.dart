@@ -6,7 +6,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
-
 class LeaveFormScreen extends StatefulWidget {
   final int staffId;
 
@@ -119,13 +118,33 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
                 ListTile(
                   leading: Container(
                     padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: staffPrimary.withOpacity(0.1), shape: BoxShape.circle),
-                    child: Icon(Icons.photo_library_rounded, color: staffPrimary),
+                    decoration: BoxDecoration(
+                        color: staffPrimary.withOpacity(0.1),
+                        shape: BoxShape.circle),
+                    child:
+                        Icon(Icons.photo_library_rounded, color: staffPrimary),
                   ),
-                  title: const Text('Choose from Gallery', style: TextStyle(fontWeight: FontWeight.bold)),
+                  title: const Text('Choose from Gallery',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                   onTap: () {
                     Navigator.pop(context);
                     _pickImage(ImageSource.gallery);
+                  },
+                ),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                        color: staffPrimary.withOpacity(0.1),
+                        shape: BoxShape.circle),
+                    child: Icon(Icons.picture_as_pdf_rounded,
+                        color: staffPrimary),
+                  ),
+                  title: const Text('Choose PDF / Document',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickFile(); // Now actually used
                   },
                 ),
               ],
@@ -172,13 +191,17 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
     if (_isProofRequired) {
       if ((_selectedProofType ?? '').isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select proof type.'), backgroundColor: Colors.redAccent),
+          const SnackBar(
+              content: Text('Please select proof type.'),
+              backgroundColor: Colors.redAccent),
         );
         return;
       }
       if (_attachedFile == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Proof attachment is required for this leave type.'), backgroundColor: Colors.redAccent),
+          const SnackBar(
+              content: Text('Proof attachment is required for this leave type.'),
+              backgroundColor: Colors.redAccent),
         );
         return;
       }
@@ -198,7 +221,8 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
         reason: _reasonController.text.trim(),
         proofFileName: _attachedFile?.name,
         proofFileType: _selectedProofType,
-        proofFile: _attachedFile != null ? await _attachedFile!.readAsBytes() : null,
+        proofFile:
+            _attachedFile != null ? await _attachedFile!.readAsBytes() : null,
         status: 'Pending',
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
@@ -209,14 +233,18 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Leave application submitted successfully'), backgroundColor: Colors.teal),
+        const SnackBar(
+            content: Text('Leave application submitted successfully'),
+            backgroundColor: Colors.teal),
       );
 
       Navigator.pop(context, true); // tells previous screen to refresh
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to submit leave: $e'), backgroundColor: Colors.redAccent),
+        SnackBar(
+            content: Text('Failed to submit leave: $e'),
+            backgroundColor: Colors.redAccent),
       );
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -231,7 +259,8 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
       prefixIcon: Icon(icon, color: staffPrimary.withOpacity(0.7), size: 22),
       filled: true,
       fillColor: Colors.grey.shade50,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide.none,
@@ -253,8 +282,10 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final proofLabel = _isProofRequired ? 'Proof Type *' : 'Proof Type (Optional)';
-    final attachLabel = _isProofRequired ? 'Attach Document *' : 'Attach Document (Optional)';
+    final proofLabel =
+        _isProofRequired ? 'Proof Type *' : 'Proof Type (Optional)';
+    final attachLabel =
+        _isProofRequired ? 'Attach Document *' : 'Attach Document (Optional)';
 
     return Scaffold(
       backgroundColor: staffBg, // Modern background
@@ -296,7 +327,6 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  
                   // Icon Header
                   Center(
                     child: Container(
@@ -305,14 +335,17 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
                         color: staffPrimary.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(Icons.beach_access_rounded, size: 40, color: staffPrimary),
+                      child: Icon(Icons.beach_access_rounded,
+                          size: 40, color: staffPrimary),
                     ),
                   ),
                   const SizedBox(height: 24),
 
                   DropdownButtonFormField<String>(
-                    decoration: _buildInputDecoration('Leave Type', Icons.category_rounded),
-                    icon: Icon(Icons.keyboard_arrow_down_rounded, color: staffPrimary),
+                    decoration: _buildInputDecoration(
+                        'Leave Type', Icons.category_rounded),
+                    icon: Icon(Icons.keyboard_arrow_down_rounded,
+                        color: staffPrimary),
                     initialValue: _selectedLeaveType,
                     onChanged: (value) {
                       setState(() {
@@ -334,9 +367,14 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
                       'Quarantine',
                       'Half Day Leave 1',
                       'Half Day Leave 2',
-                    ].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                    ]
+                        .map((e) =>
+                            DropdownMenuItem(value: e, child: Text(e)))
+                        .toList(),
                     validator: (value) =>
-                        (value == null || value.isEmpty) ? 'Please select a leave type' : null,
+                        (value == null || value.isEmpty)
+                            ? 'Please select a leave type'
+                            : null,
                   ),
                   const SizedBox(height: 16),
 
@@ -344,11 +382,16 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
                     onTap: () => _selectDate(context, true),
                     child: AbsorbPointer(
                       child: TextFormField(
-                        decoration: _buildInputDecoration('Start Date', Icons.date_range_rounded),
+                        decoration: _buildInputDecoration(
+                            'Start Date', Icons.date_range_rounded),
                         controller: TextEditingController(
-                          text: _startDate == null ? '' : DateFormat('dd MMM yyyy').format(_startDate!),
+                          text: _startDate == null
+                              ? ''
+                              : DateFormat('dd MMM yyyy').format(_startDate!),
                         ),
-                        validator: (_) => _startDate == null ? 'Please select a start date' : null,
+                        validator: (_) => _startDate == null
+                            ? 'Please select a start date'
+                            : null,
                       ),
                     ),
                   ),
@@ -358,15 +401,22 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
                     onTap: () => _selectDate(context, false),
                     child: AbsorbPointer(
                       child: TextFormField(
-                        decoration: _buildInputDecoration('End Date', Icons.date_range_rounded).copyWith(
-                          suffixIcon: Icon(Icons.calendar_today_rounded, color: staffPrimary.withOpacity(0.7)),
+                        decoration: _buildInputDecoration(
+                                'End Date', Icons.date_range_rounded)
+                            .copyWith(
+                          suffixIcon: Icon(Icons.calendar_today_rounded,
+                              color: staffPrimary.withOpacity(0.7)),
                         ),
                         controller: TextEditingController(
-                          text: _endDate == null ? '' : DateFormat('dd MMM yyyy').format(_endDate!),
+                          text: _endDate == null
+                              ? ''
+                              : DateFormat('dd MMM yyyy').format(_endDate!),
                         ),
                         validator: (_) {
-                          if (_endDate == null) return 'Please select an end date';
-                          if (_startDate != null && _endDate!.isBefore(_startDate!)) {
+                          if (_endDate == null)
+                            return 'Please select an end date';
+                          if (_startDate != null &&
+                              _endDate!.isBefore(_startDate!)) {
                             return 'End date cannot be before start date';
                           }
                           return null;
@@ -379,26 +429,34 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
                   TextFormField(
                     controller: _reasonController,
                     maxLines: 3,
-                    decoration: _buildInputDecoration('Reason for Leave', Icons.subject_rounded),
+                    decoration: _buildInputDecoration(
+                        'Reason for Leave', Icons.subject_rounded),
                     validator: (value) =>
-                        (value == null || value.trim().isEmpty) ? 'Please provide a reason for leave' : null,
+                        (value == null || value.trim().isEmpty)
+                            ? 'Please provide a reason for leave'
+                            : null,
                   ),
-                  
+
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 16.0),
                     child: Divider(),
                   ),
 
                   DropdownButtonFormField<String>(
-                    decoration: _buildInputDecoration(proofLabel, Icons.attachment_rounded),
-                    icon: Icon(Icons.keyboard_arrow_down_rounded, color: staffPrimary),
+                    decoration:
+                        _buildInputDecoration(proofLabel, Icons.attachment_rounded),
+                    icon: Icon(Icons.keyboard_arrow_down_rounded,
+                        color: staffPrimary),
                     initialValue: _selectedProofType,
-                    onChanged: (value) => setState(() => _selectedProofType = value),
+                    onChanged: (value) =>
+                        setState(() => _selectedProofType = value),
                     items: const [
                       DropdownMenuItem(value: 'Image', child: Text('Image')),
+                      DropdownMenuItem(value: 'PDF', child: Text('PDF')),
                     ],
                     validator: (value) {
-                      if (_isProofRequired && (value == null || value.isEmpty)) {
+                      if (_isProofRequired &&
+                          (value == null || value.isEmpty)) {
                         return 'Please select a proof type';
                       }
                       return null;
@@ -417,11 +475,17 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
                       children: [
                         Expanded(
                           child: Text(
-                            _attachedFile != null ? 'Attached: ${_attachedFile!.name}' : attachLabel,
+                            _attachedFile != null
+                                ? 'Attached: ${_attachedFile!.name}'
+                                : attachLabel,
                             style: TextStyle(
-                              fontSize: 14, 
-                              color: _attachedFile != null ? staffPrimary : Colors.grey.shade600,
-                              fontWeight: _attachedFile != null ? FontWeight.bold : FontWeight.normal,
+                              fontSize: 14,
+                              color: _attachedFile != null
+                                  ? staffPrimary
+                                  : Colors.grey.shade600,
+                              fontWeight: _attachedFile != null
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -431,9 +495,11 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
                           style: OutlinedButton.styleFrom(
                             foregroundColor: staffPrimary,
                             side: BorderSide(color: staffPrimary),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
                           ),
-                          icon: const Icon(Icons.upload_file_rounded, size: 18),
+                          icon: const Icon(Icons.upload_file_rounded,
+                              size: 18),
                           label: const Text('Attach'),
                         ),
                       ],
@@ -445,7 +511,10 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
                       padding: EdgeInsets.only(top: 8, left: 4),
                       child: Text(
                         'Proof attachment is required for this leave type.',
-                        style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                            color: Colors.redAccent,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600),
                       ),
                     ),
 
@@ -458,14 +527,20 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
                       foregroundColor: Colors.white,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
-                    icon: _submitting 
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Icon(Icons.send_rounded),
+                    icon: _submitting
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2))
+                        : const Icon(Icons.send_rounded),
                     label: Text(
                       _submitting ? 'Submitting...' : 'Submit Leave Request',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
