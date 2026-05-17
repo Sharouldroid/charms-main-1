@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:charms/HRproviders/attendances.dart';
 import 'package:charms/HRproviders/schedules.dart';
+import 'package:charms/HRproviders/schedule_exchanges.dart';
 import 'package:charms/HRmodels/schedule.dart';
+import 'package:charms/HRmodels/schedule_exchange.dart';
 
 class StaffAttendanceHistoryScreen extends StatefulWidget {
   final int staffId;
@@ -25,6 +27,7 @@ class _StaffAttendanceHistoryScreenState
     extends State<StaffAttendanceHistoryScreen> {
   List<Map<String, dynamic>> _allRecords   = [];
   List<Schedule>             _allSchedules = [];
+  List<ScheduleExchange>     _allExchanges = [];
   bool _isLoading = true;
 
   int _selectedMonth = DateTime.now().month;
@@ -48,17 +51,23 @@ class _StaffAttendanceHistoryScreenState
   Future<void> _loadHistory() async {
     setState(() => _isLoading = true);
     try {
-      final attProvider   = Provider.of<Attendances>(context, listen: false);
-      final schedProvider = Provider.of<Schedules>(context, listen: false);
+      final attProvider      = Provider.of<Attendances>(context, listen: false);
+      final schedProvider    = Provider.of<Schedules>(context, listen: false);
+      final exchangeProvider = Provider.of<ScheduleExchanges>(context, listen: false);
 
+      // Fetch attendance + schedules in parallel, then exchanges
       final results = await Future.wait([
         attProvider.getAttendanceByStaffId(widget.staffId),
         schedProvider.fetchSchedulesByStaffId(widget.staffId),
       ]);
 
+      // Fetch exchanges for this staff (stores into provider's _exchanges list)
+      await exchangeProvider.fetchExchangesByStaff(widget.staffId);
+
       setState(() {
         _allRecords   = results[0] as List<Map<String, dynamic>>;
         _allSchedules = results[1] as List<Schedule>;
+        _allExchanges = exchangeProvider.exchanges;
         _isLoading    = false;
       });
     } catch (e) {
@@ -69,6 +78,19 @@ class _StaffAttendanceHistoryScreenState
         );
       }
       setState(() => _isLoading = false);
+    }
+  }
+
+  // ── Find HR-approved exchange for a given schedId ─────────────────────────────
+  ScheduleExchange? _findApprovedExchange(int schedId) {
+    try {
+      return _allExchanges.firstWhere(
+        (e) =>
+            (e.requesterSched == schedId || e.targetSched == schedId) &&
+            e.status == 3, // 3 = HR Approved
+      );
+    } catch (_) {
+      return null;
     }
   }
 
@@ -87,10 +109,14 @@ class _StaffAttendanceHistoryScreenState
             orElse: () => null,
           );
 
+      // Check if this schedule was part of an HR-approved exchange
+      final exchange = _findApprovedExchange(schedule.schedId);
+
       if (attendance != null) {
         return {
           ...attendance,
           '_schedule':     schedule,
+          '_exchange':     exchange, // null if not a swapped schedule
           '_display_date': schedule.workDate,
         };
       } else {
@@ -100,20 +126,24 @@ class _StaffAttendanceHistoryScreenState
         final isPast = schedule.workDate.isBefore(
             DateTime(now.year, now.month, now.day));
 
-        // ── FIX: check if staff rejected this schedule ──────────────────────
+        // Check if staff rejected this schedule
         final isRejected = schedule.acceptanceStatus == 2;
 
         return {
           'attendance_id':     null,
           'staff_id':          widget.staffId,
           'schedule_id':       schedule.schedId,
+          // Exchanged schedules keep normal status (-1/0) since the backend
+          // already owns the swapped schedId under this staff. The exchange
+          // field is purely cosmetic — it just shows a "Swapped" label.
           'attendance_status': isRejected
-              ? -2                              // -2 = staff did not accept
-              : isPast && !isToday ? -1 : 0,   // -1 = missed, 0 = upcoming
+              ? -2                           // -2 = staff did not accept
+              : isPast && !isToday ? -1 : 0, // -1 = missed, 0 = upcoming
           'clock_in_time':     null,
           'clock_out_time':    null,
           'clock_in_location': null,
           '_schedule':         schedule,
+          '_exchange':         exchange, // null if not a swapped schedule
           '_display_date':     schedule.workDate,
         };
       }
@@ -126,10 +156,10 @@ class _StaffAttendanceHistoryScreenState
   }
 
   // ── Summary ───────────────────────────────────────────────────────────────────
-  int get _totalPresent  => _mergedRecords.where((r) => r['attendance_status'] == 2).length;
-  int get _totalAbsent   => _mergedRecords.where((r) => r['attendance_status'] == 1).length;
-  int get _totalMissed   => _mergedRecords.where((r) => r['attendance_status'] == -1).length;
-  // Note: -2 (Not Accepted) is intentionally excluded from all summary counters
+  int get _totalPresent => _mergedRecords.where((r) => r['attendance_status'] == 2).length;
+  int get _totalAbsent  => _mergedRecords.where((r) => r['attendance_status'] == 1).length;
+  int get _totalMissed  => _mergedRecords.where((r) => r['attendance_status'] == -1).length;
+  // Note: -2 (Not Accepted) intentionally excluded from all summary counters
 
   Duration _workDuration(Map<String, dynamic> r) {
     final inTime  = DateTime.tryParse(r['clock_in_time']?.toString() ?? '');
@@ -155,7 +185,7 @@ class _StaffAttendanceHistoryScreenState
       case  1:  return 'Absent';
       case -1:  return 'No Clock-In';
       case  0:  return 'Upcoming';
-      case -2:  return 'Not Accepted';   // ← staff rejected this schedule
+      case -2:  return 'Not Accepted';
       default:  return 'Unknown';
     }
   }
@@ -166,7 +196,7 @@ class _StaffAttendanceHistoryScreenState
       case  1:  return Colors.redAccent;
       case -1:  return Colors.orange;
       case  0:  return Colors.blueGrey;
-      case -2:  return Colors.grey;      // ← neutral grey for rejected
+      case -2:  return Colors.grey;
       default:  return Colors.grey;
     }
   }
@@ -177,7 +207,7 @@ class _StaffAttendanceHistoryScreenState
       case  1:  return Icons.cancel_rounded;
       case -1:  return Icons.warning_amber_rounded;
       case  0:  return Icons.schedule_rounded;
-      case -2:  return Icons.block_rounded;   // ← blocked icon for rejected
+      case -2:  return Icons.block_rounded;
       default:  return Icons.help_outline_rounded;
     }
   }
@@ -430,13 +460,14 @@ class _StaffAttendanceHistoryScreenState
   }
 
   Widget _buildHistoryCard(Map<String, dynamic> record) {
-    final int? status       = record['attendance_status'];
-    final Color statusColor = _getStatusColor(status);
-    final String? clockIn   = record['clock_in_time'];
-    final String? clockOut  = record['clock_out_time'];
-    final Duration worked   = _workDuration(record);
-    final DateTime displayDate = record['_display_date'] as DateTime;
-    final Schedule? schedule   = record['_schedule'] as Schedule?;
+    final int? status                = record['attendance_status'];
+    final Color statusColor          = _getStatusColor(status);
+    final String? clockIn            = record['clock_in_time'];
+    final String? clockOut           = record['clock_out_time'];
+    final Duration worked            = _workDuration(record);
+    final DateTime displayDate       = record['_display_date'] as DateTime;
+    final Schedule? schedule         = record['_schedule'] as Schedule?;
+    final ScheduleExchange? exchange = record['_exchange'] as ScheduleExchange?;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -449,7 +480,7 @@ class _StaffAttendanceHistoryScreenState
               : status == 1
                   ? Colors.redAccent.withOpacity(0.4)
                   : status == -2
-                      ? Colors.grey.withOpacity(0.3)   // ← subtle border for rejected
+                      ? Colors.grey.withOpacity(0.3)
                       : staffCardBorder,
           width: (status == -1 || status == 1 || status == -2) ? 1.5 : 1.0,
         ),
@@ -529,7 +560,7 @@ class _StaffAttendanceHistoryScreenState
                     ],
                   ),
 
-                  // Schedule info
+                  // Schedule time info
                   if (schedule != null) ...[
                     const SizedBox(height: 4),
                     Row(
@@ -548,11 +579,29 @@ class _StaffAttendanceHistoryScreenState
                     ),
                   ],
 
+                  // ── Swapped schedule label (cosmetic only) ──────────────────
+                  if (exchange != null) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.swap_horiz_rounded,
+                            size: 12, color: Colors.purple.shade300),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Swapped schedule',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.purple.shade300,
+                              fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ],
+
                   const SizedBox(height: 6),
 
                   // ── Status-specific content ─────────────────────────────────
                   if (status == -2)
-                    // Staff did not accept this schedule
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 6),
@@ -577,7 +626,6 @@ class _StaffAttendanceHistoryScreenState
                       ),
                     )
                   else if (status == -1)
-                    // No clock-in — had schedule but missed
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 6),
@@ -602,7 +650,6 @@ class _StaffAttendanceHistoryScreenState
                       ),
                     )
                   else if (status == 1)
-                    // Officially marked absent by HR
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 6),
@@ -627,7 +674,6 @@ class _StaffAttendanceHistoryScreenState
                       ),
                     )
                   else if (status == 0)
-                    // Future schedule
                     Row(
                       children: [
                         Icon(Icons.schedule_rounded,
@@ -641,7 +687,6 @@ class _StaffAttendanceHistoryScreenState
                       ],
                     )
                   else
-                    // Present — show clock in/out times
                     Row(
                       children: [
                         _timeChip(Icons.login_rounded, Colors.teal,
