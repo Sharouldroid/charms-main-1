@@ -602,7 +602,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                                             schedule.acceptanceStatus == 1
                                                 ? '✅ Accepted'
                                                 : schedule.acceptanceStatus == 2
-                                                    ? '❌ Rejected'
+                                                    ? '❌ Not Accepted'
                                                     : '⏳ Pending',
                                             style: TextStyle(
                                               fontSize: 10,

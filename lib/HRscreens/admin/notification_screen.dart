@@ -49,9 +49,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
     final paymentsProvider  = Provider.of<Payments>(context, listen: false);
     final claimsProvider    = Provider.of<Claims>(context, listen: false);
     final exchangesProvider = Provider.of<ScheduleExchanges>(context, listen: false);
-    final schedulesProvider = Provider.of<Schedules>(context, listen: false); // ✅
-
-    final staffsProvider = Provider.of<Staffs>(context, listen: false); // ✅
+    final schedulesProvider = Provider.of<Schedules>(context, listen: false);
+    final staffsProvider    = Provider.of<Staffs>(context, listen: false);
 
     await Future.wait([
       leavesProvider.fetchLeaves(),
@@ -59,7 +58,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
       claimsProvider.fetchClaims(),
       exchangesProvider.fetchPendingForHR(),
       schedulesProvider.fetchSchedules(),
-      staffsProvider.fetchStaff(), // ✅
+      staffsProvider.fetchStaff(),
     ]);
 
     showSystemNotifications(
@@ -215,13 +214,16 @@ class _NotificationScreenState extends State<NotificationScreen> {
     }
   }
 
-  // ✅ Rejected schedule card — shows staff name + delete button
+  // ── Rejected schedule card ────────────────────────────────────────────────
+  // NOTE: "Dismiss" button now calls _confirmDismissSchedule (soft delete)
+  //       instead of _confirmDeleteSchedule (hard delete).
+  //       This removes it from Notifications + Staff Schedule,
+  //       but keeps it in Schedule History.
   Widget _buildRejectedScheduleCard(Schedule schedule, List<Staff> staffList) {
     const branchNames = {1: 'Chagar Hutang', 2: 'Turtle Lab', 3: 'UMT'};
     final branch = branchNames[schedule.workLocation] ?? 'Unknown';
     final date   = DateFormat('dd MMM yyyy').format(schedule.workDate);
 
-    // Look up staff name from staffList
     final staff = staffList.where((s) => s.staffId == schedule.staffId).firstOrNull;
     final staffName = staff != null
         ? '${staff.firstname} ${staff.lastname}'.trim()
@@ -241,7 +243,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Top row: icon + info + badge ──────────────────────────
             Row(children: [
               Container(
                 padding: const EdgeInsets.all(10),
@@ -268,13 +269,12 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(color: Colors.red.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20)),
-                child: const Text('Rejected',
+                child: const Text('Not Accepted',
                     style: TextStyle(fontSize: 11, color: Colors.redAccent,
                         fontWeight: FontWeight.w700)),
               ),
             ]),
 
-            // ── Staff rejection note if any ────────────────────────────
             if (schedule.staffNote != null && schedule.staffNote!.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text('Reason: "${schedule.staffNote}"',
@@ -284,7 +284,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
             const SizedBox(height: 12),
 
-            // ── Delete button ──────────────────────────────────────────
+            // ── CHANGED: "Dismiss" (soft delete) instead of "Delete Schedule"
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -295,9 +295,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
                       borderRadius: BorderRadius.circular(10)),
                   padding: const EdgeInsets.symmetric(vertical: 10),
                 ),
-                onPressed: () => _confirmDeleteSchedule(schedule, staffName),
-                icon: const Icon(Icons.delete_rounded, size: 16),
-                label: const Text('Delete Schedule',
+                onPressed: () => _confirmDismissSchedule(schedule, staffName),
+                icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
+                label: const Text('Dismiss & Remove Shift',
                     style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ),
@@ -307,19 +307,20 @@ class _NotificationScreenState extends State<NotificationScreen> {
     );
   }
 
-  // ── Confirm + delete rejected schedule ───────────────────────────────────
-  Future<void> _confirmDeleteSchedule(Schedule schedule, String staffName) async {
+  // ── Soft dismiss: sets hrDismissed = true, does NOT delete the record ─────
+  Future<void> _confirmDismissSchedule(Schedule schedule, String staffName) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(children: [
-          Icon(Icons.delete_rounded, color: Colors.redAccent, size: 20),
+          Icon(Icons.check_circle_outline_rounded, color: Colors.redAccent, size: 20),
           SizedBox(width: 8),
-          Text('Delete Schedule', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text('Dismiss Schedule', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         ]),
         content: Text(
-          'Delete the rejected schedule for $staffName?\nThis cannot be undone.',
+          'Remove the rejected shift for $staffName from the schedule?\n\n'
+          'The rejection will still appear in their Schedule History.',
           style: const TextStyle(fontSize: 13, color: Colors.grey),
         ),
         actions: [
@@ -333,7 +334,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete'),
+            child: const Text('Dismiss'),
           ),
         ],
       ),
@@ -342,18 +343,19 @@ class _NotificationScreenState extends State<NotificationScreen> {
     if (confirm != true || !mounted) return;
 
     try {
+      // ✅ CHANGED: dismissSchedule (PATCH hr_dismissed=true) instead of deleteSchedule
       await Provider.of<Schedules>(context, listen: false)
-          .deleteSchedule(schedule.schedId);
+          .dismissSchedule(schedule.schedId);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Schedule deleted successfully'),
+        content: Text('Shift removed from schedule. History preserved.'),
         backgroundColor: Colors.green,
       ));
       setState(() {});
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Failed to delete: $e'),
+        content: Text('Failed to dismiss: $e'),
         backgroundColor: Colors.redAccent,
       ));
     }
@@ -375,7 +377,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
         ),
       ),
-      // ✅ Consumer5 — added Schedules
       body: Consumer6<Leaves, Payments, Claims, ScheduleExchanges, Schedules, Staffs>(
         builder: (context, leaves, payments, claims, exchanges, schedules, staffs, child) {
           final pendingLeaves =
@@ -387,9 +388,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
           final pendingExchanges =
               exchanges.exchanges.where((e) => e.status == 1).toList();
 
-          // ✅ Schedules where staff rejected the assignment
+          // ✅ CHANGED: also filter out hrDismissed=true
+          // These are visible to HR as actionable notifications
           final rejectedSchedules = schedules.schedules
-              .where((s) => s.acceptanceStatus == 2)
+              .where((s) => s.acceptanceStatus == 2 && !s.hrDismissed)
               .toList();
 
           final hasAny = pendingLeaves.isNotEmpty ||
@@ -465,7 +467,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 },
               )),
 
-              // ✅ Rejected schedules section
+              // ── Rejected schedules section ───────────────────────────
               if (rejectedSchedules.isNotEmpty) ...[
                 const Padding(
                   padding: EdgeInsets.only(left: 8.0, top: 8.0, bottom: 12.0),
@@ -481,7 +483,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 ...rejectedSchedules.map((s) => _buildRejectedScheduleCard(s, staffs.staffList)),
               ],
 
-              // ✅ Exchange approvals section
+              // ── Exchange approvals section ───────────────────────────
               if (pendingExchanges.isNotEmpty) ...[
                 const Padding(
                   padding: EdgeInsets.only(left: 8.0, top: 8.0, bottom: 12.0),

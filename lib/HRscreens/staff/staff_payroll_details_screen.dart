@@ -75,7 +75,7 @@ class _StaffPayrollDetailsScreenState
         break;
       case 3: // Intern → INOS only
         _logoLeft  = await _loadLogo('assets/images/logo/inos.png');
-        _logoRight = null;
+        _logoRight = await _loadLogo('assets/images/logo/logoumt.png');
         break;
       default: // SEATRU → SEATRU + UMT
         _logoLeft  = await _loadLogo('assets/images/logo/seatrulogo1.png');

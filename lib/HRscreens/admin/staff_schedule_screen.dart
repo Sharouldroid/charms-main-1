@@ -59,12 +59,14 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
       final schedulesProvider  = Provider.of<Schedules>(context, listen: false);
       final exchangesProvider  = Provider.of<ScheduleExchanges>(context, listen: false);
 
-      // Load schedules + all exchanges in parallel
       final schedules = await schedulesProvider.fetchSchedulesByStaffId(_staffId);
-      await exchangesProvider.fetchAllForHR(); // ✅ load exchanges for badge cross-reference
+      await exchangesProvider.fetchAllForHR();
 
       setState(() {
-        _schedules = schedules;
+        // ✅ CHANGED: filter out hrDismissed schedules so they don't show
+        // in the staff's active/assigned schedule list.
+        // They still exist in the DB and appear in Schedule History.
+        _schedules = schedules.where((s) => !s.hrDismissed).toList();
         _isLoading = false;
       });
     } catch (error) {
@@ -123,29 +125,21 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
 
   String _formatDate(DateTime date) => DateFormat('dd/MM/yyyy').format(date);
 
-  // ✅ Resolve the display badge for a schedule considering exchange status
   _ScheduleBadge _resolveBadge(Schedule schedule) {
     final exchangesProvider =
         Provider.of<ScheduleExchanges>(context, listen: false);
     final exchange = exchangesProvider.findByScheduleId(schedule.schedId);
 
-    // If there's an active/recent exchange, exchange status takes priority
     if (exchange != null) {
       switch (exchange.status) {
-        case 0: // waiting target response
-          return _ScheduleBadge('🔄 Exchange Requested', Colors.blue);
-        case 1: // target accepted, waiting HR
-          return _ScheduleBadge('⏳ Waiting HR Approval', Colors.orange);
-        case 2: // target rejected exchange
-          return _ScheduleBadge('❌ Exchange Rejected', Colors.red);
-        case 3: // HR approved — swap done
-          return _ScheduleBadge('✅ Exchanged', Colors.green);
-        case 4: // HR rejected
-          return _ScheduleBadge('❌ Exchange Denied', Colors.red);
+        case 0: return _ScheduleBadge('🔄 Exchange Requested', Colors.blue);
+        case 1: return _ScheduleBadge('⏳ Waiting HR Approval', Colors.orange);
+        case 2: return _ScheduleBadge('❌ Exchange Rejected', Colors.red);
+        case 3: return _ScheduleBadge('✅ Exchanged', Colors.green);
+        case 4: return _ScheduleBadge('❌ Exchange Denied', Colors.red);
       }
     }
 
-    // No exchange — show acceptance status
     switch (schedule.acceptanceStatus) {
       case 1:  return _ScheduleBadge('✅ Accepted', Colors.green);
       case 2:  return _ScheduleBadge('❌ Rejected', Colors.red);
@@ -323,7 +317,6 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
                                     branchColor = Colors.grey;
                                 }
 
-                                // ✅ Resolve badge (exchange takes priority)
                                 final badge = _resolveBadge(schedule);
 
                                 return Container(
@@ -358,7 +351,6 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
                                     subtitle: Padding(
                                       padding: const EdgeInsets.only(top: 8.0),
                                       child: Row(children: [
-                                        // Branch tag
                                         Container(
                                           padding: const EdgeInsets.symmetric(
                                               horizontal: 8, vertical: 4),
@@ -373,7 +365,6 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
                                                   fontWeight: FontWeight.bold)),
                                         ),
                                         const SizedBox(width: 8),
-                                        // ✅ Status badge
                                         _buildStatusBadge(badge),
                                       ]),
                                     ),
@@ -414,7 +405,6 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
                                               _detailRow(Icons.coffee_rounded,
                                                   'Break',
                                                   '${schedule.breakStartTime ?? 'N/A'} - ${schedule.breakEndTime ?? 'N/A'}'),
-                                              // ✅ Status row in dialog
                                               _detailRow(
                                                   Icons.info_outline_rounded,
                                                   'Status',
@@ -483,7 +473,6 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
   }
 }
 
-// ── Simple data class for badge label + color ─────────────────────────────────
 class _ScheduleBadge {
   final String label;
   final Color color;

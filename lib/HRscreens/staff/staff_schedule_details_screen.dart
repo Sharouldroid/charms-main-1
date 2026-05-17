@@ -155,7 +155,7 @@ class _StaffScheduleDetailsScreenState
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Reject'),
+            child: const Text('Not Accept'),
           ),
         ],
       ),
@@ -177,7 +177,7 @@ class _StaffScheduleDetailsScreenState
     });
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(success ? '❌ Schedule rejected.' : 'Failed to reject.'),
+      content: Text(success ? '❌ Schedule Not Accepted.' : 'Failed to reject.'),
       backgroundColor: success ? Colors.redAccent : Colors.grey,
     ));
 
@@ -409,7 +409,7 @@ class _StaffScheduleDetailsScreenState
                           ),
                           onPressed: _isLoading ? null : _handleReject,
                           icon: const Icon(Icons.cancel_rounded, size: 18),
-                          label: const Text('Reject', style: TextStyle(fontWeight: FontWeight.bold)),
+                          label: const Text('Not Accept', style: TextStyle(fontWeight: FontWeight.bold)),
                         ),
                       ),
                     ]),
@@ -546,7 +546,7 @@ class _StaffScheduleDetailsScreenState
                   child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                     Icon(Icons.block_rounded, color: Colors.redAccent),
                     SizedBox(width: 10),
-                    Text('Schedule Rejected — Cannot clock in.',
+                    Text('Schedule Not Accepted — Cannot clock in.',
                         style: TextStyle(color: Colors.redAccent,
                             fontWeight: FontWeight.bold, fontSize: 14)),
                   ]),
@@ -578,8 +578,8 @@ class _StaffScheduleDetailsScreenState
   String get _acceptanceText {
     switch (_acceptanceStatus) {
       case 1:  return 'Accepted — You confirmed this schedule';
-      case 2:  return 'Rejected — You declined this schedule';
-      default: return 'Pending — Please accept or reject this schedule';
+      case 2:  return 'Not Accepted — You declined this schedule';
+      default: return 'Pending — Please accept or not accept this schedule';
     }
   }
 

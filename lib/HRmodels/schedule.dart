@@ -8,6 +8,7 @@ class Schedule {
   final int workLocation; // 1: Chagar Hutang, 2: Turtle Lab, 3: UMT
   final int staffType; // 1: Permanent Staff, 2: Intern
   final int? internSlot; // 1-4 for interns, null for permanent staff
+  final bool hrDismissed; // true if HR dismissed the schedule, false otherwise
   
   // For permanent staff
   final String? workStartTime;
@@ -37,6 +38,7 @@ class Schedule {
     this.breakPeriods,
     this.acceptanceStatus = 0,
     this.staffNote,
+    this.hrDismissed = false,
   });
 
   factory Schedule.fromJson(Map<String, dynamic> json) {
@@ -64,6 +66,7 @@ class Schedule {
         : null,
         acceptanceStatus: int.tryParse(json['acceptance_status']?.toString() ?? '') ?? 0,
       staffNote: json['staff_note'],
+       hrDismissed:      (json['hr_dismissed'] as bool?) ?? false,
   );
 }
 
@@ -83,6 +86,7 @@ class Schedule {
       'break_periods': breakPeriods?.map((period) => period.toJson()).toList(),
        'acceptance_status': acceptanceStatus,
       'staff_note':      staffNote,
+      'hr_dismissed': hrDismissed,
     };
   }
 }

@@ -233,4 +233,54 @@ class Schedules with ChangeNotifier {
       return false;
     }
   }
+
+  // Dismiss a rejected schedule (HR side — sets hr_dismissed = true, does NOT delete)
+  Future<void> dismissSchedule(int schedId) async {
+    try {
+      final url = Uri.parse('$_hostname/staff-schedule/$schedId/dismiss');
+
+      debugPrint('DISMISS SCHEDULE URL: $url');
+
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: json.encode({'hr_dismissed': true}),
+      );
+
+      debugPrint('DISMISS SCHEDULE STATUS: ${response.statusCode}');
+      debugPrint('DISMISS SCHEDULE RESPONSE: ${response.body}');
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to dismiss schedule: ${response.body}');
+      }
+
+      // Optimistically update local list so UI refreshes immediately
+      final index = _schedules.indexWhere((s) => s.schedId == schedId);
+      if (index != -1) {
+        final old = _schedules[index];
+        _schedules[index] = Schedule(
+          schedId:          old.schedId,
+          staffId:          old.staffId,
+          workDate:         old.workDate,
+          workLocation:     old.workLocation,
+          staffType:        old.staffType,
+          internSlot:       old.internSlot,
+          workStartTime:    old.workStartTime,
+          workEndTime:      old.workEndTime,
+          breakStartTime:   old.breakStartTime,
+          breakEndTime:     old.breakEndTime,
+          acceptanceStatus: old.acceptanceStatus,
+          staffNote:        old.staffNote,
+          hrDismissed:      true,
+        );
+        notifyListeners();
+      }
+    } catch (error) {
+      debugPrint('Error dismissing schedule: $error');
+      rethrow;
+    }
+  }
 }
