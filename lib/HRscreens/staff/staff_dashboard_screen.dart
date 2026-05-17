@@ -19,6 +19,7 @@ import 'package:charms/constants/user_roles.dart';
 import 'package:charms/HRproviders/auth.dart' as hr_auth;
 import 'package:charms/utils/logout_helper.dart';
 import 'dart:async';
+import 'package:charms/HRproviders/schedule_exchanges.dart';
 import 'package:charms/HRscreens/staff/staff_attendance_history_screen.dart';
 
 class StaffDashboardScreen extends StatefulWidget {
@@ -220,58 +221,64 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                 );
               },
             ),
-          Consumer3<Leaves, Claims, Schedules>(
-            builder: (context, leaves, claims, schedules, child) {
-              int staffId = _currentStaff?.staffId ?? 0;
+          Consumer4<Leaves, Claims, Schedules, ScheduleExchanges>(
+          builder: (context, leaves, claims, schedules, exchanges, child) {
+            int staffId = _currentStaff?.staffId ?? 0;
 
-              if (staffId == 0) {
-                return const Icon(Icons.notifications_none_rounded);
-              }
+            if (staffId == 0) {
+              return const Icon(Icons.notifications_none_rounded);
+            }
 
-              int resolvedLeaves = leaves.leaves
-                  .where(
-                      (l) => l.staffId == staffId && l.status != 'Pending')
-                  .length;
+            // ── Exact same filters as StaffNotificationScreen ──────────────
+            final resolvedLeaves = leaves.leaves
+                .where((l) => l.staffId == staffId && l.status != 'Pending')
+                .length;
 
-              int resolvedClaims = claims.claims
-                  .where(
-                      (c) => c.staffId == staffId && c.status != 'Pending')
-                  .length;
+            final resolvedClaims = claims.claims
+                .where((c) => c.staffId == staffId && c.status != 'Pending')
+                .length;
 
-              int assignedSchedules = schedules.schedules
-                  .where((s) => s.staffId == staffId)
-                  .length;
+            final assignedSchedules = schedules.schedules
+                .where((s) => s.staffId == staffId)
+                .length;
 
-              int totalNotifications =
-                  resolvedLeaves + resolvedClaims + assignedSchedules;
+            // Incoming exchange requests (I am target, pending my response)
+            final incomingExchanges = exchanges.exchanges
+                .where((e) => e.targetId == staffId && e.status == 0)
+                .length;
 
-              return IconButton(
-                icon: totalNotifications > 0
-                    ? Badge(
-                        label: Text(totalNotifications.toString()),
-                        backgroundColor: Colors.redAccent,
-                        child:
-                            const Icon(Icons.notifications_active_rounded),
-                      )
-                    : const Icon(Icons.notifications_none_rounded),
-                // ✅ Fix 3 — await result and refresh if notified
-                onPressed: () async {
-                  final result = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => StaffNotificationScreen(
-                        staffId: _currentStaff?.staffId ?? 0,
-                      ),
+            // My sent exchanges with a status update
+            final myExchanges = exchanges.exchanges
+                .where((e) => e.requesterId == staffId && e.status != 0)
+                .length;
+
+            final totalNotifications = resolvedLeaves + resolvedClaims +
+                assignedSchedules + incomingExchanges + myExchanges;
+
+            return IconButton(
+              icon: totalNotifications > 0
+                  ? Badge(
+                      label: Text(totalNotifications.toString()),
+                      backgroundColor: Colors.redAccent,
+                      child: const Icon(Icons.notifications_active_rounded),
+                    )
+                  : const Icon(Icons.notifications_none_rounded),
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => StaffNotificationScreen(
+                      staffId: _currentStaff?.staffId ?? 0,
                     ),
-                  );
-                  // ✅ Refresh dashboard if notification screen signals so
-                  if (result != null && result['refreshDashboard'] == true) {
-                    await _loadStaffData();
-                  }
-                },
-              );
-            },
-          ),
+                  ),
+                );
+                if (result != null && result['refreshDashboard'] == true) {
+                  await _loadStaffData();
+                }
+              },
+            );
+          },
+        ),
           IconButton(
             icon: const Icon(Icons.logout_rounded),
             tooltip: 'Logout',

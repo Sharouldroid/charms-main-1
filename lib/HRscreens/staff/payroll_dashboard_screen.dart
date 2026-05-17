@@ -18,6 +18,7 @@ import 'package:provider/provider.dart';
 //import 'package:charms/providers/auth.dart' as app_auth;
 //import 'package:charms/screens/auth_screen.dart';
 import 'package:charms/utils/logout_helper.dart';
+import 'package:charms/HRproviders/schedule_exchanges.dart';
 
 class PayrollDashboardScreen extends StatefulWidget {
   final String username;
@@ -206,8 +207,8 @@ class _PayrollDashboardScreenState extends State<PayrollDashboardScreen> {
         automaticallyImplyLeading: false,
         actions: [
           // ── Notification badge — same logic as StaffDashboard ────────────
-          Consumer3<Leaves, Claims, Schedules>(
-            builder: (context, leaves, claims, schedules, child) {
+          Consumer4<Leaves, Claims, Schedules, ScheduleExchanges>(
+            builder: (context, leaves, claims, schedules, exchanges, child) {
               int staffId = _currentStaff?.staffId ?? 0;
 
               int resolvedLeaves = leaves.leaves
@@ -222,16 +223,23 @@ class _PayrollDashboardScreenState extends State<PayrollDashboardScreen> {
                   .where((s) => s.staffId == staffId)
                   .length;
 
-              int totalNotifications =
-                  resolvedLeaves + resolvedClaims + assignedSchedules;
+              int incomingExchanges = exchanges.exchanges
+                  .where((e) => e.targetId == staffId && e.status == 0)
+                  .length;
+
+              int myExchangeUpdates = exchanges.exchanges
+                  .where((e) => e.requesterId == staffId && e.status != 0)
+                  .length;
+
+              int totalNotifications = resolvedLeaves + resolvedClaims +
+                  assignedSchedules + incomingExchanges + myExchangeUpdates;
 
               return IconButton(
                 icon: totalNotifications > 0
                     ? Badge(
                         label: Text(totalNotifications.toString()),
                         backgroundColor: Colors.redAccent,
-                        child:
-                            const Icon(Icons.notifications_active_rounded),
+                        child: const Icon(Icons.notifications_active_rounded),
                       )
                     : const Icon(Icons.notifications_none_rounded),
                 onPressed: () {

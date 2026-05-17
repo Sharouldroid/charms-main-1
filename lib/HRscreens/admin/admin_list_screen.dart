@@ -12,6 +12,8 @@ import 'package:charms/HRwidgets/admin/bottom_nav_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:charms/utils/logout_helper.dart';
+import 'package:charms/HRproviders/schedule_exchanges.dart';
+import 'package:charms/HRproviders/schedules.dart';
 
 
 class AdminListScreen extends StatefulWidget {
@@ -343,31 +345,34 @@ class _AdminListScreenState extends State<AdminListScreen> {
               BorderRadius.vertical(bottom: Radius.circular(20)),
         ),
         actions: [
-          Consumer3<Leaves, Payments, Claims>(
-            builder: (context, leaves, payments, claims, child) {
-              final total =
-                  leaves.leaves.where((l) => l.status == 'Pending').length +
-                  payments.payments
-                      .where((p) => p.status == 'Pending')
-                      .length +
-                  claims.claims.where((c) => c.status == 'Pending').length;
-              return IconButton(
-                icon: total > 0
-                    ? Badge(
-                        label: Text(total.toString()),
-                        backgroundColor: Colors.redAccent,
-                        child: const Icon(
-                            Icons.notifications_none_rounded, size: 26),
-                      )
-                    : const Icon(
-                        Icons.notifications_none_rounded, size: 26),
-                onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const NotificationScreen())),
-              );
-            },
-          ),
+          Consumer6<Leaves, Payments, Claims, ScheduleExchanges, Schedules, Staffs>(
+  builder: (context, leaves, payments, claims, exchanges, schedules, staffs, child) {
+    
+    // ── Exact same logic as NotificationScreen ──────────────
+    final pendingLeaves      = leaves.leaves.where((l) => l.status == 'Pending').length;
+    final pendingPayrolls    = payments.payments.where((p) => p.status == 'Pending').length;
+    final pendingClaims      = claims.claims.where((c) => c.status == 'Pending').length;
+    final pendingExchanges   = exchanges.exchanges.where((e) => e.status == 1).length;
+    final rejectedSchedules  = schedules.schedules
+        .where((s) => s.acceptanceStatus == 2 && !s.hrDismissed) // ← same filter
+        .length;
+
+    final totalPending = pendingLeaves + pendingPayrolls +
+        pendingClaims + pendingExchanges + rejectedSchedules;
+
+    return IconButton(
+      icon: totalPending > 0
+          ? Badge(
+              label: Text(totalPending.toString()),
+              backgroundColor: Colors.redAccent,
+              child: const Icon(Icons.notifications_none_rounded, size: 26),
+            )
+          : const Icon(Icons.notifications_none_rounded, size: 26),
+      onPressed: () => Navigator.push(context,
+          MaterialPageRoute(builder: (_) => const NotificationScreen())),
+    );
+  },
+),
           IconButton(
             icon: const Icon(Icons.logout_rounded),
             tooltip: 'Logout',

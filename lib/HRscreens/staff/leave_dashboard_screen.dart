@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:charms/utils/logout_helper.dart';
+import 'package:charms/HRproviders/schedule_exchanges.dart';
 
 class LeaveDashboardScreen extends StatefulWidget {
   final String username;
@@ -735,28 +736,29 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
         backgroundColor: staffPrimary,
         centerTitle: true,
         actions: [
-          Consumer3<Leaves, Claims, Schedules>(
-            builder: (context, leaves, claims, schedules, child) {
-              final total =
-                  leaves.leaves.where((l) =>
-                      l.staffId == widget.staffId && l.status != 'Pending').length +
-                  claims.claims.where((c) =>
-                      c.staffId == widget.staffId && c.status != 'Pending').length +
-                  schedules.schedules.where((s) => s.staffId == widget.staffId).length;
-              return IconButton(
-                icon: total > 0
-                    ? Badge(
-                        label: Text(total.toString()),
-                        backgroundColor: Colors.redAccent,
-                        child: const Icon(Icons.notifications_active_rounded))
-                    : const Icon(Icons.notifications_none_rounded),
-                onPressed: () => Navigator.push(context,
-                    MaterialPageRoute(
-                        builder: (_) => StaffNotificationScreen(
-                            staffId: widget.staffId))),
-              );
-            },
-          ),
+          Consumer4<Leaves, Claims, Schedules, ScheduleExchanges>(
+          builder: (context, leaves, claims, schedules, exchanges, child) {
+            final total =
+                leaves.leaves.where((l) => l.staffId == widget.staffId && l.status != 'Pending').length +
+                claims.claims.where((c) => c.staffId == widget.staffId && c.status != 'Pending').length +
+                schedules.schedules.where((s) => s.staffId == widget.staffId).length +
+                exchanges.exchanges.where((e) => e.targetId == widget.staffId && e.status == 0).length +
+                exchanges.exchanges.where((e) => e.requesterId == widget.staffId && e.status != 0).length;
+
+            return IconButton(
+              icon: total > 0
+                  ? Badge(
+                      label: Text(total.toString()),
+                      backgroundColor: Colors.redAccent,
+                      child: const Icon(Icons.notifications_active_rounded))
+                  : const Icon(Icons.notifications_none_rounded),
+              onPressed: () => Navigator.push(context,
+                  MaterialPageRoute(
+                      builder: (_) => StaffNotificationScreen(
+                          staffId: widget.staffId))),
+            );
+          },
+        ),
           IconButton(
               icon: const Icon(Icons.logout_rounded), onPressed: _logout),
           const SizedBox(width: 8),

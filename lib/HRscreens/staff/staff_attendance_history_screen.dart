@@ -48,7 +48,7 @@ class _StaffAttendanceHistoryScreenState
   Future<void> _loadHistory() async {
     setState(() => _isLoading = true);
     try {
-      final attProvider  = Provider.of<Attendances>(context, listen: false);
+      final attProvider   = Provider.of<Attendances>(context, listen: false);
       final schedProvider = Provider.of<Schedules>(context, listen: false);
 
       final results = await Future.wait([
@@ -73,9 +73,7 @@ class _StaffAttendanceHistoryScreenState
   }
 
   // ── Build a unified day-by-day list ──────────────────────────────────────────
-  // Each item represents one scheduled work day with its attendance status.
   List<Map<String, dynamic>> get _mergedRecords {
-    // Filter schedules for selected month/year
     final schedulesThisMonth = _allSchedules.where((s) {
       return s.workDate.month == _selectedMonth &&
           s.workDate.year == _selectedYear;
@@ -84,34 +82,34 @@ class _StaffAttendanceHistoryScreenState
     final now = DateTime.now();
 
     return schedulesThisMonth.map((schedule) {
-      // Find matching attendance record for this schedule
       final attendance = _allRecords.cast<Map<String, dynamic>?>().firstWhere(
             (r) => r!['schedule_id']?.toString() == schedule.schedId.toString(),
             orElse: () => null,
           );
 
       if (attendance != null) {
-        // Attendance record exists — use it directly
         return {
           ...attendance,
-          '_schedule': schedule,
+          '_schedule':     schedule,
           '_display_date': schedule.workDate,
         };
       } else {
-        // No attendance record for this schedule
         final isToday = schedule.workDate.year == now.year &&
             schedule.workDate.month == now.month &&
             schedule.workDate.day == now.day;
-        final isPast  = schedule.workDate.isBefore(
+        final isPast = schedule.workDate.isBefore(
             DateTime(now.year, now.month, now.day));
+
+        // ── FIX: check if staff rejected this schedule ──────────────────────
+        final isRejected = schedule.acceptanceStatus == 2;
 
         return {
           'attendance_id':     null,
           'staff_id':          widget.staffId,
           'schedule_id':       schedule.schedId,
-          'attendance_status': isPast && !isToday ? -1 : 0,
-          // -1 = missed/no clock-in (past)
-          //  0 = upcoming / today not clocked in yet
+          'attendance_status': isRejected
+              ? -2                              // -2 = staff did not accept
+              : isPast && !isToday ? -1 : 0,   // -1 = missed, 0 = upcoming
           'clock_in_time':     null,
           'clock_out_time':    null,
           'clock_in_location': null,
@@ -131,7 +129,7 @@ class _StaffAttendanceHistoryScreenState
   int get _totalPresent  => _mergedRecords.where((r) => r['attendance_status'] == 2).length;
   int get _totalAbsent   => _mergedRecords.where((r) => r['attendance_status'] == 1).length;
   int get _totalMissed   => _mergedRecords.where((r) => r['attendance_status'] == -1).length;
-  int get _totalUpcoming => _mergedRecords.where((r) => r['attendance_status'] == 0).length;
+  // Note: -2 (Not Accepted) is intentionally excluded from all summary counters
 
   Duration _workDuration(Map<String, dynamic> r) {
     final inTime  = DateTime.tryParse(r['clock_in_time']?.toString() ?? '');
@@ -153,31 +151,34 @@ class _StaffAttendanceHistoryScreenState
   // ── Status helpers ────────────────────────────────────────────────────────────
   String _getStatusText(int? status) {
     switch (status) {
-      case 2:  return 'Present';
-      case 1:  return 'Absent';
-      case -1: return 'No Clock-In';  // ← had a schedule, didn't show up
-      case 0:  return 'Upcoming';
-      default: return 'Unknown';
+      case  2:  return 'Present';
+      case  1:  return 'Absent';
+      case -1:  return 'No Clock-In';
+      case  0:  return 'Upcoming';
+      case -2:  return 'Not Accepted';   // ← staff rejected this schedule
+      default:  return 'Unknown';
     }
   }
 
   Color _getStatusColor(int? status) {
     switch (status) {
-      case 2:  return Colors.teal;
-      case 1:  return Colors.redAccent;
-      case -1: return Colors.orange;   // ← orange — missed but not officially absent
-      case 0:  return Colors.blueGrey;
-      default: return Colors.grey;
+      case  2:  return Colors.teal;
+      case  1:  return Colors.redAccent;
+      case -1:  return Colors.orange;
+      case  0:  return Colors.blueGrey;
+      case -2:  return Colors.grey;      // ← neutral grey for rejected
+      default:  return Colors.grey;
     }
   }
 
   IconData _getStatusIcon(int? status) {
     switch (status) {
-      case 2:  return Icons.check_circle_rounded;
-      case 1:  return Icons.cancel_rounded;
-      case -1: return Icons.warning_amber_rounded;
-      case 0:  return Icons.schedule_rounded;
-      default: return Icons.help_outline_rounded;
+      case  2:  return Icons.check_circle_rounded;
+      case  1:  return Icons.cancel_rounded;
+      case -1:  return Icons.warning_amber_rounded;
+      case  0:  return Icons.schedule_rounded;
+      case -2:  return Icons.block_rounded;   // ← blocked icon for rejected
+      default:  return Icons.help_outline_rounded;
     }
   }
 
@@ -220,8 +221,7 @@ class _StaffAttendanceHistoryScreenState
                 slivers: [
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding:
-                          const EdgeInsets.fromLTRB(16, 20, 16, 0),
+                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
                       child: Column(
                         children: [
                           // ── Month + Year selector ───────────────────────────
@@ -242,8 +242,7 @@ class _StaffAttendanceHistoryScreenState
                                           child: Text(_months[i],
                                               style: const TextStyle(
                                                   fontSize: 13,
-                                                  fontWeight:
-                                                      FontWeight.w600)),
+                                                  fontWeight: FontWeight.w600)),
                                         );
                                       }),
                                       onChanged: (v) =>
@@ -267,8 +266,7 @@ class _StaffAttendanceHistoryScreenState
                                         child: Text(y.toString(),
                                             style: const TextStyle(
                                                 fontSize: 13,
-                                                fontWeight:
-                                                    FontWeight.w600)),
+                                                fontWeight: FontWeight.w600)),
                                       );
                                     }),
                                     onChanged: (v) =>
@@ -370,12 +368,10 @@ class _StaffAttendanceHistoryScreenState
                           ),
                         )
                       : SliverPadding(
-                          padding:
-                              const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
                           sliver: SliverList(
                             delegate: SliverChildBuilderDelegate(
-                              (ctx, i) =>
-                                  _buildHistoryCard(merged[i]),
+                              (ctx, i) => _buildHistoryCard(merged[i]),
                               childCount: merged.length,
                             ),
                           ),
@@ -452,8 +448,10 @@ class _StaffAttendanceHistoryScreenState
               ? Colors.orange.withOpacity(0.4)
               : status == 1
                   ? Colors.redAccent.withOpacity(0.4)
-                  : staffCardBorder,
-          width: (status == -1 || status == 1) ? 1.5 : 1.0,
+                  : status == -2
+                      ? Colors.grey.withOpacity(0.3)   // ← subtle border for rejected
+                      : staffCardBorder,
+          width: (status == -1 || status == 1 || status == -2) ? 1.5 : 1.0,
         ),
       ),
       child: Padding(
@@ -552,8 +550,33 @@ class _StaffAttendanceHistoryScreenState
 
                   const SizedBox(height: 6),
 
-                  // Status-specific content
-                  if (status == -1)
+                  // ── Status-specific content ─────────────────────────────────
+                  if (status == -2)
+                    // Staff did not accept this schedule
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.block_rounded,
+                              size: 13, color: Colors.grey),
+                          SizedBox(width: 6),
+                          Text(
+                            'Schedule not accepted',
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                                fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (status == -1)
                     // No clock-in — had schedule but missed
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -562,13 +585,13 @@ class _StaffAttendanceHistoryScreenState
                         color: Colors.orange.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Row(
+                      child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.warning_amber_rounded,
+                          Icon(Icons.warning_amber_rounded,
                               size: 13, color: Colors.orange),
-                          const SizedBox(width: 6),
-                          const Text(
+                          SizedBox(width: 6),
+                          Text(
                             'Did not clock in — contact HR',
                             style: TextStyle(
                                 fontSize: 12,

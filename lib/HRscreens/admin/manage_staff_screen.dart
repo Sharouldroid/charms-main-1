@@ -15,7 +15,10 @@ import 'package:charms/HRproviders/claims.dart';
 import 'package:charms/HRproviders/leaves.dart';
 import 'package:charms/HRproviders/payments.dart';
 //import 'package:charms/HRproviders/auth.dart' as hr_auth;
-import 'package:charms/utils/logout_helper.dart'; // ← replaces inline logout
+import 'package:charms/utils/logout_helper.dart';
+import 'package:charms/HRproviders/schedule_exchanges.dart';
+import 'package:charms/HRproviders/schedules.dart';
+import 'package:charms/HRproviders/staffs.dart';
 
 class ManageStaffScreen extends StatefulWidget {
   final String username;
@@ -121,36 +124,34 @@ class _ManageStaffScreenState extends State<ManageStaffScreen> {
         ),
         actions: [
           // ── Notification badge ─────────────────────────────────────────────
-          Consumer3<Leaves, Payments, Claims>(
-            builder: (context, leaves, payments, claims, child) {
-              int pendingLeaves =
-                  leaves.leaves.where((l) => l.status == 'Pending').length;
-              int pendingPayrolls =
-                  payments.payments.where((p) => p.status == 'Pending').length;
-              int pendingClaims =
-                  claims.claims.where((c) => c.status == 'Pending').length;
-              int totalPending =
-                  pendingLeaves + pendingPayrolls + pendingClaims;
+          Consumer6<Leaves, Payments, Claims, ScheduleExchanges, Schedules, Staffs>(
+          builder: (context, leaves, payments, claims, exchanges, schedules, staffs, child) {
+            
+            // ── Exact same logic as NotificationScreen ──────────────
+            final pendingLeaves      = leaves.leaves.where((l) => l.status == 'Pending').length;
+            final pendingPayrolls    = payments.payments.where((p) => p.status == 'Pending').length;
+            final pendingClaims      = claims.claims.where((c) => c.status == 'Pending').length;
+            final pendingExchanges   = exchanges.exchanges.where((e) => e.status == 1).length;
+            final rejectedSchedules  = schedules.schedules
+                .where((s) => s.acceptanceStatus == 2 && !s.hrDismissed) // ← same filter
+                .length;
 
-              return IconButton(
-                icon: totalPending > 0
-                    ? Badge(
-                        label: Text(totalPending.toString()),
-                        backgroundColor: Colors.redAccent,
-                        child: const Icon(
-                            Icons.notifications_none_rounded, size: 26),
-                      )
-                    : const Icon(Icons.notifications_none_rounded, size: 26),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const NotificationScreen()),
-                  );
-                },
-              );
-            },
-          ),
+            final totalPending = pendingLeaves + pendingPayrolls +
+                pendingClaims + pendingExchanges + rejectedSchedules;
+
+            return IconButton(
+              icon: totalPending > 0
+                  ? Badge(
+                      label: Text(totalPending.toString()),
+                      backgroundColor: Colors.redAccent,
+                      child: const Icon(Icons.notifications_none_rounded, size: 26),
+                    )
+                  : const Icon(Icons.notifications_none_rounded, size: 26),
+              onPressed: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const NotificationScreen())),
+            );
+          },
+        ),
           IconButton(
             icon: const Icon(Icons.logout_rounded),
             tooltip: 'Back to Login',

@@ -306,36 +306,34 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             tooltip: 'Switch View',
             onPressed: _showSwitchMenu,
           ),
-          Consumer4<Leaves, Payments, Claims, ScheduleExchanges>(
-            builder: (context, leaves, payments, claims, exchanges, child) {
-              final schedulesProvider =
-                  Provider.of<Schedules>(context, listen: false);
+          Consumer6<Leaves, Payments, Claims, ScheduleExchanges, Schedules, Staffs>(
+          builder: (context, leaves, payments, claims, exchanges, schedules, staffs, child) {
+            
+            // ── Exact same logic as NotificationScreen ──────────────
+            final pendingLeaves      = leaves.leaves.where((l) => l.status == 'Pending').length;
+            final pendingPayrolls    = payments.payments.where((p) => p.status == 'Pending').length;
+            final pendingClaims      = claims.claims.where((c) => c.status == 'Pending').length;
+            final pendingExchanges   = exchanges.exchanges.where((e) => e.status == 1).length;
+            final rejectedSchedules  = schedules.schedules
+                .where((s) => s.acceptanceStatus == 2 && !s.hrDismissed) // ← same filter
+                .length;
 
-              int pendingLeaves      = leaves.leaves.where((l) => l.status == 'Pending').length;
-              int pendingPayrolls    = payments.payments.where((p) => p.status == 'Pending').length;
-              int pendingClaimsCount = claims.claims.where((c) => c.status == 'Pending').length;
-              int pendingExchanges   = exchanges.exchanges.where((e) => e.status == 1).length;
-              int rejectedSchedules  = schedulesProvider.schedules
-                  .where((s) => s.acceptanceStatus == 2)
-                  .length;
-              int totalPending = pendingLeaves + pendingPayrolls +
-                  pendingClaimsCount + pendingExchanges + rejectedSchedules;
+            final totalPending = pendingLeaves + pendingPayrolls +
+                pendingClaims + pendingExchanges + rejectedSchedules;
 
-              return IconButton(
-                icon: totalPending > 0
-                    ? Badge(
-                        label: Text(totalPending.toString()),
-                        backgroundColor: Colors.redAccent,
-                        child: const Icon(Icons.notifications_none_rounded,
-                            size: 26),
-                      )
-                    : const Icon(Icons.notifications_none_rounded, size: 26),
-                onPressed: () => Navigator.push(context,
-                    MaterialPageRoute(
-                        builder: (_) => const NotificationScreen())),
-              );
-            },
-          ),
+            return IconButton(
+              icon: totalPending > 0
+                  ? Badge(
+                      label: Text(totalPending.toString()),
+                      backgroundColor: Colors.redAccent,
+                      child: const Icon(Icons.notifications_none_rounded, size: 26),
+                    )
+                  : const Icon(Icons.notifications_none_rounded, size: 26),
+              onPressed: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const NotificationScreen())),
+            );
+          },
+        ),
           IconButton(
             icon: const Icon(Icons.logout_rounded),
             tooltip: 'Back to Login',
