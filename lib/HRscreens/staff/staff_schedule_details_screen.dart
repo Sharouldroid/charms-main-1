@@ -443,7 +443,10 @@ class _StaffScheduleDetailsScreenState
                   ],
 
                   // Exchange button — only when Accepted and not past
-                  if (_acceptanceStatus == 1 && !isPast) ...[
+                  if (_acceptanceStatus == 1 &&
+                      !isPast &&
+                      !isClockIn &&
+                      !isClockOut) ...[
                     const SizedBox(height: 12),
                     SizedBox(
                       width: double.infinity,
@@ -451,13 +454,17 @@ class _StaffScheduleDetailsScreenState
                         style: OutlinedButton.styleFrom(
                           foregroundColor: _primaryBlue,
                           side: BorderSide(color: _primaryBlue),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                         onPressed: _handleExchange,
                         icon: const Icon(Icons.swap_horiz_rounded, size: 18),
-                        label: const Text('Request Schedule Exchange',
-                            style: TextStyle(fontWeight: FontWeight.bold)),
+                        label: const Text(
+                          'Request Schedule Exchange',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                       ),
                     ),
                   ],
