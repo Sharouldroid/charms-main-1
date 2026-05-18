@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart'; // ← NEW
 
 import 'package:charms/HRproviders/auth.dart' as hr_auth;
 import 'package:charms/HRproviders/staffs.dart';
@@ -34,20 +35,20 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
 
   final _formKey = GlobalKey<FormState>();
 
-  // ── Palette ──────────────────────────────────────────────────────────────────
+  // ← NEW: store selected DOB as DateTime
+  DateTime? _selectedDob;
+
   final Color staffPrimary = const Color(0xFF4F46E5);
   final Color staffBg = const Color(0xFFF8FAFC);
   final Color staffCardBorder = const Color(0xFFE2E8F0);
 
-  // ── Controllers ──────────────────────────────────────────────────────────────
   late TextEditingController _nameController;
   late TextEditingController _icNumberController;
-  late TextEditingController _dobController;
   late TextEditingController _emailController;
   late TextEditingController _phoneController;
   late TextEditingController _nationalityController;
   late TextEditingController _religionController;
-  late TextEditingController _genderController;          // personal gender
+  late TextEditingController _genderController;
   late TextEditingController _maritalStatusController;
   late TextEditingController _statusController;
   late TextEditingController _addressController;
@@ -61,10 +62,9 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
   late TextEditingController _emergencyNameController;
   late TextEditingController _emergencyIcController;
   late TextEditingController _emergencyRelationController;
-  late TextEditingController _emergencyGenderController;  // emergency gender
+  late TextEditingController _emergencyGenderController;
   late TextEditingController _emergencyPhoneController;
 
-  // ── Dropdown state ───────────────────────────────────────────────────────────
   String? _selectedGender;
   String? _selectedEmergencyGender;
 
@@ -78,7 +78,6 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
   void _initializeControllers() {
     _nameController = TextEditingController();
     _icNumberController = TextEditingController();
-    _dobController = TextEditingController();
     _emailController = TextEditingController();
     _phoneController = TextEditingController();
     _nationalityController = TextEditingController();
@@ -133,7 +132,6 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
 
     _nameController.text = "${_currentStaff!.firstname} ${_currentStaff!.lastname}";
     _icNumberController.text = _currentStaff!.idNum;
-    _dobController.text = _currentStaff!.dob;
     _emailController.text = _currentStaff!.email;
     _phoneController.text = _currentStaff!.phone;
     _nationalityController.text = _currentStaff!.nationality;
@@ -153,13 +151,40 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
     _emergencyRelationController.text = _currentStaff!.emergencyRelation;
     _emergencyPhoneController.text = _currentStaff!.emergencyPhone;
 
-    // ── Personal gender — from staff's own gender field ──────────────────────
     _selectedGender = _currentStaff!.gender == 1 ? "Male" : "Female";
     _genderController.text = _selectedGender!;
 
-    // ── Emergency gender — separate field ────────────────────────────────────
     _selectedEmergencyGender = _currentStaff!.emergencyGender == 1 ? "Male" : "Female";
     _emergencyGenderController.text = _selectedEmergencyGender!;
+
+    // ← NEW: parse stored dob string into DateTime
+    try {
+      _selectedDob = DateFormat('yyyy-MM-dd').parse(_currentStaff!.dob);
+    } catch (_) {
+      try {
+        _selectedDob = DateFormat('dd/MM/yyyy').parse(_currentStaff!.dob);
+      } catch (_) {
+        _selectedDob = null;
+      }
+    }
+  }
+
+  // ← NEW: date picker for DOB
+  Future<void> _selectDob() async {
+    if (!_isEditing) return;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDob ?? DateTime(1990),
+      firstDate: DateTime(1950),
+      lastDate: DateTime.now(),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: ColorScheme.light(primary: staffPrimary),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) setState(() => _selectedDob = picked);
   }
 
   Future<void> _pickImage() async {
@@ -181,8 +206,20 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
   Future<void> _updateStaffInfo() async {
     if (!_formKey.currentState!.validate() || _currentStaff == null) return;
 
+    // ← NEW: validate DOB selected
+    if (_selectedDob == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Please select your date of birth.'),
+        backgroundColor: Colors.redAccent,
+      ));
+      return;
+    }
+
     try {
       setState(() => _isLoading = true);
+
+      // ← NEW: format DOB as yyyy-MM-dd for backend
+      final dobForApi = DateFormat('yyyy-MM-dd').format(_selectedDob!);
 
       final updatedStaff = Staff(
         staffId: _currentStaff!.staffId,
@@ -199,16 +236,14 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
         religion: _religionController.text,
         maritalStatus: _maritalStatusController.text == "Single" ? 1 : 2,
         officePhone: _officePhoneController.text,
-        // ── Personal gender (independent) ────────────────────────────────────
         gender: _selectedGender == "Male" ? 1 : 2,
-        // ── Emergency gender (independent) ───────────────────────────────────
         emergencyName: _emergencyNameController.text,
         emergencyIc: _emergencyIcController.text,
         emergencyRelation: _emergencyRelationController.text,
         emergencyGender: _selectedEmergencyGender == "Male" ? 1 : 2,
         emergencyPhone: _emergencyPhoneController.text,
         idNum: _icNumberController.text,
-        dob: _dobController.text,
+        dob: dobForApi, // ← CHANGED: send yyyy-MM-dd
         address1: _addressController.text,
         address2: _address2Controller.text,
         city: _cityController.text,
@@ -296,7 +331,6 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
         context, MaterialPageRoute(builder: (_) => nextScreen));
   }
 
-  // ── Regular text field ───────────────────────────────────────────────────────
   Widget _buildInfoField(
     String label,
     TextEditingController controller,
@@ -317,7 +351,43 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
     );
   }
 
-  // ── Dropdown field (for Gender / Marital Status) ─────────────────────────────
+  // ← NEW: DOB field using date picker
+  Widget _buildDobField() {
+    final bool active = _isEditing;
+    final displayText = _selectedDob != null
+        ? DateFormat('dd MMM yyyy').format(_selectedDob!) // user sees: 25 Feb 2002
+        : 'Tap to select';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: GestureDetector(
+        onTap: _selectDob,
+        child: AbsorbPointer(
+          child: TextFormField(
+            controller: TextEditingController(text: displayText),
+            enabled: active,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: _selectedDob != null
+                  ? const Color(0xFF1E293B)
+                  : Colors.grey.shade400,
+            ),
+            decoration: _buildDecoration(
+                'Date of Birth', Icons.cake_rounded, active).copyWith(
+              suffixIcon: Icon(Icons.calendar_today_rounded,
+                  size: 18,
+                  color: active ? staffPrimary : Colors.grey.shade400),
+            ),
+            validator: (_) => _selectedDob == null && _isEditing
+                ? 'Please select your date of birth'
+                : null,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildDropdownField({
     required String label,
     required IconData icon,
@@ -377,7 +447,6 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
     );
   }
 
-  // ── Section header ───────────────────────────────────────────────────────────
   Widget _buildSectionHeader(String title, IconData icon) {
     return Padding(
       padding: const EdgeInsets.only(top: 8, bottom: 14),
@@ -444,7 +513,7 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
               tooltip: 'Cancel',
               onPressed: () {
                 setState(() => _isEditing = false);
-                _updateControllers(); // reset changes on cancel
+                _updateControllers();
               },
             ),
           if (!_isEditing)
@@ -461,7 +530,6 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
           : SingleChildScrollView(
               child: Column(
                 children: [
-                  // ── Indigo banner ────────────────────────────────────────────
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.only(
@@ -579,7 +647,6 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
                     ),
                   ),
 
-                  // ── Form body ────────────────────────────────────────────────
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 20, 16, 120),
                     child: Form(
@@ -587,15 +654,12 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-
-                          // ── Personal Details ─────────────────────────────────
                           _buildSectionHeader('Personal Details', Icons.person_rounded),
                           _buildInfoField('Full Name', _nameController,
                               Icons.badge_rounded, enabled: true),
                           _buildInfoField('IC Number', _icNumberController,
                               Icons.credit_card_rounded, enabled: true),
-                          _buildInfoField('Date of Birth', _dobController,
-                              Icons.cake_rounded, enabled: true),
+                          _buildDobField(), // ← CHANGED: date picker instead of text field
                           _buildInfoField('Email', _emailController,
                               Icons.email_rounded, enabled: true),
                           _buildInfoField('Phone', _phoneController,
@@ -604,8 +668,6 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
                               Icons.flag_rounded, enabled: true),
                           _buildInfoField('Religion', _religionController,
                               Icons.auto_awesome_rounded, enabled: true),
-
-                          // ── Personal Gender dropdown ──────────────────────────
                           _buildDropdownField(
                             label: 'Gender',
                             icon: Icons.wc_rounded,
@@ -614,8 +676,6 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
                             onChanged: (val) =>
                                 setState(() => _selectedGender = val),
                           ),
-
-                          // ── Marital Status dropdown ───────────────────────────
                           _buildDropdownField(
                             label: 'Marital Status',
                             icon: Icons.favorite_rounded,
@@ -626,13 +686,11 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
                             onChanged: (val) => setState(
                                 () => _maritalStatusController.text = val ?? ''),
                           ),
-
                           _buildInfoField('Status', _statusController,
                               Icons.verified_rounded, enabled: false),
                           _buildInfoField('Occupation', _occupationController,
                               Icons.work_rounded, enabled: true),
 
-                          // ── Address ──────────────────────────────────────────
                           _buildSectionHeader('Address Details', Icons.location_on_rounded),
                           _buildInfoField('Address Line 1', _addressController,
                               Icons.location_on_rounded, enabled: true),
@@ -649,7 +707,6 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
                           _buildInfoField('Office Phone', _officePhoneController,
                               Icons.phone_in_talk_rounded, enabled: true),
 
-                          // ── Emergency Contact ────────────────────────────────
                           _buildSectionHeader('Emergency Contact', Icons.emergency_rounded),
                           _buildInfoField('Contact Name', _emergencyNameController,
                               Icons.person_pin_rounded, enabled: true),
@@ -657,8 +714,6 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
                               Icons.credit_card_rounded, enabled: true),
                           _buildInfoField('Relation', _emergencyRelationController,
                               Icons.people_alt_rounded, enabled: true),
-
-                          // ── Emergency Gender dropdown (separate) ─────────────
                           _buildDropdownField(
                             label: 'Contact Gender',
                             icon: Icons.wc_rounded,
@@ -667,11 +722,9 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
                             onChanged: (val) =>
                                 setState(() => _selectedEmergencyGender = val),
                           ),
-
                           _buildInfoField('Contact Phone', _emergencyPhoneController,
                               Icons.phone_rounded, enabled: true),
 
-                          // ── Change Password ──────────────────────────────────
                           const SizedBox(height: 8),
                           SizedBox(
                             width: double.infinity,
@@ -719,7 +772,6 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
   void dispose() {
     _nameController.dispose();
     _icNumberController.dispose();
-    _dobController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
     _nationalityController.dispose();

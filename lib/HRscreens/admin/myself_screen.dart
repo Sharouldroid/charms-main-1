@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:intl/intl.dart'; // ← NEW
 
 import 'package:charms/HRmodels/staff.dart';
 import 'package:charms/HRmodels/user.dart';
@@ -14,7 +15,7 @@ import 'package:charms/HRwidgets/admin/bottom_nav_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-import 'package:charms/utils/logout_helper.dart'; // ← replaces inline logout
+import 'package:charms/utils/logout_helper.dart';
 
 class MySelfScreen extends StatefulWidget {
   const MySelfScreen({super.key});
@@ -33,13 +34,14 @@ class _MySelfScreenState extends State<MySelfScreen> {
 
   final _formKey = GlobalKey<FormState>();
 
-  // ── Matches AdminDashboard palette ──────────────────────────────────────────
+  // ← NEW: store selected DOB as DateTime
+  DateTime? _selectedDob;
+
   final Color _bgColor = const Color(0xFFF4F7FA);
   final Color _primaryBlue = const Color(0xFF2563EB);
 
   late TextEditingController _firstNameController;
   late TextEditingController _lastNameController;
-  late TextEditingController _dobController;
   late TextEditingController _emailController;
   late TextEditingController _phoneController;
   late TextEditingController _genderController;
@@ -61,7 +63,6 @@ class _MySelfScreenState extends State<MySelfScreen> {
   void _initializeControllers() {
     _firstNameController = TextEditingController();
     _lastNameController = TextEditingController();
-    _dobController = TextEditingController();
     _emailController = TextEditingController();
     _phoneController = TextEditingController();
     _genderController = TextEditingController();
@@ -127,12 +128,25 @@ class _MySelfScreenState extends State<MySelfScreen> {
     }
   }
 
+  // ← HELPER: parse dob string to DateTime
+  DateTime? _parseDob(String dob) {
+    try {
+      return DateFormat('yyyy-MM-dd').parse(dob);
+    } catch (_) {
+      try {
+        return DateFormat('dd/MM/yyyy').parse(dob);
+      } catch (_) {
+        return null;
+      }
+    }
+  }
+
   void _updateControllersWithUserData(User user) {
     _firstNameController.text = user.firstname;
     _lastNameController.text = user.lastname;
     _emailController.text = user.email;
     _phoneController.text = user.phone;
-    _dobController.text = user.dob;
+    _selectedDob = _parseDob(user.dob); // ← CHANGED
     _genderController.text = user.gender == 1 ? 'Male' : 'Female';
     _addressController.text = user.address1;
     _address2Controller.text = user.address2 ?? '';
@@ -149,7 +163,7 @@ class _MySelfScreenState extends State<MySelfScreen> {
     _lastNameController.text = _currentStaff!.lastname;
     _emailController.text = _currentStaff!.email;
     _phoneController.text = _currentStaff!.phone;
-    _dobController.text = _currentStaff!.dob;
+    _selectedDob = _parseDob(_currentStaff!.dob); // ← CHANGED
     _genderController.text =
         _currentStaff!.emergencyGender == 1 ? 'Male' : 'Female';
     _addressController.text = _currentStaff!.address1;
@@ -159,6 +173,24 @@ class _MySelfScreenState extends State<MySelfScreen> {
     _countryController.text = _currentStaff!.country;
     _postcodeController.text = _currentStaff!.postcode.toString();
     _occupationController.text = _currentStaff!.occupation;
+  }
+
+  // ← NEW: date picker for DOB
+  Future<void> _selectDob() async {
+    if (!_isEditing) return;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDob ?? DateTime(1990),
+      firstDate: DateTime(1950),
+      lastDate: DateTime.now(),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: ColorScheme.light(primary: _primaryBlue),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) setState(() => _selectedDob = picked);
   }
 
   Future<void> _pickImage() async {
@@ -178,10 +210,22 @@ class _MySelfScreenState extends State<MySelfScreen> {
   Future<void> _updateStaffInfo() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // ← NEW: validate DOB selected
+    if (_selectedDob == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Please select your date of birth.'),
+        backgroundColor: Colors.redAccent,
+      ));
+      return;
+    }
+
     try {
       setState(() => _isLoading = true);
       final authProvider = context.read<hr_auth.Auth>();
       final token = authProvider.token;
+
+      // ← NEW: format DOB as yyyy-MM-dd for backend
+      final dobForApi = DateFormat('yyyy-MM-dd').format(_selectedDob!);
 
       if (_currentStaff != null) {
         final updatedStaff = Staff(
@@ -193,7 +237,7 @@ class _MySelfScreenState extends State<MySelfScreen> {
           firstname: _firstNameController.text,
           lastname: _lastNameController.text,
           occupation: _occupationController.text,
-          gender: _genderController.text == 'Male' ? 1 : 2, 
+          gender: _genderController.text == 'Male' ? 1 : 2,
           phone: _phoneController.text,
           category: _currentStaff!.category,
           nationality: _currentStaff!.nationality,
@@ -206,7 +250,7 @@ class _MySelfScreenState extends State<MySelfScreen> {
           emergencyGender: _genderController.text == 'Male' ? 1 : 2,
           emergencyPhone: _currentStaff!.emergencyPhone,
           idNum: _currentStaff!.idNum,
-          dob: _dobController.text,
+          dob: dobForApi, // ← CHANGED: send yyyy-MM-dd
           address1: _addressController.text,
           address2: _address2Controller.text,
           city: _cityController.text,
@@ -234,7 +278,7 @@ class _MySelfScreenState extends State<MySelfScreen> {
           'lastname': _lastNameController.text,
           'email': _emailController.text,
           'phone': _phoneController.text,
-          'dob': _dobController.text,
+          'dob': dobForApi, // ← CHANGED: send yyyy-MM-dd
           'address1': _addressController.text,
           'address2': _address2Controller.text,
           'city': _cityController.text,
@@ -257,7 +301,9 @@ class _MySelfScreenState extends State<MySelfScreen> {
       if (mounted) {
         setState(() => _isEditing = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully')),
+          const SnackBar(
+              content: Text('Profile updated successfully'),
+              backgroundColor: Colors.green),
         );
       }
     } catch (error) {
@@ -271,7 +317,6 @@ class _MySelfScreenState extends State<MySelfScreen> {
     }
   }
 
-  /// Full logout — clears both app_auth and hr_auth via LogoutHelper.
   Future<void> _logout() async {
     await LogoutHelper.fullLogout(context);
   }
@@ -291,7 +336,6 @@ class _MySelfScreenState extends State<MySelfScreen> {
         context, MaterialPageRoute(builder: (_) => routes[index]()));
   }
 
-  // ── Shared field builder ─────────────────────────────────────────────────────
   Widget _buildInfoField(
     String label,
     TextEditingController controller,
@@ -342,6 +386,70 @@ class _MySelfScreenState extends State<MySelfScreen> {
           ),
         ),
         validator: (v) => null,
+      ),
+    );
+  }
+
+  // ← NEW: DOB field using date picker
+  Widget _buildDobField() {
+    final bool active = _isEditing;
+    final displayText = _selectedDob != null
+        ? DateFormat('dd MMM yyyy').format(_selectedDob!) // user sees: 25 Feb 2002
+        : 'Tap to select';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: GestureDetector(
+        onTap: _selectDob,
+        child: AbsorbPointer(
+          child: TextFormField(
+            controller: TextEditingController(text: displayText),
+            enabled: active,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: _selectedDob != null
+                  ? const Color(0xFF1E293B)
+                  : Colors.grey.shade400,
+            ),
+            decoration: InputDecoration(
+              labelText: 'Date of Birth',
+              labelStyle: TextStyle(
+                color: active ? _primaryBlue : Colors.grey.shade500,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+              prefixIcon: Icon(Icons.cake_rounded,
+                  size: 20, color: active ? _primaryBlue : Colors.grey.shade400),
+              suffixIcon: Icon(Icons.calendar_today_rounded,
+                  size: 18,
+                  color: active ? _primaryBlue : Colors.grey.shade400),
+              filled: true,
+              fillColor: active ? Colors.white : Colors.grey.shade100,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: _primaryBlue.withOpacity(0.3)),
+              ),
+              disabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: Colors.grey.shade200),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: _primaryBlue, width: 1.5),
+              ),
+              errorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: Colors.red),
+              ),
+            ),
+            validator: (_) => _selectedDob == null && _isEditing
+                ? 'Please select your date of birth'
+                : null,
+          ),
+        ),
       ),
     );
   }
@@ -419,7 +527,6 @@ class _MySelfScreenState extends State<MySelfScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ── Avatar ─────────────────────────────────────────────
                     Center(
                       child: Column(
                         children: [
@@ -534,59 +641,40 @@ class _MySelfScreenState extends State<MySelfScreen> {
                     ),
                     const SizedBox(height: 28),
 
-                    // ── Personal Info ──────────────────────────────────────
                     _buildSectionHeader('PERSONAL INFORMATION'),
                     _buildInfoField('First Name', _firstNameController,
-                        Icons.badge_rounded,
-                        enabled: true),
+                        Icons.badge_rounded, enabled: true),
                     _buildInfoField('Last Name', _lastNameController,
-                        Icons.badge_outlined,
-                        enabled: true),
-                    _buildInfoField(
-                        'Date of Birth', _dobController, Icons.cake_rounded,
-                        enabled: true),
-                    _buildInfoField(
-                        'Gender', _genderController, Icons.wc_rounded,
-                        enabled: true),
+                        Icons.badge_outlined, enabled: true),
+                    _buildDobField(), // ← CHANGED: date picker instead of text field
+                    _buildInfoField('Gender', _genderController,
+                        Icons.wc_rounded, enabled: true),
                     _buildInfoField('Occupation', _occupationController,
-                        Icons.work_rounded,
-                        enabled: true),
+                        Icons.work_rounded, enabled: true),
 
                     const SizedBox(height: 8),
-                    // ── Contact ────────────────────────────────────────────
                     _buildSectionHeader('CONTACT'),
-                    _buildInfoField(
-                        'Email', _emailController, Icons.email_rounded,
-                        enabled: true),
-                    _buildInfoField(
-                        'Phone', _phoneController, Icons.phone_rounded,
-                        enabled: true),
+                    _buildInfoField('Email', _emailController,
+                        Icons.email_rounded, enabled: true),
+                    _buildInfoField('Phone', _phoneController,
+                        Icons.phone_rounded, enabled: true),
 
                     const SizedBox(height: 8),
-                    // ── Address ────────────────────────────────────────────
                     _buildSectionHeader('ADDRESS'),
                     _buildInfoField('Address Line 1', _addressController,
-                        Icons.location_on_rounded,
-                        enabled: true),
+                        Icons.location_on_rounded, enabled: true),
                     _buildInfoField('Address Line 2', _address2Controller,
-                        Icons.location_on_outlined,
-                        enabled: true),
-                    _buildInfoField(
-                        'City', _cityController, Icons.location_city_rounded,
-                        enabled: true),
-                    _buildInfoField(
-                        'State', _stateController, Icons.map_rounded,
-                        enabled: true),
-                    _buildInfoField(
-                        'Country', _countryController, Icons.flag_rounded,
-                        enabled: true),
-                    _buildInfoField(
-                        'Postcode', _postcodeController, Icons.pin_rounded,
-                        enabled: true),
+                        Icons.location_on_outlined, enabled: true),
+                    _buildInfoField('City', _cityController,
+                        Icons.location_city_rounded, enabled: true),
+                    _buildInfoField('State', _stateController,
+                        Icons.map_rounded, enabled: true),
+                    _buildInfoField('Country', _countryController,
+                        Icons.flag_rounded, enabled: true),
+                    _buildInfoField('Postcode', _postcodeController,
+                        Icons.pin_rounded, enabled: true),
 
                     const SizedBox(height: 24),
-
-                    // ── Change Password ────────────────────────────────────
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
@@ -628,7 +716,6 @@ class _MySelfScreenState extends State<MySelfScreen> {
   void dispose() {
     _firstNameController.dispose();
     _lastNameController.dispose();
-    _dobController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
     _genderController.dispose();
