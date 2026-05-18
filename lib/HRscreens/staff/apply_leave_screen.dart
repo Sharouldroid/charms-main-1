@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'dart:typed_data';
 
 class LeaveFormScreen extends StatefulWidget {
   final int staffId;
@@ -27,8 +28,9 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
   DateTime? _endDate;
   final TextEditingController _reasonController = TextEditingController();
 
-  XFile? _attachedFile;
   bool _submitting = false;
+  Uint8List? _attachedBytes;
+  String? _attachedFileName;
 
   // Distinct Staff UI Color Palette (Indigo & Slate)
   final Color staffPrimary = const Color(0xFF4F46E5); // Deep Indigo
@@ -156,50 +158,46 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
   }
 
   Future<void> _pickImage(ImageSource source) async {
-    final picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: source);
-    if (image == null) return;
-
+  final picker = ImagePicker();
+  final image = await picker.pickImage(source: source);
+  if (image != null) {
+    final bytes = await image.readAsBytes();
     setState(() {
-      _attachedFile = image;
+      _attachedBytes = bytes;
+      _attachedFileName = image.name;
       _selectedProofType = 'Image';
     });
   }
+}
 
   Future<void> _pickFile() async {
   final result = await FilePicker.platform.pickFiles(
     type: FileType.custom,
     allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'],
-    withData: true,          // ← Important: ensure byte data is loaded
+    withData: true, // ← key fix, same as ApplyClaimScreen
   );
 
   if (result == null || result.files.isEmpty) return;
 
   final file = result.files.single;
+  final bytes = file.bytes;
+  final name = file.name;
   final ext = (file.extension ?? '').toLowerCase();
 
-  // Prefer path, but fall back to bytes if path is null (e.g., cloud files)
-  final XFile xFile;
-  if (file.path != null) {
-    xFile = XFile(file.path!);
-  } else if (file.bytes != null) {
-    xFile = XFile.fromData(
-      file.bytes!,
-      name: file.name,
-      mimeType: file.extension == 'pdf'
-          ? 'application/pdf'
-          : 'application/octet-stream',
-    );
+  if (bytes != null) {
+    setState(() {
+      _attachedBytes = bytes;
+      _attachedFileName = name;
+      _selectedProofType =
+          (ext == 'jpg' || ext == 'jpeg' || ext == 'png') ? 'Image' : 'PDF';
+    });
   } else {
-    // No usable content
-    return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+          content: Text('Unable to read file. Please try again.'),
+          backgroundColor: Colors.redAccent),
+    );
   }
-
-  setState(() {
-    _attachedFile = xFile;
-    _selectedProofType =
-        (ext == 'jpg' || ext == 'jpeg' || ext == 'png') ? 'Image' : 'PDF';
-  });
 }
 
   Future<void> _submitLeave() async {
@@ -215,7 +213,7 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
         );
         return;
       }
-      if (_attachedFile == null) {
+      if (_attachedFileName == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               content: Text('Proof attachment is required for this leave type.'),
@@ -237,10 +235,9 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
         startDate: _startDate!,
         endDate: _endDate!,
         reason: _reasonController.text.trim(),
-        proofFileName: _attachedFile?.name,
+        proofFileName: _attachedFileName,
         proofFileType: _selectedProofType,
-        proofFile:
-            _attachedFile != null ? await _attachedFile!.readAsBytes() : null,
+        proofFile:_attachedBytes,
         status: 'Pending',
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
@@ -370,7 +367,7 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
                         _selectedLeaveType = value;
                         if (!_isProofRequired) {
                           _selectedProofType = null;
-                          _attachedFile = null;
+                          _attachedFileName  = null;
                         }
                       });
                     },
@@ -493,15 +490,15 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
                       children: [
                         Expanded(
                           child: Text(
-                            _attachedFile != null
-                                ? 'Attached: ${_attachedFile!.name}'
+                            _attachedFileName != null
+                                ? 'Attached: $_attachedFileName'
                                 : attachLabel,
                             style: TextStyle(
                               fontSize: 14,
-                              color: _attachedFile != null
+                              color: _attachedFileName != null
                                   ? staffPrimary
                                   : Colors.grey.shade600,
-                              fontWeight: _attachedFile != null
+                              fontWeight: _attachedFileName != null
                                   ? FontWeight.bold
                                   : FontWeight.normal,
                             ),
@@ -524,7 +521,7 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
                     ),
                   ),
 
-                  if (_isProofRequired && _attachedFile == null)
+                  if (_isProofRequired && _attachedFileName == null)
                     const Padding(
                       padding: EdgeInsets.only(top: 8, left: 4),
                       child: Text(
