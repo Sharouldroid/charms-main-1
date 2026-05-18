@@ -125,7 +125,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             .where((e) => e.status == 1)
             .length;
         final rejectedSchedules = schedulesProvider.schedules
-            .where((s) => s.acceptanceStatus == 2)
+            .where((s) => s.acceptanceStatus == 2 && !s.hrDismissed)
             .length;
         scheduleAlerts = pendingExchanges + rejectedSchedules;
 

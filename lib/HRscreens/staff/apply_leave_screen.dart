@@ -167,22 +167,40 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
   }
 
   Future<void> _pickFile() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'],
+  final result = await FilePicker.platform.pickFiles(
+    type: FileType.custom,
+    allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'],
+    withData: true,          // ← Important: ensure byte data is loaded
+  );
+
+  if (result == null || result.files.isEmpty) return;
+
+  final file = result.files.single;
+  final ext = (file.extension ?? '').toLowerCase();
+
+  // Prefer path, but fall back to bytes if path is null (e.g., cloud files)
+  final XFile xFile;
+  if (file.path != null) {
+    xFile = XFile(file.path!);
+  } else if (file.bytes != null) {
+    xFile = XFile.fromData(
+      file.bytes!,
+      name: file.name,
+      mimeType: file.extension == 'pdf'
+          ? 'application/pdf'
+          : 'application/octet-stream',
     );
-
-    if (result == null || result.files.single.path == null) return;
-
-    final file = result.files.single;
-    final ext = (file.extension ?? '').toLowerCase();
-
-    setState(() {
-      _attachedFile = XFile(file.path!);
-      _selectedProofType =
-          (ext == 'jpg' || ext == 'jpeg' || ext == 'png') ? 'Image' : 'PDF';
-    });
+  } else {
+    // No usable content
+    return;
   }
+
+  setState(() {
+    _attachedFile = xFile;
+    _selectedProofType =
+        (ext == 'jpg' || ext == 'jpeg' || ext == 'png') ? 'Image' : 'PDF';
+  });
+}
 
   Future<void> _submitLeave() async {
     if (_submitting) return;
