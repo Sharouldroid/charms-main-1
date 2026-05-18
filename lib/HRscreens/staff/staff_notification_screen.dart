@@ -1,10 +1,11 @@
+import 'package:flutter/foundation.dart'; // ← kIsWeb
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:charms/HRproviders/leaves.dart';
 import 'package:charms/HRproviders/claims.dart';
 import 'package:charms/HRproviders/schedules.dart';
-import 'package:charms/HRproviders/schedule_exchanges.dart';  // ✅ Step 1
-import 'package:charms/HRmodels/schedule_exchange.dart';      // ✅ Step 1
+import 'package:charms/HRproviders/schedule_exchanges.dart';
+import 'package:charms/HRmodels/schedule_exchange.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -19,50 +20,57 @@ class StaffNotificationScreen extends StatefulWidget {
 }
 
 class _StaffNotificationScreenState extends State<StaffNotificationScreen> {
-  Set<String> _dismissedLeaves = {};
-  Set<String> _dismissedClaims = {};
+  Set<String> _dismissedLeaves    = {};
+  Set<String> _dismissedClaims    = {};
   Set<String> _dismissedSchedules = {};
-  Set<String> _dismissedExchanges = {};  // ✅ Step 2
+  Set<String> _dismissedExchanges = {};
 
   bool _isLoadingPrefs = true;
 
-  // ── Matches StaffDashboardScreen palette ──────────────────────────────────
-  final Color staffPrimary = const Color(0xFF4F46E5);
-  final Color staffBg = const Color(0xFFF8FAFC);
+  final Color staffPrimary    = const Color(0xFF4F46E5);
+  final Color staffBg         = const Color(0xFFF8FAFC);
   final Color staffCardBorder = const Color(0xFFE2E8F0);
 
-  String get _leaveKey => 'dismissed_leaves_${widget.staffId}';
-  String get _claimKey => 'dismissed_claims_${widget.staffId}';
+  String get _leaveKey    => 'dismissed_leaves_${widget.staffId}';
+  String get _claimKey    => 'dismissed_claims_${widget.staffId}';
   String get _scheduleKey => 'dismissed_schedules_${widget.staffId}';
-  String get _exchangeKey => 'dismissed_exchanges_${widget.staffId}';  // ✅ Step 2
+  String get _exchangeKey => 'dismissed_exchanges_${widget.staffId}';
 
   @override
   void initState() {
     super.initState();
     _loadDismissed();
-    // ✅ Step 5 — fetch exchanges for this staff
     Future.microtask(() =>
         Provider.of<ScheduleExchanges>(context, listen: false)
             .fetchExchangesByStaff(widget.staffId));
   }
 
   Future<void> _loadDismissed() async {
+    if (kIsWeb) {
+      // On web SharedPreferences is unsupported — start with empty sets,
+      // dismissals will work for the session but won't persist across reloads.
+      setState(() => _isLoadingPrefs = false);
+      return;
+    }
+
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _dismissedLeaves = (prefs.getStringList(_leaveKey) ?? []).toSet();
-      _dismissedClaims = (prefs.getStringList(_claimKey) ?? []).toSet();
+      _dismissedLeaves    = (prefs.getStringList(_leaveKey)    ?? []).toSet();
+      _dismissedClaims    = (prefs.getStringList(_claimKey)    ?? []).toSet();
       _dismissedSchedules = (prefs.getStringList(_scheduleKey) ?? []).toSet();
-      _dismissedExchanges = (prefs.getStringList(_exchangeKey) ?? []).toSet();  // ✅ Step 3
-      _isLoadingPrefs = false;
+      _dismissedExchanges = (prefs.getStringList(_exchangeKey) ?? []).toSet();
+      _isLoadingPrefs     = false;
     });
   }
 
   Future<void> _saveDismissed() async {
+    if (kIsWeb) return; // skip persistence on web — in-memory only
+
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(_leaveKey, _dismissedLeaves.toList());
-    await prefs.setStringList(_claimKey, _dismissedClaims.toList());
+    await prefs.setStringList(_leaveKey,    _dismissedLeaves.toList());
+    await prefs.setStringList(_claimKey,    _dismissedClaims.toList());
     await prefs.setStringList(_scheduleKey, _dismissedSchedules.toList());
-    await prefs.setStringList(_exchangeKey, _dismissedExchanges.toList());  // ✅ Step 3
+    await prefs.setStringList(_exchangeKey, _dismissedExchanges.toList());
   }
 
   void _dismissLeave(String id) {
@@ -80,7 +88,7 @@ class _StaffNotificationScreenState extends State<StaffNotificationScreen> {
     _saveDismissed();
   }
 
-  void _dismissExchange(String id) {  // ✅ Step 4
+  void _dismissExchange(String id) {
     setState(() => _dismissedExchanges.add(id));
     _saveDismissed();
   }
@@ -125,24 +133,15 @@ class _StaffNotificationScreenState extends State<StaffNotificationScreen> {
             onPressed: () {
               Navigator.pop(context);
               setState(() {
-                for (final l in leaves) {
-                  _dismissedLeaves.add(l.leaveId.toString());
-                }
-                for (final c in claims) {
-                  _dismissedClaims.add(c.claimId.toString());
-                }
-                for (final s in schedules) {
-                  _dismissedSchedules.add(s.schedId.toString());
-                }
-                for (final e in exchanges) {  // ✅ clear exchanges too
-                  _dismissedExchanges.add(e.exchangeId.toString());
-                }
+                for (final l in leaves)    _dismissedLeaves.add(l.leaveId.toString());
+                for (final c in claims)    _dismissedClaims.add(c.claimId.toString());
+                for (final s in schedules) _dismissedSchedules.add(s.schedId.toString());
+                for (final e in exchanges) _dismissedExchanges.add(e.exchangeId.toString());
               });
               _saveDismissed();
             },
             child: const Text('Clear All',
-                style: TextStyle(
-                    color: Colors.red, fontWeight: FontWeight.w700)),
+                style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -158,7 +157,6 @@ class _StaffNotificationScreenState extends State<StaffNotificationScreen> {
     return branches[workLocation] ?? 'Unknown Location';
   }
 
-  // ── Dismiss swipe background ──────────────────────────────────────────────
   Widget _buildDismissBackground() {
     return Container(
       alignment: Alignment.centerRight,
@@ -171,7 +169,6 @@ class _StaffNotificationScreenState extends State<StaffNotificationScreen> {
     );
   }
 
-  // ── Section header ────────────────────────────────────────────────────────
   Widget _buildSectionHeader(String title, IconData icon, Color color) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -199,7 +196,6 @@ class _StaffNotificationScreenState extends State<StaffNotificationScreen> {
     );
   }
 
-  // ── Notification card ─────────────────────────────────────────────────────
   Widget _buildNotifCard({
     required Widget leading,
     required String title,
@@ -256,12 +252,10 @@ class _StaffNotificationScreenState extends State<StaffNotificationScreen> {
     );
   }
 
-  // ── Status pill (Approved / Rejected) ────────────────────────────────────
   Widget _buildStatusIcon(String status) {
     final bool approved = status == 'Approved';
     final color = approved ? Colors.green : Colors.red;
-    final icon =
-        approved ? Icons.check_circle_rounded : Icons.cancel_rounded;
+    final icon  = approved ? Icons.check_circle_rounded : Icons.cancel_rounded;
 
     return Container(
       padding: const EdgeInsets.all(10),
@@ -273,7 +267,6 @@ class _StaffNotificationScreenState extends State<StaffNotificationScreen> {
     );
   }
 
-  // ✅ Step 8 — incoming exchange card (I am the target)
   Widget _buildExchangeIncomingCard(ScheduleExchange exchange) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -287,7 +280,6 @@ class _StaffNotificationScreenState extends State<StaffNotificationScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
             Row(children: [
               Container(
                 padding: const EdgeInsets.all(8),
@@ -311,7 +303,6 @@ class _StaffNotificationScreenState extends State<StaffNotificationScreen> {
             ]),
             const SizedBox(height: 12),
 
-            // Schedule comparison
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -372,7 +363,6 @@ class _StaffNotificationScreenState extends State<StaffNotificationScreen> {
             ],
             const SizedBox(height: 12),
 
-            // Accept / Reject buttons
             Row(children: [
               Expanded(
                 child: ElevatedButton.icon(
@@ -412,33 +402,32 @@ class _StaffNotificationScreenState extends State<StaffNotificationScreen> {
     );
   }
 
-  // ✅ Step 8 — respond to an incoming exchange
   Future<void> _respondToExchange(ScheduleExchange exchange, bool accept) async {
-  final success = await Provider.of<ScheduleExchanges>(context, listen: false)
-      .targetRespond(exchange.exchangeId, accept);
+    final success = await Provider.of<ScheduleExchanges>(context, listen: false)
+        .targetRespond(exchange.exchangeId, accept);
 
-  if (!mounted) return;
-  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-    content: Text(success
-        ? accept ? '✅ Exchange accepted! Waiting for HR approval.' : '❌ Exchange rejected.'
-        : 'Failed to respond. Try again.'),
-    backgroundColor: success
-        ? accept ? Colors.green : Colors.redAccent
-        : Colors.grey,
-  ));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(success
+          ? accept
+              ? '✅ Exchange accepted! Waiting for HR approval.'
+              : '❌ Exchange rejected.'
+          : 'Failed to respond. Try again.'),
+      backgroundColor: success
+          ? accept ? Colors.green : Colors.redAccent
+          : Colors.grey,
+    ));
 
-  if (success) {
-    // Refresh exchanges list
-    Provider.of<ScheduleExchanges>(context, listen: false)
-        .fetchExchangesByStaff(widget.staffId);
+    if (success) {
+      Provider.of<ScheduleExchanges>(context, listen: false)
+          .fetchExchangesByStaff(widget.staffId);
 
-    // ✅ Also refresh schedules — pop back to dashboard with refresh signal
-    if (accept && mounted) {
-      await Future.delayed(const Duration(milliseconds: 600));
-      if (mounted) Navigator.pop(context, {'refreshDashboard': true});
+      if (accept && mounted) {
+        await Future.delayed(const Duration(milliseconds: 600));
+        if (mounted) Navigator.pop(context, {'refreshDashboard': true});
+      }
     }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -469,7 +458,6 @@ class _StaffNotificationScreenState extends State<StaffNotificationScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      // ✅ Step 6 — Consumer3 → Consumer4
       body: Consumer4<Leaves, Claims, Schedules, ScheduleExchanges>(
         builder: (context, leavesProvider, claimsProvider,
             schedulesProvider, exchangesProvider, child) {
@@ -493,7 +481,6 @@ class _StaffNotificationScreenState extends State<StaffNotificationScreen> {
                   !_dismissedSchedules.contains(s.schedId.toString()))
               .toList();
 
-          // ✅ Step 6 — exchanges where I am the TARGET, status=0 (pending my response)
           final incomingExchanges = exchangesProvider.exchanges
               .where((e) =>
                   e.targetId == widget.staffId &&
@@ -501,7 +488,6 @@ class _StaffNotificationScreenState extends State<StaffNotificationScreen> {
                   !_dismissedExchanges.contains(e.exchangeId.toString()))
               .toList();
 
-          // ✅ Step 6 — my sent exchanges with a status update
           final myExchanges = exchangesProvider.exchanges
               .where((e) =>
                   e.requesterId == widget.staffId &&
@@ -509,7 +495,6 @@ class _StaffNotificationScreenState extends State<StaffNotificationScreen> {
                   !_dismissedExchanges.contains(e.exchangeId.toString()))
               .toList();
 
-          // ✅ Step 6 — updated hasAny
           final hasAny = myLeaves.isNotEmpty ||
               myClaims.isNotEmpty ||
               mySchedules.isNotEmpty ||
@@ -524,7 +509,7 @@ class _StaffNotificationScreenState extends State<StaffNotificationScreen> {
 
           return Column(
             children: [
-              // ── Header banner ────────────────────────────────────────
+              // ── Header banner ─────────────────────────────────────────
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.only(
@@ -594,7 +579,7 @@ class _StaffNotificationScreenState extends State<StaffNotificationScreen> {
                 ),
               ),
 
-              // ── List body ────────────────────────────────────────────
+              // ── List body ─────────────────────────────────────────────
               Expanded(
                 child: !hasAny
                     ? Center(
@@ -623,168 +608,134 @@ class _StaffNotificationScreenState extends State<StaffNotificationScreen> {
 
                             // ── Leave notifications ──────────────────
                             if (myLeaves.isNotEmpty) ...[
-                              _buildSectionHeader(
-                                'Leave Notifications',
-                                Icons.beach_access_rounded,
-                                Colors.red,
-                              ),
-                              ...myLeaves.map(
-                                (leave) => Dismissible(
-                                  key: Key('leave_${leave.leaveId}'),
-                                  direction: DismissDirection.endToStart,
-                                  background: _buildDismissBackground(),
-                                  onDismissed: (_) => _dismissLeave(
-                                      leave.leaveId.toString()),
-                                  child: _buildNotifCard(
-                                    leading:
-                                        _buildStatusIcon(leave.status),
-                                    title: 'Leave ${leave.status}',
-                                    subtitle:
-                                        'From: ${leave.startDate}\nTo: ${leave.endDate}',
-                                    accentColor:
-                                        leave.status == 'Approved'
-                                            ? Colors.green
-                                            : Colors.red,
-                                    onDismiss: () => _dismissLeave(
-                                        leave.leaveId.toString()),
-                                  ),
+                              _buildSectionHeader('Leave Notifications',
+                                  Icons.beach_access_rounded, Colors.red),
+                              ...myLeaves.map((leave) => Dismissible(
+                                key: Key('leave_${leave.leaveId}'),
+                                direction: DismissDirection.endToStart,
+                                background: _buildDismissBackground(),
+                                onDismissed: (_) =>
+                                    _dismissLeave(leave.leaveId.toString()),
+                                child: _buildNotifCard(
+                                  leading: _buildStatusIcon(leave.status),
+                                  title: 'Leave ${leave.status}',
+                                  subtitle:
+                                      'From: ${leave.startDate}\nTo: ${leave.endDate}',
+                                  accentColor: leave.status == 'Approved'
+                                      ? Colors.green
+                                      : Colors.red,
+                                  onDismiss: () =>
+                                      _dismissLeave(leave.leaveId.toString()),
                                 ),
-                              ),
+                              )),
                               const SizedBox(height: 20),
                             ],
 
                             // ── Claim notifications ──────────────────
                             if (myClaims.isNotEmpty) ...[
-                              _buildSectionHeader(
-                                'Claim Notifications',
-                                Icons.request_page_rounded,
-                                Colors.teal,
-                              ),
-                              ...myClaims.map(
-                                (claim) => Dismissible(
-                                  key: Key('claim_${claim.claimId}'),
-                                  direction: DismissDirection.endToStart,
-                                  background: _buildDismissBackground(),
-                                  onDismissed: (_) => _dismissClaim(
-                                      claim.claimId.toString()),
-                                  child: _buildNotifCard(
-                                    leading:
-                                        _buildStatusIcon(claim.status),
-                                    title: 'Claim ${claim.status}',
-                                    subtitle:
-                                        'Type: ${claim.claimType}\nAmount: RM ${claim.amount}',
-                                    accentColor:
-                                        claim.status == 'Approved'
-                                            ? Colors.green
-                                            : Colors.red,
-                                    onDismiss: () => _dismissClaim(
-                                        claim.claimId.toString()),
-                                  ),
+                              _buildSectionHeader('Claim Notifications',
+                                  Icons.request_page_rounded, Colors.teal),
+                              ...myClaims.map((claim) => Dismissible(
+                                key: Key('claim_${claim.claimId}'),
+                                direction: DismissDirection.endToStart,
+                                background: _buildDismissBackground(),
+                                onDismissed: (_) =>
+                                    _dismissClaim(claim.claimId.toString()),
+                                child: _buildNotifCard(
+                                  leading: _buildStatusIcon(claim.status),
+                                  title: 'Claim ${claim.status}',
+                                  subtitle:
+                                      'Type: ${claim.claimType}\nAmount: RM ${claim.amount}',
+                                  accentColor: claim.status == 'Approved'
+                                      ? Colors.green
+                                      : Colors.red,
+                                  onDismiss: () =>
+                                      _dismissClaim(claim.claimId.toString()),
                                 ),
-                              ),
+                              )),
                               const SizedBox(height: 20),
                             ],
 
                             // ── Schedule notifications ───────────────
                             if (mySchedules.isNotEmpty) ...[
-                              _buildSectionHeader(
-                                'Your Schedules',
-                                Icons.calendar_today_rounded,
-                                Colors.orange,
-                              ),
-                              ...mySchedules.map(
-                                (schedule) => Dismissible(
-                                  key: Key(
-                                      'schedule_${schedule.schedId}'),
-                                  direction: DismissDirection.endToStart,
-                                  background: _buildDismissBackground(),
-                                  onDismissed: (_) => _dismissSchedule(
-                                      schedule.schedId.toString()),
-                                  child: _buildNotifCard(
-                                    leading: Container(
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        color:
-                                            staffPrimary.withOpacity(0.10),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Icon(
-                                          Icons.location_on_rounded,
-                                          size: 22,
-                                          color: staffPrimary),
+                              _buildSectionHeader('Your Schedules',
+                                  Icons.calendar_today_rounded, Colors.orange),
+                              ...mySchedules.map((schedule) => Dismissible(
+                                key: Key('schedule_${schedule.schedId}'),
+                                direction: DismissDirection.endToStart,
+                                background: _buildDismissBackground(),
+                                onDismissed: (_) => _dismissSchedule(
+                                    schedule.schedId.toString()),
+                                child: _buildNotifCard(
+                                  leading: Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: staffPrimary.withOpacity(0.10),
+                                      shape: BoxShape.circle,
                                     ),
-                                    title: _getBranchName(
-                                        schedule.workLocation),
-                                    subtitle:
-                                        'Date: ${DateFormat('dd MMM yyyy').format(schedule.workDate)}\n'
-                                        'Time: ${schedule.workStartTime} – ${schedule.workEndTime}',
-                                    accentColor: staffPrimary,
-                                    onDismiss: () => _dismissSchedule(
-                                        schedule.schedId.toString()),
+                                    child: Icon(Icons.location_on_rounded,
+                                        size: 22, color: staffPrimary),
                                   ),
+                                  title: _getBranchName(schedule.workLocation),
+                                  subtitle:
+                                      'Date: ${DateFormat('dd MMM yyyy').format(schedule.workDate)}\n'
+                                      'Time: ${schedule.workStartTime} – ${schedule.workEndTime}',
+                                  accentColor: staffPrimary,
+                                  onDismiss: () => _dismissSchedule(
+                                      schedule.schedId.toString()),
                                 ),
-                              ),
+                              )),
                               const SizedBox(height: 20),
                             ],
 
-                            // ✅ Step 7 — Incoming exchange requests (I am target)
+                            // ── Incoming exchange requests ────────────
                             if (incomingExchanges.isNotEmpty) ...[
                               _buildSectionHeader(
-                                'Schedule Exchange Requests',
-                                Icons.swap_horiz_rounded,
-                                Colors.indigo,
-                              ),
+                                  'Schedule Exchange Requests',
+                                  Icons.swap_horiz_rounded,
+                                  Colors.indigo),
                               ...incomingExchanges.map((exchange) =>
                                   Dismissible(
-                                    key: Key(
-                                        'exchange_${exchange.exchangeId}'),
+                                    key: Key('exchange_${exchange.exchangeId}'),
                                     direction: DismissDirection.endToStart,
                                     background: _buildDismissBackground(),
                                     onDismissed: (_) => _dismissExchange(
                                         exchange.exchangeId.toString()),
-                                    child:
-                                        _buildExchangeIncomingCard(exchange),
+                                    child: _buildExchangeIncomingCard(exchange),
                                   )),
                               const SizedBox(height: 20),
                             ],
 
-                            // ✅ Step 7 — My sent exchange updates (I am requester)
+                            // ── My sent exchange updates ──────────────
                             if (myExchanges.isNotEmpty) ...[
-                              _buildSectionHeader(
-                                'Exchange Request Updates',
-                                Icons.update_rounded,
-                                Colors.teal,
-                              ),
+                              _buildSectionHeader('Exchange Request Updates',
+                                  Icons.update_rounded, Colors.teal),
                               ...myExchanges.map((exchange) => Dismissible(
-                                    key: Key(
-                                        'myexchange_${exchange.exchangeId}'),
-                                    direction: DismissDirection.endToStart,
-                                    background: _buildDismissBackground(),
-                                    onDismissed: (_) => _dismissExchange(
-                                        exchange.exchangeId.toString()),
-                                    child: _buildNotifCard(
-                                      leading: Container(
-                                        padding: const EdgeInsets.all(10),
-                                        decoration: BoxDecoration(
-                                          color: exchange.statusColor
-                                              .withOpacity(0.1),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: Icon(
-                                            Icons.swap_horiz_rounded,
-                                            color: exchange.statusColor,
-                                            size: 22),
-                                      ),
-                                      title:
-                                          'Exchange ${exchange.statusText}',
-                                      subtitle:
-                                          'Your request to swap with ${exchange.targetName ?? "staff"}\n'
-                                          'Their date: ${exchange.targetWorkDate ?? "—"}',
-                                      accentColor: exchange.statusColor,
-                                      onDismiss: () => _dismissExchange(
-                                          exchange.exchangeId.toString()),
+                                key: Key('myexchange_${exchange.exchangeId}'),
+                                direction: DismissDirection.endToStart,
+                                background: _buildDismissBackground(),
+                                onDismissed: (_) => _dismissExchange(
+                                    exchange.exchangeId.toString()),
+                                child: _buildNotifCard(
+                                  leading: Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: exchange.statusColor
+                                          .withOpacity(0.1),
+                                      shape: BoxShape.circle,
                                     ),
-                                  )),
+                                    child: Icon(Icons.swap_horiz_rounded,
+                                        color: exchange.statusColor, size: 22),
+                                  ),
+                                  title: 'Exchange ${exchange.statusText}',
+                                  subtitle:
+                                      'Your request to swap with ${exchange.targetName ?? "staff"}\n'
+                                      'Their date: ${exchange.targetWorkDate ?? "—"}',
+                                  accentColor: exchange.statusColor,
+                                  onDismiss: () => _dismissExchange(
+                                      exchange.exchangeId.toString()),
+                                ),
+                              )),
                               const SizedBox(height: 20),
                             ],
                           ],

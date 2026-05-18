@@ -10,6 +10,7 @@ import 'package:charms/HRscreens/admin/manage_payroll_screen.dart';
 import 'package:charms/HRproviders/schedule_exchanges.dart';
 import 'package:charms/HRmodels/schedule_exchange.dart';
 import 'package:charms/HRmodels/schedule.dart';
+import 'package:flutter/foundation.dart'; // ← kIsWeb
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -23,8 +24,9 @@ class NotificationScreen extends StatefulWidget {
 }
 
 class _NotificationScreenState extends State<NotificationScreen> {
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-      FlutterLocalNotificationsPlugin();
+  // Only instantiate the plugin on non-web platforms
+  final FlutterLocalNotificationsPlugin? flutterLocalNotificationsPlugin =
+      kIsWeb ? null : FlutterLocalNotificationsPlugin();
 
   final Color bgColor     = const Color(0xFFF4F7FA);
   final Color primaryBlue = const Color(0xFF2563EB);
@@ -32,16 +34,20 @@ class _NotificationScreenState extends State<NotificationScreen> {
   @override
   void initState() {
     super.initState();
-    initializeNotifications();
+    if (!kIsWeb) {
+      initializeNotifications();
+    }
     loadNotifications();
   }
 
   Future<void> initializeNotifications() async {
+    if (kIsWeb || flutterLocalNotificationsPlugin == null) return;
+
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
     final InitializationSettings initializationSettings =
         InitializationSettings(android: initializationSettingsAndroid);
-    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+    await flutterLocalNotificationsPlugin!.initialize(initializationSettings);
   }
 
   Future<void> loadNotifications() async {
@@ -61,15 +67,19 @@ class _NotificationScreenState extends State<NotificationScreen> {
       staffsProvider.fetchStaff(),
     ]);
 
-    showSystemNotifications(
-      leavesProvider.leaves.where((l) => l.status == 'Pending').length,
-      paymentsProvider.payments.where((p) => p.status == 'Pending').length,
-      claimsProvider.claims.where((c) => c.status == 'Pending').length,
-    );
+    if (!kIsWeb) {
+      showSystemNotifications(
+        leavesProvider.leaves.where((l) => l.status == 'Pending').length,
+        paymentsProvider.payments.where((p) => p.status == 'Pending').length,
+        claimsProvider.claims.where((c) => c.status == 'Pending').length,
+      );
+    }
   }
 
   Future<void> showSystemNotifications(
       int leaves, int payrolls, int claims) async {
+    if (kIsWeb) return; // no-op on web
+
     if (leaves > 0) {
       await _showNotification(
           'Pending Leaves', 'You have $leaves pending leave requests');
@@ -85,12 +95,14 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   Future<void> _showNotification(String title, String body) async {
+    if (kIsWeb || flutterLocalNotificationsPlugin == null) return; // skip on web
+
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails('charms_hr_channel', 'CHARMS HR Notifications',
             importance: Importance.max, priority: Priority.high);
     const NotificationDetails platformChannelSpecifics =
         NotificationDetails(android: androidPlatformChannelSpecifics);
-    await flutterLocalNotificationsPlugin.show(
+    await flutterLocalNotificationsPlugin!.show(
         0, title, body, platformChannelSpecifics);
   }
 
@@ -215,10 +227,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   // ── Rejected schedule card ────────────────────────────────────────────────
-  // NOTE: "Dismiss" button now calls _confirmDismissSchedule (soft delete)
-  //       instead of _confirmDeleteSchedule (hard delete).
-  //       This removes it from Notifications + Staff Schedule,
-  //       but keeps it in Schedule History.
   Widget _buildRejectedScheduleCard(Schedule schedule, List<Staff> staffList) {
     const branchNames = {1: 'Chagar Hutang', 2: 'Turtle Lab', 3: 'UMT'};
     final branch = branchNames[schedule.workLocation] ?? 'Unknown';
@@ -284,7 +292,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
             const SizedBox(height: 12),
 
-            // ── CHANGED: "Dismiss" (soft delete) instead of "Delete Schedule"
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -307,7 +314,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
     );
   }
 
-  // ── Soft dismiss: sets hrDismissed = true, does NOT delete the record ─────
   Future<void> _confirmDismissSchedule(Schedule schedule, String staffName) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -343,7 +349,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
     if (confirm != true || !mounted) return;
 
     try {
-      // ✅ CHANGED: dismissSchedule (PATCH hr_dismissed=true) instead of deleteSchedule
       await Provider.of<Schedules>(context, listen: false)
           .dismissSchedule(schedule.schedId);
       if (!mounted) return;
@@ -388,8 +393,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
           final pendingExchanges =
               exchanges.exchanges.where((e) => e.status == 1).toList();
 
-          // ✅ CHANGED: also filter out hrDismissed=true
-          // These are visible to HR as actionable notifications
           final rejectedSchedules = schedules.schedules
               .where((s) => s.acceptanceStatus == 2 && !s.hrDismissed)
               .toList();
@@ -428,7 +431,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
                         color: Color(0xFF1E293B))),
               ),
 
-              // ── Leave ────────────────────────────────────────────────
               ...pendingLeaves.map((leave) => NotificationItem(
                 title: 'Leave Request Pending',
                 subtitle: 'Staff ID: ${leave.staffId} • Type: ${leave.leaveType}',
@@ -441,7 +443,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 },
               )),
 
-              // ── Payroll ──────────────────────────────────────────────
               ...pendingPayrolls.map((payroll) => NotificationItem(
                 title: 'Payroll Pending',
                 subtitle: 'Staff ID: ${payroll.staffId}',
@@ -454,7 +455,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 },
               )),
 
-              // ── Claims ───────────────────────────────────────────────
               ...pendingClaims.map((claim) => NotificationItem(
                 title: 'Claim Request Pending',
                 subtitle: 'Staff ID: ${claim.staffId} • Amount: RM${claim.amount}',
@@ -467,7 +467,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 },
               )),
 
-              // ── Rejected schedules section ───────────────────────────
               if (rejectedSchedules.isNotEmpty) ...[
                 const Padding(
                   padding: EdgeInsets.only(left: 8.0, top: 8.0, bottom: 12.0),
@@ -483,7 +482,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 ...rejectedSchedules.map((s) => _buildRejectedScheduleCard(s, staffs.staffList)),
               ],
 
-              // ── Exchange approvals section ───────────────────────────
               if (pendingExchanges.isNotEmpty) ...[
                 const Padding(
                   padding: EdgeInsets.only(left: 8.0, top: 8.0, bottom: 12.0),

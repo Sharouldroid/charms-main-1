@@ -41,9 +41,8 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
   DateTime? lastLoginTime;
   bool _mounted = true;
 
-  // Distinct Staff UI Color Palette (Indigo & Slate)
-  final Color staffPrimary = const Color(0xFF4F46E5);
-  final Color staffBg = const Color(0xFFF8FAFC);
+  final Color staffPrimary    = const Color(0xFF4F46E5);
+  final Color staffBg         = const Color(0xFFF8FAFC);
   final Color staffCardBorder = const Color(0xFFE2E8F0);
 
   String getBranchName(int workLocation) {
@@ -61,7 +60,6 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
     _loadStaffData();
   }
 
-  // ✅ Fix 4 — auto-refresh every time the dashboard becomes the active route
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -81,11 +79,11 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
     if (!_mounted) return;
 
     try {
-      final staffsProvider = Provider.of<Staffs>(context, listen: false);
-      final schedulesProvider = Provider.of<Schedules>(context, listen: false);
-      final leavesProvider = Provider.of<Leaves>(context, listen: false);
-      final claimsProvider = Provider.of<Claims>(context, listen: false);
-      final hrAuth = Provider.of<hr_auth.Auth>(context, listen: false);
+      final staffsProvider     = Provider.of<Staffs>(context, listen: false);
+      final schedulesProvider  = Provider.of<Schedules>(context, listen: false);
+      final leavesProvider     = Provider.of<Leaves>(context, listen: false);
+      final claimsProvider     = Provider.of<Claims>(context, listen: false);
+      final hrAuth             = Provider.of<hr_auth.Auth>(context, listen: false);
       debugPrint('HR Auth token: ${hrAuth.token}');
       debugPrint('HR Auth username: ${hrAuth.username}');
 
@@ -107,9 +105,16 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
         final schedules = await schedulesProvider
             .fetchSchedulesByStaffId(_currentStaff!.staffId);
 
+        // ── Filter: only show schedules within 24h grace period ────────────
+        final cutoff = DateTime.now().subtract(const Duration(hours: 24));
+
         if (_mounted) {
           setState(() {
-            _staffSchedules = schedules;
+            _staffSchedules = schedules
+                .where((s) => s.workDate.isAfter(cutoff))
+                .toList()
+              ..sort((a, b) => a.workDate.compareTo(b.workDate)); // nearest first
+
             if (_staffSchedules.isNotEmpty) {
               workLocation = _staffSchedules[0].workLocation;
               branch = getBranchName(workLocation);
@@ -222,63 +227,60 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
               },
             ),
           Consumer4<Leaves, Claims, Schedules, ScheduleExchanges>(
-          builder: (context, leaves, claims, schedules, exchanges, child) {
-            int staffId = _currentStaff?.staffId ?? 0;
+            builder: (context, leaves, claims, schedules, exchanges, child) {
+              int staffId = _currentStaff?.staffId ?? 0;
 
-            if (staffId == 0) {
-              return const Icon(Icons.notifications_none_rounded);
-            }
+              if (staffId == 0) {
+                return const Icon(Icons.notifications_none_rounded);
+              }
 
-            // ── Exact same filters as StaffNotificationScreen ──────────────
-            final resolvedLeaves = leaves.leaves
-                .where((l) => l.staffId == staffId && l.status != 'Pending')
-                .length;
+              final resolvedLeaves = leaves.leaves
+                  .where((l) => l.staffId == staffId && l.status != 'Pending')
+                  .length;
 
-            final resolvedClaims = claims.claims
-                .where((c) => c.staffId == staffId && c.status != 'Pending')
-                .length;
+              final resolvedClaims = claims.claims
+                  .where((c) => c.staffId == staffId && c.status != 'Pending')
+                  .length;
 
-            final assignedSchedules = schedules.schedules
-                .where((s) => s.staffId == staffId)
-                .length;
+              final assignedSchedules = schedules.schedules
+                  .where((s) => s.staffId == staffId)
+                  .length;
 
-            // Incoming exchange requests (I am target, pending my response)
-            final incomingExchanges = exchanges.exchanges
-                .where((e) => e.targetId == staffId && e.status == 0)
-                .length;
+              final incomingExchanges = exchanges.exchanges
+                  .where((e) => e.targetId == staffId && e.status == 0)
+                  .length;
 
-            // My sent exchanges with a status update
-            final myExchanges = exchanges.exchanges
-                .where((e) => e.requesterId == staffId && e.status != 0)
-                .length;
+              final myExchanges = exchanges.exchanges
+                  .where((e) => e.requesterId == staffId && e.status != 0)
+                  .length;
 
-            final totalNotifications = resolvedLeaves + resolvedClaims +
-                assignedSchedules + incomingExchanges + myExchanges;
+              final totalNotifications = resolvedLeaves + resolvedClaims +
+                  assignedSchedules + incomingExchanges + myExchanges;
 
-            return IconButton(
-              icon: totalNotifications > 0
-                  ? Badge(
-                      label: Text(totalNotifications.toString()),
-                      backgroundColor: Colors.redAccent,
-                      child: const Icon(Icons.notifications_active_rounded),
-                    )
-                  : const Icon(Icons.notifications_none_rounded),
-              onPressed: () async {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => StaffNotificationScreen(
-                      staffId: _currentStaff?.staffId ?? 0,
+              return IconButton(
+                icon: totalNotifications > 0
+                    ? Badge(
+                        label: Text(totalNotifications.toString()),
+                        backgroundColor: Colors.redAccent,
+                        child: const Icon(Icons.notifications_active_rounded),
+                      )
+                    : const Icon(Icons.notifications_none_rounded),
+                onPressed: () async {
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => StaffNotificationScreen(
+                        staffId: _currentStaff?.staffId ?? 0,
+                      ),
                     ),
-                  ),
-                );
-                if (result != null && result['refreshDashboard'] == true) {
-                  await _loadStaffData();
-                }
-              },
-            );
-          },
-        ),
+                  );
+                  if (result != null && result['refreshDashboard'] == true) {
+                    await _loadStaffData();
+                  }
+                },
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.logout_rounded),
             tooltip: 'Logout',
@@ -299,7 +301,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Top Welcome Header (indigo banner) ────────────────────────────
+        // ── Top Welcome Header ────────────────────────────────────────────
         Container(
           width: double.infinity,
           padding: const EdgeInsets.only(
@@ -343,7 +345,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
           ),
         ),
 
-        // ── Attendance History Card ───────────────────────────────────────
+        // ── Attendance History Card ────────────────────────────────────────
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
           child: GestureDetector(
@@ -385,8 +387,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                                 fontSize: 14,
                                 color: Color(0xFF1E293B))),
                         Text('View your clock in/out records',
-                            style:
-                                TextStyle(fontSize: 12, color: Colors.grey)),
+                            style: TextStyle(fontSize: 12, color: Colors.grey)),
                       ],
                     ),
                   ),
@@ -398,7 +399,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
           ),
         ),
 
-        // ── Schedules section ────────────────────────────────────────────
+        // ── Schedules section ─────────────────────────────────────────────
         Expanded(child: _buildSchedulesCards()),
       ],
     );
@@ -412,10 +413,8 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Section label ─────────────────────────────────────────────────
         Padding(
-          padding:
-              const EdgeInsets.only(left: 24, right: 24, top: 20, bottom: 8),
+          padding: const EdgeInsets.only(left: 24, right: 24, top: 20, bottom: 8),
           child: Text(
             "Your Upcoming Shifts",
             style: TextStyle(
@@ -451,10 +450,9 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                       top: 8, bottom: 100, left: 16, right: 16),
                   itemCount: _staffSchedules.length,
                   itemBuilder: (context, index) {
-                    final schedule = _staffSchedules[index];
-                    final currentBranch =
-                        getBranchName(schedule.workLocation);
-                    final dateObj = schedule.workDate;
+                    final schedule      = _staffSchedules[index];
+                    final currentBranch = getBranchName(schedule.workLocation);
+                    final dateObj       = schedule.workDate;
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12.0),
@@ -480,27 +478,19 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                           final result = await Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  StaffScheduleDetailsScreen(
-                                location: currentBranch,
-                                workDate: schedule.workDate,
-                                assignedStaff: [
-                                  _currentStaff?.firstname ?? ''
-                                ],
-                                startTime:
-                                    schedule.workStartTime.toString(),
-                                endTime: schedule.workEndTime.toString(),
-                                startBreak:
-                                    schedule.breakStartTime.toString(),
-                                endBreak:
-                                    schedule.breakEndTime.toString(),
-                                status: isClockIn
-                                    ? 'Clocked In'
-                                    : 'Not clocked in',
-                                scheduleId: schedule.schedId,
-                                staffId: _currentStaff?.staffId ?? 0,
-                                acceptanceStatus: schedule.acceptanceStatus, // ✅ NEW
-                                staffNote: schedule.staffNote,               // ✅ NEW
+                              builder: (context) => StaffScheduleDetailsScreen(
+                                location:         currentBranch,
+                                workDate:         schedule.workDate,
+                                assignedStaff:    [_currentStaff?.firstname ?? ''],
+                                startTime:        schedule.workStartTime.toString(),
+                                endTime:          schedule.workEndTime.toString(),
+                                startBreak:       schedule.breakStartTime.toString(),
+                                endBreak:         schedule.breakEndTime.toString(),
+                                status:           isClockIn ? 'Clocked In' : 'Not clocked in',
+                                scheduleId:       schedule.schedId,
+                                staffId:          _currentStaff?.staffId ?? 0,
+                                acceptanceStatus: schedule.acceptanceStatus,
+                                staffNote:        schedule.staffNote,
                               ),
                             ),
                           );
@@ -512,11 +502,10 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                         },
                         child: Row(
                           children: [
-                            // ── Left date block (ticket style) ───────────
+                            // ── Left date block ───────────────────────────
                             Container(
                               width: 80,
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 20),
+                              padding: const EdgeInsets.symmetric(vertical: 20),
                               decoration: BoxDecoration(
                                 color: staffPrimary.withOpacity(0.08),
                                 borderRadius: const BorderRadius.only(
@@ -528,8 +517,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Text(
-                                    _getMonthName(dateObj.month)
-                                        .toUpperCase(),
+                                    _getMonthName(dateObj.month).toUpperCase(),
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold,
@@ -561,8 +549,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 16.0, vertical: 12.0),
                                 child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       currentBranch,
@@ -602,8 +589,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                                                 : schedule.acceptanceStatus == 2
                                                     ? Colors.red.withOpacity(0.1)
                                                     : Colors.orange.withOpacity(0.1),
-                                            borderRadius:
-                                                BorderRadius.circular(6),
+                                            borderRadius: BorderRadius.circular(6),
                                           ),
                                           child: Text(
                                             schedule.acceptanceStatus == 1
@@ -624,7 +610,6 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                                         ),
                                       ],
                                     ),
-                                    // ── End acceptance status badge ───────
                                   ],
                                 ),
                               ),

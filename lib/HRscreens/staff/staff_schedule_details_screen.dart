@@ -1,12 +1,11 @@
+import 'dart:convert';
 import 'package:charms/HRmodels/schedule.dart';
-//import 'package:charms/HRmodels/staff.dart';
 import 'package:charms/HRproviders/attendances.dart';
 import 'package:charms/HRproviders/schedules.dart';
-//import 'package:charms/HRproviders/schedule_exchanges.dart';
-//import 'package:charms/HRproviders/staffs.dart';
 import 'package:charms/HRscreens/staff/schedule_exchange_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -22,8 +21,8 @@ class StaffScheduleDetailsScreen extends StatefulWidget {
   final String status;
   final int scheduleId;
   final int staffId;
-  final int acceptanceStatus; // ✅ NEW
-  final String? staffNote;    // ✅ NEW
+  final int acceptanceStatus;
+  final String? staffNote;
 
   const StaffScheduleDetailsScreen({
     super.key,
@@ -54,7 +53,7 @@ class _StaffScheduleDetailsScreenState
   bool _isCheckingAttendance = true;
   String? _clockOutTimeStr;
   String? _clockInLocationStr;
-  late int _acceptanceStatus; // ✅ NEW — mutable local copy
+  late int _acceptanceStatus;
 
   final Color _primaryBlue = const Color(0xFF2563EB);
   final Color _bgColor     = const Color(0xFFF4F7FA);
@@ -62,7 +61,7 @@ class _StaffScheduleDetailsScreenState
   @override
   void initState() {
     super.initState();
-    _acceptanceStatus = widget.acceptanceStatus; // ✅
+    _acceptanceStatus = widget.acceptanceStatus;
     _checkExistingAttendance();
   }
 
@@ -95,25 +94,24 @@ class _StaffScheduleDetailsScreenState
 
   // ── Accept schedule ────────────────────────────────────────────────────────
   Future<void> _handleAccept() async {
-  setState(() => _isLoading = true);
-  final success = await Provider.of<Schedules>(context, listen: false)
-      .acceptSchedule(widget.scheduleId);
-  setState(() {
-    _isLoading = false;
-    if (success) _acceptanceStatus = 1;
-  });
-  if (!mounted) return;
-  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-    content: Text(success ? '✅ Schedule accepted!' : 'Failed to accept.'),
-    backgroundColor: success ? Colors.green : Colors.red,
-  ));
+    setState(() => _isLoading = true);
+    final success = await Provider.of<Schedules>(context, listen: false)
+        .acceptSchedule(widget.scheduleId);
+    setState(() {
+      _isLoading = false;
+      if (success) _acceptanceStatus = 1;
+    });
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(success ? '✅ Schedule accepted!' : 'Failed to accept.'),
+      backgroundColor: success ? Colors.green : Colors.red,
+    ));
 
-  // ✅ ADD THIS — tell dashboard to refresh
-  if (success && mounted) {
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (mounted) Navigator.pop(context, {'refreshDashboard': true});
+    if (success && mounted) {
+      await Future.delayed(const Duration(milliseconds: 800));
+      if (mounted) Navigator.pop(context, {'refreshDashboard': true});
+    }
   }
-}
 
   // ── Reject schedule ────────────────────────────────────────────────────────
   Future<void> _handleReject() async {
@@ -181,7 +179,6 @@ class _StaffScheduleDetailsScreenState
       backgroundColor: success ? Colors.redAccent : Colors.grey,
     ));
 
-    // ✅ ADD THIS — tell dashboard to refresh
     if (success && mounted) {
       await Future.delayed(const Duration(milliseconds: 800));
       if (mounted) Navigator.pop(context, {'refreshDashboard': true});
@@ -192,8 +189,8 @@ class _StaffScheduleDetailsScreenState
   void _handleExchange() {
     Navigator.push(context, MaterialPageRoute(
       builder: (_) => ScheduleExchangeScreen(
-        myStaffId:   widget.staffId,
-        mySchedule:  Schedule(
+        myStaffId:  widget.staffId,
+        mySchedule: Schedule(
           schedId:       widget.scheduleId,
           staffId:       widget.staffId,
           workDate:      widget.workDate,
@@ -224,15 +221,29 @@ class _StaffScheduleDetailsScreenState
       final locationStr = await _getCurrentLocation();
       if (locationStr == null) { setState(() => _isLoading = false); return; }
 
+      // Try to resolve coordinates to a human-readable place name
+      String displayLocation = locationStr;
+      final parts = locationStr.split(', ');
+      if (parts.length == 2) {
+        final lat = double.tryParse(parts[0]);
+        final lng = double.tryParse(parts[1]);
+        if (lat != null && lng != null) {
+          final placeName = await _getPlaceName(lat, lng);
+          if (placeName != null) {
+            displayLocation = '$placeName\n($locationStr)';
+          }
+        }
+      }
+
       final ap = Provider.of<Attendances>(context, listen: false);
       final result = await ap.recordAttendance(
         staffId: widget.staffId, scheduleId: widget.scheduleId,
         clockInTime: DateTime.now().toIso8601String(),
-        clockInLocation: locationStr,
+        clockInLocation: displayLocation, // ← human-readable name + coords
       );
 
       if (result['success'] == true && mounted) {
-        setState(() { isClockIn = true; _clockInLocationStr = locationStr; });
+        setState(() { isClockIn = true; _clockInLocationStr = displayLocation; });
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Successfully clocked in!'), backgroundColor: Colors.green));
       }
@@ -284,6 +295,7 @@ class _StaffScheduleDetailsScreenState
     }
   }
 
+  // ── Get GPS coordinates as string ──────────────────────────────────────────
   Future<String?> _getCurrentLocation() async {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -297,6 +309,21 @@ class _StaffScheduleDetailsScreenState
       final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
       return '${pos.latitude.toStringAsFixed(6)}, ${pos.longitude.toStringAsFixed(6)}';
     } catch (e) { return null; }
+  }
+
+  // ── Reverse geocode coordinates to place name (Nominatim) ─────────────────
+  Future<String?> _getPlaceName(double lat, double lng) async {
+    try {
+      final url = Uri.parse(
+        'https://nominatim.openstreetmap.org/reverse?lat=$lat&lon=$lng&format=json',
+      );
+      final response = await http.get(url, headers: {'User-Agent': 'charms-app'});
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['display_name'];
+      }
+    } catch (_) {}
+    return null;
   }
 
   Future<void> _openGoogleMaps(String coordinates) async {
@@ -356,7 +383,7 @@ class _StaffScheduleDetailsScreenState
               )),
               const SizedBox(height: 16),
 
-              // ── ✅ Schedule Acceptance Card ─────────────────────────────────
+              // ── Schedule Acceptance Card ────────────────────────────────────
               _buildCard(child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -488,7 +515,6 @@ class _StaffScheduleDetailsScreenState
               ],
 
               // ── Clock In / Out button ───────────────────────────────────────
-              // Only show clock-in if schedule is Accepted
               if (_isLoading)
                 const Center(child: CircularProgressIndicator())
               else if (_acceptanceStatus == 1 || _acceptanceStatus == 0) ...[
