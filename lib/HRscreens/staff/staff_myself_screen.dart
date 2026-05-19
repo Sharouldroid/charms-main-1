@@ -474,6 +474,46 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
     );
   }
 
+  Widget _buildDepartmentBadge(String? department) {
+  final String label;
+  final IconData icon;
+
+  if (department == 'Marine Biologist') {
+    label = 'Marine Biologist';
+    icon  = Icons.water_rounded;
+  } else if (department == 'Taaras') {
+    label = 'Taaras';
+    icon  = Icons.villa_rounded;
+  } else {
+    label = 'General Staff';
+    icon  = Icons.people_rounded;
+  }
+
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    decoration: BoxDecoration(
+      color: Colors.white.withOpacity(0.2),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: Colors.white.withOpacity(0.4)),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 13, color: Colors.white),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -617,6 +657,10 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
                             fontWeight: FontWeight.w500,
                           ),
                         ),
+                        if (_currentStaff?.department != null) ...[
+                            const SizedBox(height: 8),
+                            _buildDepartmentBadge(_currentStaff!.department),
+                          ],
                         if (_isEditing) ...[
                           const SizedBox(height: 12),
                           Container(
