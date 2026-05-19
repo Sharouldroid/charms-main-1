@@ -346,7 +346,7 @@ class _AdminListScreenState extends State<AdminListScreen> {
         ),
         actions: [
           Consumer6<Leaves, Payments, Claims, ScheduleExchanges, Schedules, Staffs>(
-  builder: (context, leaves, payments, claims, exchanges, schedules, staffs, child) {
+          builder: (context, leaves, payments, claims, exchanges, schedules, staffs, child) {
     
     // ── Exact same logic as NotificationScreen ──────────────
     final pendingLeaves      = leaves.leaves.where((l) => l.status == 'Pending').length;
@@ -360,19 +360,19 @@ class _AdminListScreenState extends State<AdminListScreen> {
     final totalPending = pendingLeaves + pendingPayrolls +
         pendingClaims + pendingExchanges + rejectedSchedules;
 
-    return IconButton(
-      icon: totalPending > 0
-          ? Badge(
-              label: Text(totalPending.toString()),
-              backgroundColor: Colors.redAccent,
-              child: const Icon(Icons.notifications_none_rounded, size: 26),
-            )
-          : const Icon(Icons.notifications_none_rounded, size: 26),
-      onPressed: () => Navigator.push(context,
-          MaterialPageRoute(builder: (_) => const NotificationScreen())),
-    );
-  },
-),
+        return IconButton(
+          icon: totalPending > 0
+              ? Badge(
+                  label: Text(totalPending.toString()),
+                  backgroundColor: Colors.redAccent,
+                  child: const Icon(Icons.notifications_none_rounded, size: 26),
+                )
+              : const Icon(Icons.notifications_none_rounded, size: 26),
+          onPressed: () => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const NotificationScreen())),
+        );
+      },
+    ),
           IconButton(
             icon: const Icon(Icons.logout_rounded),
             tooltip: 'Logout',

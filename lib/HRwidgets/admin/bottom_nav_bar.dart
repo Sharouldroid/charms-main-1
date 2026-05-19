@@ -45,17 +45,17 @@ class BottomNavBar extends StatelessWidget {
             ),
             _buildNavItem(
               icon: Icons.people_alt_outlined,
-              label: 'Staff',
+              label: 'Staff Management',
               isSelected: selectedIndex == 1,
             ),
             _buildNavItem(
               icon: Icons.admin_panel_settings_outlined,
-              label: 'Admin',
+              label: 'Admin View',
               isSelected: selectedIndex == 2,
             ),
             _buildNavItem(
               icon: Icons.person_outline,
-              label: 'Myself',
+              label: 'Profile',
               isSelected: selectedIndex == 3,
             ),
           ],
