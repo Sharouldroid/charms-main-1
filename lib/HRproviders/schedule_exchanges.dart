@@ -55,20 +55,23 @@ class ScheduleExchanges with ChangeNotifier {
 
   // Fetch all pending for HR (notification screen)
   Future<List<ScheduleExchange>> fetchPendingForHR() async {
-    try {
-      final response = await http.get(
-        Uri.parse('$_hostname/schedule-exchange/pending-hr'),
-      );
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        return data.map((e) => ScheduleExchange.fromJson(e)).toList();
-      }
-      return [];
-    } catch (e) {
-      debugPrint('Error fetching HR pending: $e');
-      return [];
+  try {
+    final response = await http.get(
+      Uri.parse('$_hostname/schedule-exchange/pending-hr'),
+    );
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(response.body);
+      final pending = data.map((e) => ScheduleExchange.fromJson(e)).toList();
+      _exchanges = pending; // ← ADD
+      notifyListeners();    // ← ADD
+      return pending;
     }
+    return [];
+  } catch (e) {
+    debugPrint('Error fetching HR pending: $e');
+    return [];
   }
+}
 
   // ✅ NEW — Fetch ALL exchanges and store to _exchanges (for HR schedule view)
   Future<void> fetchAllForHR() async {

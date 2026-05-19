@@ -730,7 +730,10 @@ class _StaffNotificationScreenState extends State<StaffNotificationScreen> {
                                   title: 'Exchange ${exchange.statusText}',
                                   subtitle:
                                       'Your request to swap with ${exchange.targetName ?? "staff"}\n'
-                                      'Their date: ${exchange.targetWorkDate ?? "—"}',
+                                      'Their date: ${exchange.targetWorkDate ?? "—"}'
+                                      '${exchange.status == 4 && exchange.hrNote != null && exchange.hrNote!.isNotEmpty
+                                        ? "\nHR Reason: ${exchange.hrNote}"
+                                        : ""}',
                                   accentColor: exchange.statusColor,
                                   onDismiss: () => _dismissExchange(
                                       exchange.exchangeId.toString()),

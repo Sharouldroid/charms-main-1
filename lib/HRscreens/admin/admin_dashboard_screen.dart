@@ -329,8 +329,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       child: const Icon(Icons.notifications_none_rounded, size: 26),
                     )
                   : const Icon(Icons.notifications_none_rounded, size: 26),
-              onPressed: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const NotificationScreen())),
+              onPressed: () async {
+                await Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const NotificationScreen()));
+                // ← refresh dashboard data when returning from notifications
+                _loadDashboardData();
+              },
             );
           },
         ),

@@ -211,20 +211,78 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   Future<void> _hrRespondExchange(ScheduleExchange exchange, bool approve) async {
-    final success = await Provider.of<ScheduleExchanges>(context, listen: false)
-        .hrRespond(exchange.exchangeId, approve);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(success
-          ? approve ? '✅ Exchange approved! Schedules have been swapped.' : '❌ Exchange rejected.'
-          : 'Failed. Try again.'),
-      backgroundColor: success ? (approve ? Colors.green : Colors.redAccent) : Colors.grey,
-    ));
-    if (success) {
-      await Provider.of<ScheduleExchanges>(context, listen: false).fetchPendingForHR();
-      setState(() {});
-    }
+  String? hrNote;
+
+  // ← Ask for reason only when rejecting
+  if (!approve) {
+    final reasonController = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(children: [
+          Icon(Icons.cancel_rounded, color: Colors.redAccent, size: 20),
+          SizedBox(width: 8),
+          Text('Reject Exchange',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        ]),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text('Please provide a reason for rejecting:',
+              style: TextStyle(fontSize: 13, color: Colors.grey)),
+          const SizedBox(height: 12),
+          TextField(
+            controller: reasonController,
+            maxLines: 3,
+            decoration: InputDecoration(
+              hintText: 'e.g. Schedule conflict, not enough staff...',
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              contentPadding: const EdgeInsets.all(12),
+            ),
+          ),
+        ]),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel',
+                style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Reject'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    hrNote = reasonController.text.trim();
   }
+
+  // ← Pass hrNote to provider
+  final success = await Provider.of<ScheduleExchanges>(context, listen: false)
+      .hrRespond(exchange.exchangeId, approve, note: hrNote);
+
+  if (!mounted) return;
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    content: Text(success
+        ? approve
+            ? '✅ Exchange approved! Schedules have been swapped.'
+            : '❌ Exchange rejected.'
+        : 'Failed. Try again.'),
+    backgroundColor:
+        success ? (approve ? Colors.green : Colors.redAccent) : Colors.grey,
+  ));
+  if (success) {
+    await Provider.of<ScheduleExchanges>(context, listen: false).fetchAllForHR();
+    setState(() {});
+  }
+}
 
   // ── Rejected schedule card ────────────────────────────────────────────────
   Widget _buildRejectedScheduleCard(Schedule schedule, List<Staff> staffList) {
