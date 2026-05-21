@@ -147,12 +147,14 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   date: exchange.requesterWorkDate ?? '—',
                   time: exchange.requesterStartTime ?? '—',
                   dept: exchange.requesterDepartment,
+                  workLocation: exchange.requesterWorkLocation,
                   icon: Icons.arrow_forward_rounded),
               const Divider(height: 16),
               _exchangeRow(label: exchange.targetName ?? 'Staff B',
                   date: exchange.targetWorkDate ?? '—',
                   time: exchange.targetStartTime ?? '—',
                   dept: exchange.targetDepartment,
+                  workLocation: exchange.targetWorkLocation,
                   icon: Icons.arrow_back_rounded),
             ]),
           ),
@@ -195,20 +197,58 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   Widget _exchangeRow({required String label, required String date,
-      required String time, String? dept, required IconData icon}) {
-    return Row(children: [
-      Icon(icon, size: 16, color: Colors.indigo),
-      const SizedBox(width: 8),
-      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-        if (dept != null && dept.isNotEmpty)
-          Text(dept, style: TextStyle(fontSize: 10, color: Colors.teal.shade600,
-              fontWeight: FontWeight.w600)),
-        Text('$date  •  $time',
-            style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-      ])),
-    ]);
+    required String time, String? dept, String? workLocation, 
+    required IconData icon}) {
+
+  String locationName(String? loc) {
+    switch (loc) {
+      case '1': return 'Chagar Hutang';
+      case '2': return 'Turtle Lab';
+      case '3': return 'UMT';
+      default:  return '—';
+    }
   }
+
+  Color locationColor(String? loc) {
+    switch (loc) {
+      case '1': return const Color(0xFF0891B2);
+      case '2': return const Color(0xFF7C3AED);
+      case '3': return const Color(0xFFF59E0B);
+      default:  return Colors.grey;
+    }
+  }
+
+  return Row(children: [
+    Icon(icon, size: 16, color: Colors.indigo),
+    const SizedBox(width: 8),
+    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+      if (dept != null && dept.isNotEmpty)
+        Text(dept, style: TextStyle(fontSize: 10, color: Colors.teal.shade600,
+            fontWeight: FontWeight.w600)),
+      Text('$date  •  $time',
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+      const SizedBox(height: 4),
+      // ── Location badge ────────────────────────────────────────────
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: locationColor(workLocation).withOpacity(0.12),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: locationColor(workLocation).withOpacity(0.4)),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.location_on_rounded, size: 11,
+              color: locationColor(workLocation)),
+          const SizedBox(width: 3),
+          Text(locationName(workLocation),
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
+                  color: locationColor(workLocation))),
+        ]),
+      ),
+    ])),
+  ]);
+}
 
   Future<void> _hrRespondExchange(ScheduleExchange exchange, bool approve) async {
   String? hrNote;

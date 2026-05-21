@@ -84,6 +84,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
       final leavesProvider     = Provider.of<Leaves>(context, listen: false);
       final claimsProvider     = Provider.of<Claims>(context, listen: false);
       final hrAuth             = Provider.of<hr_auth.Auth>(context, listen: false);
+      final exchangesProvider  = Provider.of<ScheduleExchanges>(context, listen: false);
       debugPrint('HR Auth token: ${hrAuth.token}');
       debugPrint('HR Auth username: ${hrAuth.username}');
 
@@ -91,6 +92,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
         staffsProvider.fetchStaff(),
         leavesProvider.fetchLeaves(),
         claimsProvider.fetchClaims(),
+        exchangesProvider.fetchExchangesByStaff(_currentStaff!.staffId),
       ]);
 
       if (!_mounted) return;
@@ -101,6 +103,8 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
           (staff) => staff.username == widget.username,
           orElse: () => throw Exception('Staff not found'),
         );
+
+        await exchangesProvider.fetchExchangesByStaff(_currentStaff!.staffId);
 
         final schedules = await schedulesProvider
             .fetchSchedulesByStaffId(_currentStaff!.staffId);

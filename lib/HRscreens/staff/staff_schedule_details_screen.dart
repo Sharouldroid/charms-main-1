@@ -194,7 +194,7 @@ class _StaffScheduleDetailsScreenState
           schedId:       widget.scheduleId,
           staffId:       widget.staffId,
           workDate:      widget.workDate,
-          workLocation:  1,
+          workLocation:  _locationNameToInt(widget.location),
           staffType:     1,
           workStartTime: widget.startTime,
           workEndTime:   widget.endTime,
@@ -202,6 +202,15 @@ class _StaffScheduleDetailsScreenState
       ),
     ));
   }
+
+  int _locationNameToInt(String location) {
+  switch (location.trim()) {
+    case 'Chagar Hutang': return 1;
+    case 'Turtle Lab':    return 2;
+    case 'UMT':           return 3;
+    default:              return 1;
+  }
+}
 
   // ── Clock In ───────────────────────────────────────────────────────────────
   Future<void> _handleClockIn() async {

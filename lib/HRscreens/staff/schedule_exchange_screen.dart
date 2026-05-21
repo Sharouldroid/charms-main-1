@@ -34,6 +34,25 @@ class _ScheduleExchangeScreenState extends State<ScheduleExchangeScreen> {
 
   static const _depts = ['All', 'Marine Biologist', 'Taaras', 'General'];
 
+  // ── Location helper ───────────────────────────────────────────────────────
+  static String _locationName(int loc) {
+    switch (loc) {
+      case 1: return 'Chagar Hutang';
+      case 2: return 'Turtle Lab';
+      case 3: return 'UMT';
+      default: return 'Unknown';
+    }
+  }
+
+  static Color _locationColor(int loc) {
+    switch (loc) {
+      case 1: return const Color(0xFF0891B2); // cyan – Chagar Hutang
+      case 2: return const Color(0xFF7C3AED); // violet – Turtle Lab
+      case 3: return const Color(0xFFF59E0B); // amber – UMT
+      default: return Colors.grey;
+    }
+  }
+
   @override
   void dispose() {
     _noteController.dispose();
@@ -50,7 +69,6 @@ class _ScheduleExchangeScreenState extends State<ScheduleExchangeScreen> {
     try {
       final schedules = await Provider.of<Schedules>(context, listen: false)
           .fetchSchedulesByStaffId(staff.staffId);
-      // Only future schedules
       final now = DateTime.now();
       setState(() {
         _targetSchedules = schedules.where((s) =>
@@ -74,10 +92,10 @@ class _ScheduleExchangeScreenState extends State<ScheduleExchangeScreen> {
     setState(() => _submitting = true);
     final success = await Provider.of<ScheduleExchanges>(context, listen: false)
         .requestExchange(
-          requesterId:   widget.myStaffId,
-          targetId:      _selectedStaff!.staffId,
+          requesterId:    widget.myStaffId,
+          targetId:       _selectedStaff!.staffId,
           requesterSched: widget.mySchedule.schedId,
-          targetSched:   _selectedTargetSchedule!.schedId,
+          targetSched:    _selectedTargetSchedule!.schedId,
           note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
         );
     setState(() => _submitting = false);
@@ -121,7 +139,7 @@ class _ScheduleExchangeScreenState extends State<ScheduleExchangeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
 
-            // ── My schedule card ─────────────────────────────────────────────
+            // ── My schedule card ──────────────────────────────────────────────
             _sectionLabel('Your Schedule', Icons.event_note_rounded),
             _scheduleCard(widget.mySchedule, isMe: true),
             const SizedBox(height: 20),
@@ -250,18 +268,49 @@ class _ScheduleExchangeScreenState extends State<ScheduleExchangeScreen> {
                                   Icon(Icons.calendar_today_rounded,
                                       color: selected ? primaryBlue : Colors.grey, size: 18),
                                   const SizedBox(width: 12),
-                                  Expanded(child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(DateFormat('dd MMM yyyy (EEE)').format(sched.workDate),
-                                          style: TextStyle(fontWeight: FontWeight.bold,
-                                              fontSize: 13,
-                                              color: selected ? primaryBlue : const Color(0xFF1E293B))),
-                                      const SizedBox(height: 2),
-                                      Text('${sched.workStartTime ?? '—'} → ${sched.workEndTime ?? '—'}',
-                                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                                    ],
-                                  )),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(DateFormat('dd MMM yyyy (EEE)').format(sched.workDate),
+                                            style: TextStyle(fontWeight: FontWeight.bold,
+                                                fontSize: 13,
+                                                color: selected ? primaryBlue : const Color(0xFF1E293B))),
+                                        const SizedBox(height: 4),
+                                        Text('${sched.workStartTime ?? '—'} → ${sched.workEndTime ?? '—'}',
+                                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                                        const SizedBox(height: 6),
+                                        // ── Location badge ──────────────────
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: _locationColor(sched.workLocation).withOpacity(0.12),
+                                            borderRadius: BorderRadius.circular(20),
+                                            border: Border.all(
+                                              color: _locationColor(sched.workLocation).withOpacity(0.4),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.location_on_rounded,
+                                                  size: 11,
+                                                  color: _locationColor(sched.workLocation)),
+                                              const SizedBox(width: 3),
+                                              Text(
+                                                _locationName(sched.workLocation),
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: _locationColor(sched.workLocation),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                   if (selected)
                                     Icon(Icons.check_circle_rounded, color: primaryBlue, size: 20),
                                 ]),
@@ -325,6 +374,7 @@ class _ScheduleExchangeScreenState extends State<ScheduleExchangeScreen> {
     Text(text, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: primaryBlue)),
   ]);
 
+  // ── Schedule card (Your Schedule + location badge) ────────────────────────
   Widget _scheduleCard(Schedule s, {bool isMe = false}) => Container(
     padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
@@ -341,6 +391,31 @@ class _ScheduleExchangeScreenState extends State<ScheduleExchangeScreen> {
         const SizedBox(height: 2),
         Text('${s.workStartTime ?? '—'} → ${s.workEndTime ?? '—'}',
             style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+        const SizedBox(height: 6),
+        // ── Location badge ──────────────────────────────────────────────────
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: _locationColor(s.workLocation).withOpacity(0.12),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: _locationColor(s.workLocation).withOpacity(0.4)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.location_on_rounded, size: 11, color: _locationColor(s.workLocation)),
+              const SizedBox(width: 3),
+              Text(
+                _locationName(s.workLocation),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: _locationColor(s.workLocation),
+                ),
+              ),
+            ],
+          ),
+        ),
       ]),
     ]),
   );

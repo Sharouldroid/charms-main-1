@@ -45,7 +45,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   int todayAttendance   = 0;
   int pendingPayroll    = 0;
   int pendingClaims     = 0;
-  int scheduleAlerts    = 0; // ✅ exchanges + rejections combined
+  //int scheduleAlerts    = 0;
   String lastLoginTime  = '';
   bool isLoading        = true;
 
@@ -120,14 +120,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             .where((c) => c.status == 'Pending')
             .length;
 
-        // ✅ Combined: pending exchanges (status=1) + rejected schedules (acceptanceStatus=2)
-        final pendingExchanges = exchangesProvider.exchanges
-            .where((e) => e.status == 1)
-            .length;
-        final rejectedSchedules = schedulesProvider.schedules
-            .where((s) => s.acceptanceStatus == 2 && !s.hrDismissed)
-            .length;
-        scheduleAlerts = pendingExchanges + rejectedSchedules;
+        //Combined: pending exchanges (status=1) + rejected schedules (acceptanceStatus=2)
+        // final pendingExchanges = exchangesProvider.exchanges
+        //     .where((e) => e.status == 1)
+        //     .length;
+        // final rejectedSchedules = schedulesProvider.schedules
+        //     .where((s) => s.acceptanceStatus == 2 && !s.hrDismissed)
+        //     .length;
+        // scheduleAlerts = pendingExchanges + rejectedSchedules;
 
         final schedules = schedulesProvider.schedules;
         locationStaffCounts = {
@@ -448,33 +448,43 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
               // ── Row 3 ─────────────────────────────────────────────────────
               Row(children: [
-                Expanded(
-                  child: SummaryCard(
-                    title: 'Claim Pending',
-                    count: pendingClaims,
-                    icon: Icons.request_page_rounded,
-                    iconColor: Colors.orange,
-                  ),
+              Expanded(
+                child: SummaryCard(
+                  title: 'Claim Pending',
+                  count: pendingClaims,
+                  icon: Icons.request_page_rounded,
+                  iconColor: Colors.orange,
                 ),
-                const SizedBox(width: 12),
-                // ✅ NEW — combined Schedule Alerts card (tappable → NotificationScreen)
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const NotificationScreen()),
-                    ),
-                    child: SummaryCard(
-                      title: 'Schedule Alerts',
-                      count: scheduleAlerts,
-                      icon: Icons.swap_horiz_rounded,
-                      iconColor: Colors.purple,
-                    ),
-                  ),
-                ),
-              ]),
+              ),
+              const SizedBox(width: 12),
+              //FIX — use Consumer so it rebuilds reactively like the bell icon
+              Expanded(
+                child: Consumer2<ScheduleExchanges, Schedules>(
+                  builder: (context, exchanges, schedules, _) {
+                    final pendingExchanges = exchanges.exchanges
+                        .where((e) => e.status == 1)
+                        .length;
+                    final rejectedSchedules = schedules.schedules
+                        .where((s) => s.acceptanceStatus == 2 && !s.hrDismissed)
+                        .length;
+                    final alertCount = pendingExchanges + rejectedSchedules;
 
+                    return GestureDetector(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const NotificationScreen()),
+                      ),
+                      child: SummaryCard(
+                        title: 'Schedule Alerts',
+                        count: alertCount,
+                        icon: Icons.swap_horiz_rounded,
+                        iconColor: Colors.purple,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ]),
               const SizedBox(height: 32),
               _buildMovementCards(),
               const SizedBox(height: 80),

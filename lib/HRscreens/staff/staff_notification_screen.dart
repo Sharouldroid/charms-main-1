@@ -267,140 +267,169 @@ class _StaffNotificationScreenState extends State<StaffNotificationScreen> {
     );
   }
 
-  Widget _buildExchangeIncomingCard(ScheduleExchange exchange) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.indigo.shade100, width: 1.5),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.indigo.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.swap_horiz_rounded,
-                    color: Colors.indigo, size: 20),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  '${exchange.requesterName ?? "Someone"} wants to swap schedules with you',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                      color: Color(0xFF1E293B)),
-                ),
-              ),
-            ]),
-            const SizedBox(height: 12),
+ Widget _buildExchangeIncomingCard(ScheduleExchange exchange) {
 
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Their schedule',
-                          style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.grey.shade500,
-                              fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 2),
-                      Text(exchange.requesterWorkDate ?? '—',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 12)),
-                      Text(exchange.requesterStartTime ?? '—',
-                          style: TextStyle(
-                              fontSize: 11, color: Colors.grey.shade600)),
-                    ],
-                  ),
-                ),
-                const Icon(Icons.compare_arrows_rounded, color: Colors.grey),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text('Your schedule',
-                          style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.grey.shade500,
-                              fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 2),
-                      Text(exchange.targetWorkDate ?? '—',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 12)),
-                      Text(exchange.targetStartTime ?? '—',
-                          style: TextStyle(
-                              fontSize: 11, color: Colors.grey.shade600)),
-                    ],
-                  ),
-                ),
-              ]),
-            ),
-
-            if (exchange.requesterNote != null &&
-                exchange.requesterNote!.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text('Note: "${exchange.requesterNote}"',
-                  style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey.shade500,
-                      fontStyle: FontStyle.italic)),
-            ],
-            const SizedBox(height: 12),
-
-            Row(children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                  ),
-                  onPressed: () => _respondToExchange(exchange, true),
-                  icon: const Icon(Icons.check_rounded, size: 16),
-                  label: const Text('Accept',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.redAccent,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                  ),
-                  onPressed: () => _respondToExchange(exchange, false),
-                  icon: const Icon(Icons.close_rounded, size: 16),
-                  label: const Text('Reject',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ),
-            ]),
-          ],
-        ),
-      ),
-    );
+  String locationName(String? loc) {
+    switch (loc) {
+      case '1': return 'Chagar Hutang';
+      case '2': return 'Turtle Lab';
+      case '3': return 'UMT';
+      default:  return loc ?? '—';
+    }
   }
+
+  Color locationColor(String? loc) {
+    switch (loc) {
+      case '1': return const Color(0xFF0891B2);
+      case '2': return const Color(0xFF7C3AED);
+      case '3': return const Color(0xFFF59E0B);
+      default:  return Colors.grey;
+    }
+  }
+
+  Widget locationBadge(String? loc) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    decoration: BoxDecoration(
+      color: locationColor(loc).withOpacity(0.12),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: locationColor(loc).withOpacity(0.4)),
+    ),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(Icons.location_on_rounded, size: 11, color: locationColor(loc)),
+      const SizedBox(width: 3),
+      Text(locationName(loc),
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
+              color: locationColor(loc))),
+    ]),
+  );
+
+  return Container(
+    margin: const EdgeInsets.only(bottom: 10),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: Colors.indigo.shade100, width: 1.5),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header ──────────────────────────────────────────────────
+          Row(children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                  color: Colors.indigo.withOpacity(0.1), shape: BoxShape.circle),
+              child: const Icon(Icons.swap_horiz_rounded,
+                  color: Colors.indigo, size: 20),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                '${exchange.requesterName ?? "Someone"} wants to swap schedules with you',
+                style: const TextStyle(fontWeight: FontWeight.w700,
+                    fontSize: 13, color: Color(0xFF1E293B)),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 12),
+
+          // ── Schedule comparison box ──────────────────────────────────
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(10)),
+            child: Row(children: [
+              // Their schedule
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Their schedule',
+                        style: TextStyle(fontSize: 10,
+                            color: Colors.grey.shade500,
+                            fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 2),
+                    Text(exchange.requesterWorkDate ?? '—',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 12)),
+                    Text(exchange.requesterStartTime ?? '—',
+                        style: TextStyle(
+                            fontSize: 11, color: Colors.grey.shade600)),
+                    const SizedBox(height: 4),
+                    locationBadge(exchange.requesterWorkLocation), // ✅ added
+                  ],
+                ),
+              ),
+              const Icon(Icons.compare_arrows_rounded, color: Colors.grey),
+              // Your schedule
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text('Your schedule',
+                        style: TextStyle(fontSize: 10,
+                            color: Colors.grey.shade500,
+                            fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 2),
+                    Text(exchange.targetWorkDate ?? '—',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 12)),
+                    Text(exchange.targetStartTime ?? '—',
+                        style: TextStyle(
+                            fontSize: 11, color: Colors.grey.shade600)),
+                    const SizedBox(height: 4),
+                    locationBadge(exchange.targetWorkLocation), // ✅ added
+                  ],
+                ),
+              ),
+            ]),
+          ),
+
+          if (exchange.requesterNote != null &&
+              exchange.requesterNote!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text('Note: "${exchange.requesterNote}"',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade500,
+                    fontStyle: FontStyle.italic)),
+          ],
+          const SizedBox(height: 12),
+
+          // ── Accept / Reject buttons ──────────────────────────────────
+          Row(children: [
+            Expanded(child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green, foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+              ),
+              onPressed: () => _respondToExchange(exchange, true),
+              icon: const Icon(Icons.check_rounded, size: 16),
+              label: const Text('Accept',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            )),
+            const SizedBox(width: 10),
+            Expanded(child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+              ),
+              onPressed: () => _respondToExchange(exchange, false),
+              icon: const Icon(Icons.close_rounded, size: 16),
+              label: const Text('Reject',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            )),
+          ]),
+        ],
+      ),
+    ),
+  );
+}
 
   Future<void> _respondToExchange(ScheduleExchange exchange, bool accept) async {
     final success = await Provider.of<ScheduleExchanges>(context, listen: false)

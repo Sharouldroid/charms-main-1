@@ -19,6 +19,8 @@ class ScheduleExchange {
   final String? targetWorkDate;
   final String? requesterStartTime;
   final String? targetStartTime;
+  final String? requesterWorkLocation;
+  final String? targetWorkLocation;
   final String? requesterDepartment;
   final String? targetDepartment;
 
@@ -41,6 +43,9 @@ class ScheduleExchange {
     this.targetStartTime,
     this.requesterDepartment,
     this.targetDepartment,
+    this.requesterWorkLocation,
+    this.targetWorkLocation,
+
   });
 
   factory ScheduleExchange.fromJson(Map<String, dynamic> json) {
@@ -63,6 +68,8 @@ class ScheduleExchange {
       targetStartTime:     json['target_start_time'],
       requesterDepartment: json['requester_department'],
       targetDepartment:    json['target_department'],
+      requesterWorkLocation: json['requester_work_location']?.toString(),
+      targetWorkLocation:    json['target_work_location']?.toString(),
     );
   }
 
