@@ -34,11 +34,42 @@ class _StaffScheduleHistoryScreenState
   final Color staffBg         = const Color(0xFFF8FAFC);
   final Color staffCardBorder = const Color(0xFFE2E8F0);
 
-  static const _branchNames = {
-    1: 'Chagar Hutang',
-    2: 'Turtle Lab',
-    3: 'UMT',
-  };
+  // ── Location helpers ──────────────────────────────────────────────────────
+  String _locationName(String? loc) {
+    switch (loc) {
+      case '1': return 'Chagar Hutang';
+      case '2': return 'Turtle Lab';
+      case '3': return 'UMT';
+      default:  return '—';
+    }
+  }
+
+  Color _locationColor(String? loc) {
+    switch (loc) {
+      case '1': return const Color(0xFF0891B2);
+      case '2': return const Color(0xFF7C3AED);
+      case '3': return const Color(0xFFF59E0B);
+      default:  return Colors.grey;
+    }
+  }
+
+  Widget _locationBadge(String? loc) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+    decoration: BoxDecoration(
+      color: _locationColor(loc).withOpacity(0.12),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: _locationColor(loc).withOpacity(0.4)),
+    ),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(Icons.location_on_rounded, size: 10, color: _locationColor(loc)),
+      const SizedBox(width: 3),
+      Text(_locationName(loc),
+          style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: _locationColor(loc))),
+    ]),
+  );
 
   @override
   void initState() {
@@ -56,23 +87,19 @@ class _StaffScheduleHistoryScreenState
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      // Load schedules for this staff
       final schedules = await Provider.of<Schedules>(context, listen: false)
           .fetchSchedulesByStaffId(widget.staffId);
 
-      // Load exchange history for this staff
       await Provider.of<ScheduleExchanges>(context, listen: false)
           .fetchExchangesByStaff(widget.staffId);
 
       if (mounted) {
         setState(() {
-          // Only keep rejected schedules
           _rejectedSchedules = schedules
               .where((s) => s.acceptanceStatus == 2)
               .toList()
             ..sort((a, b) => b.workDate.compareTo(a.workDate));
 
-          // All exchanges involving this staff
           _exchangeHistory = Provider.of<ScheduleExchanges>(
                   context, listen: false)
               .exchanges
@@ -87,9 +114,6 @@ class _StaffScheduleHistoryScreenState
       if (mounted) setState(() => _isLoading = false);
     }
   }
-
-  String _branchName(int location) =>
-      _branchNames[location] ?? 'Location $location';
 
   // ── Rejected schedule card ────────────────────────────────────────────────
   Widget _buildRejectedCard(Schedule s) {
@@ -109,81 +133,75 @@ class _StaffScheduleHistoryScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Header row ──────────────────────────────────────────────
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.08),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.cancel_rounded,
-                      color: Colors.redAccent, size: 20),
+            // ── Header row ───────────────────────────────────────────────
+            Row(children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.08),
+                  shape: BoxShape.circle,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        DateFormat('dd MMM yyyy (EEE)').format(s.workDate),
-                        style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1E293B)),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        _branchName(s.workLocation),
+                child: const Icon(Icons.cancel_rounded,
+                    color: Colors.redAccent, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      DateFormat('dd MMM yyyy (EEE)').format(s.workDate),
+                      style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E293B)),
+                    ),
+                    const SizedBox(height: 4),
+                    // ✅ Location badge
+                    _locationBadge(s.workLocation.toString()),
+                  ],
+                ),
+              ),
+              // Status badge
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border:
+                      Border.all(color: Colors.redAccent.withOpacity(0.3)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.cancel_rounded,
+                        size: 12, color: Colors.redAccent),
+                    SizedBox(width: 4),
+                    Text('Rejected',
                         style: TextStyle(
-                            fontSize: 13, color: Colors.grey.shade600),
-                      ),
-                    ],
-                  ),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.redAccent)),
+                  ],
                 ),
-                // Status badge
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.cancel_rounded,
-                          size: 12, color: Colors.redAccent),
-                      SizedBox(width: 4),
-                      Text('Rejected',
-                          style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.redAccent)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ]),
 
             if (s.workStartTime != null || s.workEndTime != null) ...[
               const SizedBox(height: 10),
               Divider(color: staffCardBorder, height: 1),
               const SizedBox(height: 10),
-              Row(
-                children: [
-                  Icon(Icons.access_time_rounded,
-                      size: 14, color: Colors.grey.shade400),
-                  const SizedBox(width: 6),
-                  Text(
-                    '${s.workStartTime ?? '—'} → ${s.workEndTime ?? '—'}',
-                    style: TextStyle(
-                        fontSize: 13, color: Colors.grey.shade600),
-                  ),
-                ],
-              ),
+              Row(children: [
+                Icon(Icons.access_time_rounded,
+                    size: 14, color: Colors.grey.shade400),
+                const SizedBox(width: 6),
+                Text(
+                  '${s.workStartTime ?? '—'} → ${s.workEndTime ?? '—'}',
+                  style: TextStyle(
+                      fontSize: 13, color: Colors.grey.shade600),
+                ),
+              ]),
             ],
 
             // ── Rejection reason ─────────────────────────────────────────
@@ -195,8 +213,8 @@ class _StaffScheduleHistoryScreenState
                 decoration: BoxDecoration(
                   color: Colors.red.withOpacity(0.04),
                   borderRadius: BorderRadius.circular(10),
-                  border:
-                      Border.all(color: Colors.redAccent.withOpacity(0.2)),
+                  border: Border.all(
+                      color: Colors.redAccent.withOpacity(0.2)),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -234,14 +252,15 @@ class _StaffScheduleHistoryScreenState
   // ── Exchange history card ─────────────────────────────────────────────────
   Widget _buildExchangeCard(ScheduleExchange ex) {
     final isRequester = ex.requesterId == widget.staffId;
-    final myDate    = isRequester ? ex.requesterWorkDate : ex.targetWorkDate;
-    final theirDate = isRequester ? ex.targetWorkDate   : ex.requesterWorkDate;
-    final theirName = isRequester ? ex.targetName       : ex.requesterName;
+    final myDate       = isRequester ? ex.requesterWorkDate    : ex.targetWorkDate;
+    final theirDate    = isRequester ? ex.targetWorkDate       : ex.requesterWorkDate;
+    final theirName    = isRequester ? ex.targetName           : ex.requesterName;
+    final myLocation   = isRequester ? ex.requesterWorkLocation : ex.targetWorkLocation;
+    final theirLocation = isRequester ? ex.targetWorkLocation  : ex.requesterWorkLocation;
 
     final Color statusColor = ex.statusColor;
     final String statusText = ex.statusText;
 
-    // Status icon
     IconData statusIcon;
     switch (ex.status) {
       case 3:  statusIcon = Icons.check_circle_rounded; break;
@@ -267,90 +286,88 @@ class _StaffScheduleHistoryScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Header ────────────────────────────────────────────────────
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.08),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(statusIcon, color: statusColor, size: 20),
+            // ── Header ───────────────────────────────────────────────────
+            Row(children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.08),
+                  shape: BoxShape.circle,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                child: Icon(statusIcon, color: statusColor, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isRequester
+                          ? 'You requested exchange'
+                          : 'Exchange request received',
+                      style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E293B)),
+                    ),
+                    if (ex.createdAt != null)
                       Text(
-                        isRequester ? 'You requested exchange' : 'Exchange request received',
-                        style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1E293B)),
+                        DateFormat('dd MMM yyyy').format(ex.createdAt!),
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.grey.shade500),
                       ),
-                      if (ex.createdAt != null)
-                        Text(
-                          DateFormat('dd MMM yyyy').format(ex.createdAt!),
-                          style: TextStyle(
-                              fontSize: 12, color: Colors.grey.shade500),
-                        ),
-                    ],
-                  ),
+                  ],
                 ),
-                // Status badge
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: statusColor.withOpacity(0.3)),
-                  ),
-                  child: Text(statusText,
-                      style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: statusColor)),
+              ),
+              // Status badge
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: statusColor.withOpacity(0.3)),
                 ),
-              ],
-            ),
+                child: Text(statusText,
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: statusColor)),
+              ),
+            ]),
 
             const SizedBox(height: 12),
             Divider(color: staffCardBorder, height: 1),
             const SizedBox(height: 12),
 
-            // ── Schedule swap details ──────────────────────────────────────
-            Row(
-              children: [
-                // My schedule
-                Expanded(
-                  child: _scheduleBlock(
-                    label: 'Your Schedule',
-                    date: myDate,
-                    color: staffPrimary,
-                    icon: Icons.person_rounded,
-                  ),
+            // ── Schedule swap details ─────────────────────────────────────
+            Row(children: [
+              Expanded(
+                child: _scheduleBlock(
+                  label: 'Your Schedule',
+                  date: myDate,
+                  workLocation: myLocation, // ✅
+                  color: staffPrimary,
+                  icon: Icons.person_rounded,
                 ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Icon(Icons.swap_horiz_rounded,
-                      color: Colors.grey.shade400, size: 22),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Icon(Icons.swap_horiz_rounded,
+                    color: Colors.grey.shade400, size: 22),
+              ),
+              Expanded(
+                child: _scheduleBlock(
+                  label: theirName ?? 'Other Staff',
+                  date: theirDate,
+                  workLocation: theirLocation, // ✅
+                  color: Colors.teal,
+                  icon: Icons.people_rounded,
                 ),
-                // Their schedule
-                Expanded(
-                  child: _scheduleBlock(
-                    label: theirName ?? 'Other Staff',
-                    date: theirDate,
-                    color: Colors.teal,
-                    icon: Icons.people_rounded,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ]),
 
-            // ── Notes ─────────────────────────────────────────────────────
+            // ── Notes ────────────────────────────────────────────────────
             if (_hasNotes(ex)) ...[
               const SizedBox(height: 12),
               _buildNotesSection(ex, isRequester),
@@ -361,9 +378,11 @@ class _StaffScheduleHistoryScreenState
     );
   }
 
+  // ── Schedule block with location badge ───────────────────────────────────
   Widget _scheduleBlock({
     required String label,
     required String? date,
+    required String? workLocation,
     required Color color,
     required IconData icon,
   }) {
@@ -391,14 +410,15 @@ class _StaffScheduleHistoryScreenState
           ]),
           const SizedBox(height: 4),
           Text(
-            date != null
-                ? _formatDateStr(date)
-                : '—',
+            date != null ? _formatDateStr(date) : '—',
             style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF1E293B)),
           ),
+          const SizedBox(height: 4),
+          // ✅ Location badge
+          _locationBadge(workLocation),
         ],
       ),
     );
@@ -410,28 +430,30 @@ class _StaffScheduleHistoryScreenState
       (ex.hrNote?.isNotEmpty ?? false);
 
   Widget _buildNotesSection(ScheduleExchange ex, bool isRequester) {
-    return Column(
-      children: [
-        if (ex.requesterNote?.isNotEmpty ?? false)
-          _noteRow(
-            label: isRequester ? 'Your Note' : '${ex.requesterName ?? "Requester"} Note',
-            note: ex.requesterNote!,
-            color: staffPrimary,
-          ),
-        if (ex.targetNote?.isNotEmpty ?? false)
-          _noteRow(
-            label: isRequester ? '${ex.targetName ?? "Target"} Note' : 'Your Note',
-            note: ex.targetNote!,
-            color: Colors.teal,
-          ),
-        if (ex.hrNote?.isNotEmpty ?? false)
-          _noteRow(
-            label: 'HR Note',
-            note: ex.hrNote!,
-            color: Colors.orange,
-          ),
-      ],
-    );
+    return Column(children: [
+      if (ex.requesterNote?.isNotEmpty ?? false)
+        _noteRow(
+          label: isRequester
+              ? 'Your Note'
+              : '${ex.requesterName ?? "Requester"} Note',
+          note: ex.requesterNote!,
+          color: staffPrimary,
+        ),
+      if (ex.targetNote?.isNotEmpty ?? false)
+        _noteRow(
+          label: isRequester
+              ? '${ex.targetName ?? "Target"} Note'
+              : 'Your Note',
+          note: ex.targetNote!,
+          color: Colors.teal,
+        ),
+      if (ex.hrNote?.isNotEmpty ?? false)
+        _noteRow(
+          label: 'HR Note',
+          note: ex.hrNote!,
+          color: Colors.orange,
+        ),
+    ]);
   }
 
   Widget _noteRow({
@@ -515,8 +537,8 @@ class _StaffScheduleHistoryScreenState
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.cancel_rounded, size: 16,
-                      color: Colors.white),
+                  const Icon(Icons.cancel_rounded,
+                      size: 16, color: Colors.white),
                   const SizedBox(width: 6),
                   Text('Rejected (${_rejectedSchedules.length})',
                       style: const TextStyle(color: Colors.white)),
@@ -527,8 +549,8 @@ class _StaffScheduleHistoryScreenState
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.swap_horiz_rounded, size: 16,
-                      color: Colors.white),
+                  const Icon(Icons.swap_horiz_rounded,
+                      size: 16, color: Colors.white),
                   const SizedBox(width: 6),
                   Text('Exchanges (${_exchangeHistory.length})',
                       style: const TextStyle(color: Colors.white)),
@@ -546,7 +568,7 @@ class _StaffScheduleHistoryScreenState
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  // ── Tab 1: Rejected Schedules ──────────────────────────
+                  // ── Tab 1: Rejected Schedules ────────────────────────
                   _rejectedSchedules.isEmpty
                       ? _emptyState(
                           icon: Icons.event_available_rounded,
@@ -555,22 +577,25 @@ class _StaffScheduleHistoryScreenState
                         )
                       : ListView.builder(
                           physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.only(top: 16, bottom: 32),
+                          padding:
+                              const EdgeInsets.only(top: 16, bottom: 32),
                           itemCount: _rejectedSchedules.length,
                           itemBuilder: (_, i) =>
                               _buildRejectedCard(_rejectedSchedules[i]),
                         ),
 
-                  // ── Tab 2: Exchange History ────────────────────────────
+                  // ── Tab 2: Exchange History ───────────────────────────
                   _exchangeHistory.isEmpty
                       ? _emptyState(
                           icon: Icons.swap_horiz_rounded,
                           message: 'No exchange history',
-                          sub: 'Schedule exchange requests will appear here',
+                          sub:
+                              'Schedule exchange requests will appear here',
                         )
                       : ListView.builder(
                           physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.only(top: 16, bottom: 32),
+                          padding:
+                              const EdgeInsets.only(top: 16, bottom: 32),
                           itemCount: _exchangeHistory.length,
                           itemBuilder: (_, i) =>
                               _buildExchangeCard(_exchangeHistory[i]),
@@ -600,8 +625,8 @@ class _StaffScheduleHistoryScreenState
           const SizedBox(height: 6),
           Text(sub,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                  fontSize: 13, color: Colors.grey.shade400)),
+              style:
+                  TextStyle(fontSize: 13, color: Colors.grey.shade400)),
         ],
       ),
     );
