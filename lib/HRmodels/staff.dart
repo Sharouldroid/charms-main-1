@@ -30,6 +30,7 @@ class Staff {
   final String? filepath;
   final String? filename;
   final String? department;
+  final DateTime? createdAt;
 
   Staff({
     required this.staffId,
@@ -63,6 +64,7 @@ class Staff {
     this.filepath,
     this.filename,
     this.department,
+    this.createdAt,
   });
 
   factory Staff.fromJson(Map<String, dynamic> json) {
@@ -95,9 +97,10 @@ class Staff {
       postcode: int.tryParse(json['postcode'].toString()) ?? 0,
       state: json['state'] ?? '',
       country: json['country'] ?? '',
-      filepath: json['filepath'],   // ✅ nullable, no default needed
-      filename: json['filename'],   // ✅ nullable, no default needed
-      department: json['department'], // ✅ nullable, no default needed
+      filepath: json['filepath'],  
+      filename: json['filename'],   
+      department: json['department'],
+      createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
     );
   }
 

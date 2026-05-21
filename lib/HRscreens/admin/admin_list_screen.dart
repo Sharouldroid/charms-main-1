@@ -14,7 +14,7 @@ import 'package:provider/provider.dart';
 import 'package:charms/utils/logout_helper.dart';
 import 'package:charms/HRproviders/schedule_exchanges.dart';
 import 'package:charms/HRproviders/schedules.dart';
-
+import 'package:intl/intl.dart';
 
 class AdminListScreen extends StatefulWidget {
   final String username;
@@ -249,7 +249,12 @@ class _AdminListScreenState extends State<AdminListScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _dialogRow(
-                Icons.badge_rounded, 'Staff ID', '#${staff.staffId}'),
+                Icons.calendar_today_rounded,
+                'Joined',
+                staff.createdAt != null
+                    ? DateFormat('dd MMM yyyy').format(staff.createdAt!)
+                    : '—',
+            ),
             const SizedBox(height: 10),
             _dialogRow(Icons.account_circle_rounded, 'Username',
                 staff.username),
