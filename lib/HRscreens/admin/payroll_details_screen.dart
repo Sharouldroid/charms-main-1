@@ -161,7 +161,7 @@ class _PayrollDetailsScreenState extends State<PayrollDetailsScreen> {
               pw.SizedBox(height: 8),
               pw.Center(
                 child: pw.Text(
-                  'Payslip for $month',
+                  'Payment Report for $month',
                   style: pw.TextStyle(
                     fontSize: 18,
                     fontWeight: pw.FontWeight.bold,
@@ -193,7 +193,7 @@ class _PayrollDetailsScreenState extends State<PayrollDetailsScreen> {
                   borderRadius: pw.BorderRadius.circular(4),
                 ),
                 child: pw.Text(
-                  'This is a computer generated Payslip. Signature is not required.',
+                  'This is a computer generated Payment Report. Signature is not required.',
                   style: const pw.TextStyle(fontSize: 10),
                 ),
               ),
@@ -248,7 +248,7 @@ class _PayrollDetailsScreenState extends State<PayrollDetailsScreen> {
       final month = ('${widget.payrollRecord['month'] ?? 'month'}')
           .replaceAll(' ', '_')
           .replaceAll('/', '-');
-      final fileName = 'payslip_${staffId}_$month.pdf';
+      final fileName = 'payment_report_${staffId}_$month.pdf';
 
       await savePdf(
         bytes: bytes,

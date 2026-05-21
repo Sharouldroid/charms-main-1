@@ -40,7 +40,7 @@ class _ManageStaffScreenState extends State<ManageStaffScreen> {
     _MenuItem('Staff List',    Icons.people_alt_rounded,     Colors.blue,   null),
     _MenuItem('Plan Schedule', Icons.calendar_today_rounded, Colors.orange, null),
     _MenuItem('Attendance',    Icons.timer_rounded,          Colors.green,  null),
-    _MenuItem('Payroll',       Icons.receipt_long_rounded,   Colors.purple, null),
+    _MenuItem('Payment Reports',Icons.receipt_long_rounded,   Colors.purple, null),
     _MenuItem('Leave',         Icons.beach_access_rounded,   Colors.red,    null),
     _MenuItem('Claim',         Icons.request_page_rounded,   Colors.teal,   null),
   ];

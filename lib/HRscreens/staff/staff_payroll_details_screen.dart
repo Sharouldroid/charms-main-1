@@ -133,7 +133,7 @@ class _StaffPayrollDetailsScreenState
                       fontSize: 20, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 4),
               pw.Text(
-                'Payslip for ${widget.month} ${widget.year}',
+                'Payment Report for ${widget.month} ${widget.year}',
                 style: pw.TextStyle(
                     fontSize: 14,
                     fontWeight: pw.FontWeight.bold,
@@ -289,7 +289,7 @@ class _StaffPayrollDetailsScreenState
       backgroundColor: staffBg,
       appBar: AppBar(
         elevation: 0,
-        title: const Text('PAYROLL DETAILS',
+        title: const Text('PAYMENT REPORT DETAILS',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold,
                 letterSpacing: 1.2)),
         centerTitle: true,
@@ -329,7 +329,7 @@ class _StaffPayrollDetailsScreenState
                       style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900,
                           color: Colors.white)),
                   const SizedBox(height: 4),
-                  Text('Payslip Summary',
+                  Text('Payment Summary',
                       style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500,
                           color: Colors.indigo.shade200)),
                   const SizedBox(height: 20),
@@ -465,7 +465,7 @@ class _StaffPayrollDetailsScreenState
             label: Text(
               _downloading    ? 'Preparing PDF...' :
               !_logosReady    ? 'Loading...'       :
-                                'Download Payslip',
+                                'Download Payment Report',
               style: const TextStyle(color: Colors.white, fontSize: 15,
                   fontWeight: FontWeight.w700),
             ),

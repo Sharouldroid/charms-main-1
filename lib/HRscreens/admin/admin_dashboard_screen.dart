@@ -437,7 +437,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: SummaryCard(
-                    title: 'Payroll Pending',
+                    title: 'Payment Report Pending',
                     count: pendingPayroll,
                     icon: Icons.receipt_long_rounded,
                     iconColor: Colors.teal,

@@ -102,7 +102,7 @@ class _PayrollFormScreenState extends State<PayrollFormScreen> {
         backgroundColor: primaryBlue,
         iconTheme: const IconThemeData(color: Colors.white),
         title: const Text(
-          'PAYROLL FORM',
+          'PAYMENT REPORT FORM',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -253,7 +253,7 @@ class _PayrollFormScreenState extends State<PayrollFormScreen> {
               ),
               icon: const Icon(Icons.check_circle_rounded),
               label: const Text(
-                'Submit Payroll',
+                'Submit Payment Report',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5),
               ),
             ),

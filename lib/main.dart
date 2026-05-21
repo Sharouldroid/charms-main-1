@@ -29,7 +29,6 @@ import 'package:flutter/material.dart';
 import 'package:overlay_support/overlay_support.dart';
 import 'package:provider/provider.dart';
 import 'package:charms/constants/user_roles.dart';
-
 // ------------------------
 // 🌟 INTERNSHIP MODULE IMPORTS
 // ------------------------
@@ -37,7 +36,6 @@ import 'package:charms/internshipproviders/register_provider.dart';
 import 'package:charms/internshipproviders/schedule_provider.dart';
 import 'package:charms/internshipproviders/assessment_provider.dart';
 import 'package:charms/internshipscreens/dashboard_screen.dart' as internship_screens;
-
 // ------------------------
 // 🌟 HR MODULE IMPORTS (ADDED)
 // ------------------------
@@ -53,7 +51,6 @@ import 'package:charms/HRproviders/theme_provider.dart';
 import 'package:charms/HRproviders/users.dart' as hr_users;
 import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
 import 'package:charms/HRproviders/schedule_exchanges.dart';
-
 // 🌟 ADDED CHARMS MAINTENANCE PAGES
 import 'campsite_maintenance.dart';
 import 'maintenance_page.dart';
@@ -97,7 +94,6 @@ void main() async {
 
   runApp(const MyApp());
 }
-
 // --------------------------------------------------------
 // MyApp Class
 // --------------------------------------------------------

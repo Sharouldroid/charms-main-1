@@ -86,7 +86,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
     }
     if (payrolls > 0) {
       await _showNotification(
-          'Pending Payrolls', 'You have $payrolls pending payroll items');
+          'Pending Payment Reports', 'You have $payrolls pending payment reports');
     }
     if (claims > 0) {
       await _showNotification(
@@ -502,7 +502,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
               )),
 
               ...pendingPayrolls.map((payroll) => NotificationItem(
-                title: 'Payroll Pending',
+                title: 'Payment Report Pending',
                 subtitle: 'Staff ID: ${payroll.staffId}',
                 iconData: Icons.receipt_long_rounded,
                 iconColor: Colors.teal,

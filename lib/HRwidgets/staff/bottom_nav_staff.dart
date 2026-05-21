@@ -50,7 +50,7 @@ class BottomNavStaff extends StatelessWidget {
             ),
             _buildNavItem(
               icon: Icons.monetization_on,
-              label: 'Payroll',
+              label: 'Payment Reports',
               isSelected: selectedIndex == 2,
             ),
             _buildNavItem(

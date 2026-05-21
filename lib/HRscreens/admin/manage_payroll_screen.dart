@@ -100,11 +100,11 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
               await Provider.of<Payments>(context, listen: false).addPayment(payment);
               await _loadInitialData();
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Payroll added successfully!')),
+                const SnackBar(content: Text('Payment report added successfully!')),
               );
             } catch (error) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Failed to add payroll: $error')),
+                SnackBar(content: Text('Failed to add payment report: $error')),
               );
             }
           },
@@ -161,11 +161,11 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
               await Provider.of<Payments>(context, listen: false).updatePayment(updatedPayment);
               await _loadInitialData();
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Payroll updated successfully!')),
+                const SnackBar(content: Text('Payment report updated successfully!')),
               );
             } catch (error) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Failed to update payroll: $error')),
+                SnackBar(content: Text('Failed to update payment report: $error')),
               );
             }
           },
@@ -179,11 +179,11 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
       await Provider.of<Payments>(context, listen: false).deletePayment(payment.paymentId);
       await _loadInitialData();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Payroll deleted successfully!')),
+        const SnackBar(content: Text('Payment report deleted successfully!')),
       );
     } catch (error) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to delete payroll: $error')),
+        SnackBar(content: Text('Failed to delete payment report: $error')),
       );
     }
   }
@@ -368,7 +368,7 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
               children: [
                 Icon(Icons.receipt_long_rounded, size: 64, color: Colors.grey.shade300),
                 const SizedBox(height: 16),
-                Text('No published payrolls for ${_categories[_selectedCategoryIndex]['label']}',
+                Text('No published payment reports for ${_categories[_selectedCategoryIndex]['label']}',
                     style: TextStyle(color: Colors.grey.shade500, fontSize: 16, fontWeight: FontWeight.w500)),
               ],
             ),
@@ -479,7 +479,7 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
         elevation: 0,
         backgroundColor: primaryBlue,
         iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text('MANAGE PAYROLL',
+        title: const Text('MANAGE PAYMENT REPORTS',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
         centerTitle: true,
         shape: const RoundedRectangleBorder(

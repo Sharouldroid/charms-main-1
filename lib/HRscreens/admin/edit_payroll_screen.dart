@@ -99,7 +99,7 @@ class _EditPayrollScreenState extends State<EditPayrollScreen> {
         backgroundColor: primaryBlue,
         iconTheme: const IconThemeData(color: Colors.white),
         title: const Text(
-          'EDIT PAYROLL',
+          'EDIT PAYMENT REPORT',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
