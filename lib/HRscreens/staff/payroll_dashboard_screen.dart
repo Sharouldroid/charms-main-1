@@ -282,7 +282,7 @@ class _PayrollDashboardScreenState extends State<PayrollDashboardScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'My Payroll 💳',
+                        'My Payment Reports 💳',
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
@@ -297,7 +297,7 @@ class _PayrollDashboardScreenState extends State<PayrollDashboardScreen> {
                               size: 16, color: Colors.indigo.shade200),
                           const SizedBox(width: 6),
                           Text(
-                            'Showing payslips for',
+                            'Showing payment reports for',
                             style: TextStyle(
                               color: Colors.indigo.shade100,
                               fontSize: 14,
@@ -334,7 +334,7 @@ class _PayrollDashboardScreenState extends State<PayrollDashboardScreen> {
                         Padding(
                           padding: const EdgeInsets.only(bottom: 12),
                           child: Text(
-                            'Monthly Payslips',
+                            'Monthly Payment Reports',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
