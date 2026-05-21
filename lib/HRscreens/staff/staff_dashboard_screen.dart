@@ -92,7 +92,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
         staffsProvider.fetchStaff(),
         leavesProvider.fetchLeaves(),
         claimsProvider.fetchClaims(),
-        exchangesProvider.fetchExchangesByStaff(_currentStaff!.staffId),
+        
       ]);
 
       if (!_mounted) return;
