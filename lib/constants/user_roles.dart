@@ -12,13 +12,16 @@ class UserRoles {
   static const int marineBiologist  = 9;
   static const int researcher       = 3;
 
-  // ── Staff Member ──────────────────────────────────────
+  // ── Intern Member ──────────────────────────────────────
   static const int trainee          = 10;
 
   // ── Else ──────────────────────────────────────────────
   static const int volunteer    = 2;
   static const int boatOwner    = 4;
   static const int turtleRanger = 11;
+
+  // ── Part Timer ────────────────────────────────────────
+  static const int partTimer         = 12;
 
   // ── Group helpers ─────────────────────────────────────
   static const List<int> hrAdmin = [superID, manager, staffAdmin];
@@ -28,6 +31,7 @@ class UserRoles {
   ];
 
   static const List<int> internGroup = [trainee];
+  static const List<int> partTimerGroup = [partTimer];
   static const List<int> elseGroup = [volunteer, boatOwner, turtleRanger];
 
   // ── Name lookup ───────────────────────────────────────
@@ -41,6 +45,7 @@ class UserRoles {
       case marineBiologist:   return 'Marine Biologist';
       case trainee:           return 'Intern / Trainee';
       case researcher:        return 'Researcher';
+      case partTimer:         return 'Part Timer';
       case volunteer:         return 'Volunteer';
       case boatOwner:         return 'Boat Owner';
       case turtleRanger:      return 'Turtle Ranger';

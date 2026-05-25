@@ -32,7 +32,7 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-  // ✅ NEW: Store user's registered schedule IDs
+  // ✅ Store user's registered schedule IDs
   List<int> _userRegisteredScheduleIds = [];
 
   @override
@@ -67,7 +67,7 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
     await scheduleProvider.loadSchedules();
   }
 
-  // ✅ NEW: Load all schedules user is registered for
+  // ✅ Load all schedules user is registered for
   Future<void> _loadUserRegistrations() async {
     if (widget.isAdmin) return; // Only for interns
 
@@ -373,12 +373,16 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
                               ],
                             ],
                           ),
+                          // ✅ ADDED DELETE LOGIC HERE
                           trailing: !widget.isAdmin
                               ? Icon(
                                   isUserRegistered ? Icons.check_circle : Icons.arrow_forward_ios,
                                   color: isUserRegistered ? Colors.green : Colors.blueAccent,
                                 )
-                              : const Icon(Icons.event_note),
+                              : IconButton(
+                                  icon: const Icon(Icons.delete, color: Colors.red),
+                                  onPressed: () => _confirmDeleteSchedule(context, schedule.id),
+                                ),
                           onTap: () {
                             if (!widget.isAdmin) {
                               _checkRegistrationLimit(schedule.id);
@@ -394,7 +398,55 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
     );
   }
 
-  // ✅ UPDATED: Check registration with duplicate prevention
+  // ✅ ADDED: Delete confirmation and handling
+  Future<void> _confirmDeleteSchedule(BuildContext context, int scheduleId) async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Schedule'),
+          content: const Text('Are you sure you want to delete this schedule? This action cannot be undone.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Delete', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm == true) {
+      try {
+        // NOTE: Ensure your ScheduleProvider has a `deleteSchedule` method implemented
+        await Provider.of<ScheduleProvider>(context, listen: false).deleteSchedule(scheduleId);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Schedule deleted successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete schedule: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  // ✅ Check registration with duplicate prevention
   Future<void> _checkRegistrationLimit(int scheduleId) async {
     try {
 
@@ -429,7 +481,7 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
         return; // Stop here!
       }
 
-      // ✅ STEP 2: Check slot availability (existing code)
+      // ✅ STEP 2: Check slot availability
       final url = '${AppConfig.hostname}/api/internship/schedules/$scheduleId/check-registration';
       print('Making request to: $url');
 
@@ -543,7 +595,6 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
 
                 print('Duration calculated: $duration');
 
-                // ✅ FIXED: Add maxRegistrations field
                 Provider.of<ScheduleProvider>(context, listen: false)
                     .addSchedule(Schedule(
                   id: DateTime.now().millisecondsSinceEpoch,
@@ -551,7 +602,7 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
                   endDate: _endDate!,
                   description: _descriptionController.text,
                   duration: duration.toString(),
-                  maxRegistrations: 5, // ✅ ADDED: Default 5 slots
+                  maxRegistrations: 5, // ✅ Default 5 slots
                 ));
 
                 _descriptionController.clear();

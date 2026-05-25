@@ -182,4 +182,31 @@ class ScheduleService {
       rethrow;
     }
   }
+
+  // ✅ ADDED: DELETE /api/internship/schedules/{id}
+  Future<void> deleteSchedule(int id) async {
+    final url = '$baseUrl/api/internship/schedules/$id';
+    print('REQUEST URL (deleteSchedule): $url');
+
+    try {
+      final response = await http.delete(
+        Uri.parse(url),
+        headers: _headers(),
+      );
+
+      print('STATUS (deleteSchedule): ${response.statusCode}');
+      print('BODY (deleteSchedule): ${response.body}');
+
+      // Some backends return 204 No Content on successful deletion, others return 200 OK.
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        throw Exception(
+          'Failed to delete schedule: ${response.statusCode} ${response.body}',
+        );
+      }
+    } catch (e, st) {
+      print('ERROR (deleteSchedule): $e');
+      print('STACK (deleteSchedule): $st');
+      rethrow;
+    }
+  }
 }

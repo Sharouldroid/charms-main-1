@@ -33,4 +33,16 @@ class ScheduleProvider with ChangeNotifier {
       notifyListeners();
     }
   }
+
+  // ✅ ADDED: Method to handle deletion
+  Future<void> deleteSchedule(int id) async {
+    // 1. Tell the backend to delete it
+    await _scheduleService.deleteSchedule(id);
+    
+    // 2. Remove it from the local list so the UI updates instantly
+    _schedules.removeWhere((schedule) => schedule.id == id);
+    
+    // 3. Notify listeners to rebuild the UI
+    notifyListeners();
+  }
 }
