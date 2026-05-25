@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:intl/intl.dart';
 import 'package:charms/main.dart';
 
 class RegistrationStatusPage extends StatefulWidget {
@@ -17,8 +18,13 @@ class RegistrationStatusPage extends StatefulWidget {
 
 class _RegistrationStatusPageState extends State<RegistrationStatusPage> {
   bool _isLoading = true;
-  Map<String, dynamic>? _registration;
+
+  // ✅ Now a list to support multiple registrations
+  List<Map<String, dynamic>> _registrations = [];
   String? _errorMessage;
+
+  // ✅ Cache schedule details (duration) keyed by schedule_id
+  final Map<int, Map<String, dynamic>> _scheduleCache = {};
 
   @override
   void initState() {
@@ -30,6 +36,7 @@ class _RegistrationStatusPageState extends State<RegistrationStatusPage> {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _registrations = [];
     });
 
     try {
@@ -37,14 +44,44 @@ class _RegistrationStatusPageState extends State<RegistrationStatusPage> {
         Uri.parse('${AppConfig.hostname}/api/internship/registers/by-user/${widget.userId}'),
       );
 
+      print('📥 Status check: ${response.statusCode}');
+      print('📥 Body: ${response.body}');
+
       if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+
+        // ✅ Handle new response format: { "success": true, "data": [...] }
+        List<dynamic> rawList = [];
+
+        if (decoded is Map && decoded['data'] != null) {
+          final inner = decoded['data'];
+          if (inner is List) {
+            rawList = inner;
+          } else if (inner is Map) {
+            rawList = [inner];
+          }
+        } else if (decoded is List) {
+          rawList = decoded;
+        } else if (decoded is Map) {
+          rawList = [decoded]; // old single-object fallback
+        }
+
         setState(() {
-          _registration = jsonDecode(response.body);
+          _registrations = rawList.map((e) => Map<String, dynamic>.from(e)).toList();
           _isLoading = false;
         });
+
+        // ✅ Fetch schedule details for each registration
+        for (final reg in _registrations) {
+          final scheduleId = reg['schedule_id'];
+          if (scheduleId != null && !_scheduleCache.containsKey(scheduleId)) {
+            await _fetchScheduleDetails(scheduleId as int);
+          }
+        }
+        if (mounted) setState(() {});
+
       } else if (response.statusCode == 404) {
         setState(() {
-          _registration = null;
           _errorMessage = 'Not registered';
           _isLoading = false;
         });
@@ -59,6 +96,27 @@ class _RegistrationStatusPageState extends State<RegistrationStatusPage> {
         _errorMessage = 'Error: $e';
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _fetchScheduleDetails(int scheduleId) async {
+    try {
+      // ✅ Fetch from schedules list to get duration field
+      final response = await http.get(
+        Uri.parse('${AppConfig.hostname}/api/internship/schedules'),
+      );
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        List<dynamic> list = decoded is List ? decoded : (decoded['data'] ?? []);
+        for (final item in list) {
+          final id = item['id'] as int?;
+          if (id != null && !_scheduleCache.containsKey(id)) {
+            _scheduleCache[id] = Map<String, dynamic>.from(item);
+          }
+        }
+      }
+    } catch (e) {
+      print('⚠️ Could not fetch schedule $scheduleId: $e');
     }
   }
 
@@ -77,7 +135,7 @@ class _RegistrationStatusPageState extends State<RegistrationStatusPage> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
+          : (_errorMessage != null || _registrations.isEmpty)
               ? _buildNotRegisteredView()
               : _buildRegisteredView(),
     );
@@ -90,11 +148,7 @@ class _RegistrationStatusPageState extends State<RegistrationStatusPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.cancel,
-              color: Colors.orange,
-              size: 100.0,
-            ),
+            const Icon(Icons.cancel, color: Colors.orange, size: 100.0),
             const SizedBox(height: 20),
             const Text(
               'Not Registered Yet',
@@ -113,9 +167,7 @@ class _RegistrationStatusPageState extends State<RegistrationStatusPage> {
             ),
             const SizedBox(height: 32),
             ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pop(context); // Go back to dashboard
-              },
+              onPressed: () => Navigator.pop(context),
               icon: const Icon(Icons.calendar_today),
               label: const Text('Register Now'),
               style: ElevatedButton.styleFrom(
@@ -130,71 +182,88 @@ class _RegistrationStatusPageState extends State<RegistrationStatusPage> {
   }
 
   Widget _buildRegisteredView() {
-    final schedule = _registration!;
-    
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
-          // Success Icon
-          Icon(
-            Icons.check_circle,
-            color: Colors.green,
-            size: 100.0,
-          ),
+          const Icon(Icons.check_circle, color: Colors.green, size: 100.0),
           const SizedBox(height: 20),
-          
-          const Text(
-            'Registration Approved!',
-            style: TextStyle(
+          Text(
+            _registrations.length > 1
+                ? 'Registered for ${_registrations.length} Sessions!'
+                : 'Registration Approved!',
+            style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
               color: Colors.green,
             ),
             textAlign: TextAlign.center,
           ),
-          
           const SizedBox(height: 32),
-          
-          // Registration Details Card
-          Card(
-            elevation: 4,
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Your Details',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+
+          // ✅ Show a card for each registration
+          ..._registrations.asMap().entries.map((entry) {
+            final index = entry.key;
+            final reg = entry.value;
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Card(
+                elevation: 4,
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.assignment, color: Colors.blueAccent),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Registration ${index + 1}',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Divider(height: 24),
+                      _buildInfoRow('Name', '${reg['first_name'] ?? ''} ${reg['last_name'] ?? ''}'),
+                      _buildInfoRow('Email', reg['email']),
+                      _buildInfoRow('Institution', reg['institution_name']),
+                      _buildInfoRow('Programme', reg['programme']),
+                      _buildInfoRow('Level', reg['level_of_study']),
+                      _buildInfoRow('Duration', () {
+                        final scheduleId = reg['schedule_id'] as int?;
+                        if (scheduleId == null) return 'N/A';
+                        final schedule = _scheduleCache[scheduleId];
+                        if (schedule == null) return 'N/A';
+                        // Try all possible field names the API might return
+                        final duration = schedule['duration'] ??
+                            schedule['duration_days'] ??
+                            schedule['days'];
+                        return duration != null ? '$duration days' : 'N/A';
+                      }()),
+                      _buildInfoRow(
+                        'Registered On',
+                        reg['created_at'] != null
+                            ? DateFormat('dd MMM yyyy').format(DateTime.parse(reg['created_at']))
+                            : 'N/A',
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  _buildInfoRow('Name', '${schedule['first_name']} ${schedule['last_name']}'),
-                  _buildInfoRow('Email', schedule['email']),
-                  _buildInfoRow('Institution', schedule['institution_name']),
-                  _buildInfoRow('Programme', schedule['programme']),
-                  _buildInfoRow('Level', schedule['level_of_study']),
-                  _buildInfoRow('Registered', schedule['created_at'] != null 
-                    ? schedule['created_at'].toString().split('.')[0]
-                    : 'N/A'),
-                ],
+                ),
               ),
-            ),
-          ),
-          
+            );
+          }),
+
           const SizedBox(height: 20),
-          
-          // Action Buttons
           Row(
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
+                  onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.arrow_back),
                   label: const Text('Back to Dashboard'),
                 ),
@@ -206,7 +275,8 @@ class _RegistrationStatusPageState extends State<RegistrationStatusPage> {
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
+  // ✅ value is nullable — no more TypeError
+  Widget _buildInfoRow(String label, String? value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -224,7 +294,7 @@ class _RegistrationStatusPageState extends State<RegistrationStatusPage> {
           ),
           Expanded(
             child: Text(
-              value,
+              value ?? 'N/A',
               style: const TextStyle(fontSize: 16),
             ),
           ),
