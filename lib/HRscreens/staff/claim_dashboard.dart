@@ -1,7 +1,10 @@
 import 'package:charms/HRmodels/claim.dart';
+import 'package:charms/HRmodels/staff.dart';
 import 'package:charms/HRproviders/claims.dart';
 import 'package:charms/HRproviders/leaves.dart';
 import 'package:charms/HRproviders/schedules.dart';
+import 'package:charms/HRproviders/staffs.dart';
+import 'package:charms/HRproviders/auth.dart' as hr_auth;
 import 'package:charms/HRscreens/staff/apply_claim_screen.dart';
 import 'package:charms/HRscreens/staff/leave_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/payroll_dashboard_screen.dart';
@@ -34,17 +37,40 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int _selectedIndex = 3;
-  bool _processing = false;
+  bool _processing   = false;
 
-  // ── Filter state ────────────────────────────────────────────────────────────
   DateTime? _fromDate;
   DateTime? _toDate;
   String _activeChip = 'All';
 
-  // ── Palette ─────────────────────────────────────────────────────────────────
   final Color staffPrimary    = const Color(0xFF4F46E5);
   final Color staffBg         = const Color(0xFFF8FAFC);
   final Color staffCardBorder = const Color(0xFFE2E8F0);
+
+  // ── Profile completion check ───────────────────────────────────────────────
+  bool _isProfileIncomplete(BuildContext context) {
+    try {
+      final auth   = context.read<hr_auth.Auth>();
+      final staffs = context.read<Staffs>();
+      final Staff staff = staffs.staffList.firstWhere(
+        (s) => s.username == auth.username,
+        orElse: () => throw Exception('not found'),
+      );
+      return staff.idNum.isEmpty ||
+          staff.phone.isEmpty ||
+          staff.nationality.isEmpty ||
+          staff.religion.isEmpty ||
+          staff.address1.isEmpty ||
+          staff.city.isEmpty ||
+          staff.state.isEmpty ||
+          staff.country.isEmpty ||
+          staff.emergencyName.isEmpty ||
+          staff.emergencyPhone.isEmpty ||
+          staff.dob.isEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
 
   @override
   void initState() {
@@ -64,7 +90,6 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
 
   Future<void> _logout() async => LogoutHelper.fullLogout(context);
 
-  // ── Date filter ──────────────────────────────────────────────────────────────
   List<Claim> _applyDateFilter(List<Claim> claims) {
     if (_fromDate == null && _toDate == null) return claims;
     return claims.where((c) {
@@ -94,8 +119,8 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
           break;
         case 'Last Month':
           final last = DateTime(now.year, now.month - 1);
-          _fromDate = DateTime(last.year, last.month, 1);
-          _toDate   = DateTime(now.year, now.month, 0);
+          _fromDate  = DateTime(last.year, last.month, 1);
+          _toDate    = DateTime(now.year, now.month, 0);
           break;
         case 'This Year':
           _fromDate = DateTime(now.year, 1, 1);
@@ -124,7 +149,13 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
         child: child!,
       ),
     );
-    if (p != null) setState(() { _fromDate = p; _activeChip = 'Custom'; if (_toDate != null && _toDate!.isBefore(p)) _toDate = p; });
+    if (p != null) {
+      setState(() {
+        _fromDate   = p;
+        _activeChip = 'Custom';
+        if (_toDate != null && _toDate!.isBefore(p)) _toDate = p;
+      });
+    }
   }
 
   Future<void> _pickToDate() async {
@@ -142,26 +173,30 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
         child: child!,
       ),
     );
-    if (p != null) setState(() { _toDate = p; _activeChip = 'Custom'; });
+    if (p != null) {
+      setState(() {
+        _toDate     = p;
+        _activeChip = 'Custom';
+      });
+    }
   }
 
-  // ── Delete pending claim ─────────────────────────────────────────────────────
   Future<void> _deleteClaim(Claim claim) async {
     if (_processing) return;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Cancel Claim',
             style: TextStyle(fontWeight: FontWeight.bold)),
         content: const Text(
             'Are you sure you want to cancel this claim request?'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('No, Keep It',
-                  style: TextStyle(color: Colors.grey))),
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('No, Keep It',
+                style: TextStyle(color: Colors.grey)),
+          ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.redAccent,
@@ -237,8 +272,7 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Claim Details',
             style: TextStyle(fontWeight: FontWeight.bold)),
         content: SingleChildScrollView(
@@ -251,8 +285,7 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
               _detailRow('Amount',
                   'RM ${claim.amount.toStringAsFixed(2)}',
                   isHighlight: true),
-              _detailRow(
-                  'Date', claim.claimDate.toString().split(' ')[0]),
+              _detailRow('Date', claim.claimDate.toString().split(' ')[0]),
               _detailRow('Status', claim.status),
               const SizedBox(height: 8),
               const Text('Description:',
@@ -324,9 +357,8 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
             child: Text(value,
                 style: TextStyle(
                     fontSize: 14,
-                    fontWeight: isHighlight
-                        ? FontWeight.bold
-                        : FontWeight.w500,
+                    fontWeight:
+                        isHighlight ? FontWeight.bold : FontWeight.w500,
                     color: isHighlight
                         ? staffPrimary
                         : const Color(0xFF334155))),
@@ -336,10 +368,9 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
     );
   }
 
-  // ── Filter panel ─────────────────────────────────────────────────────────────
   Widget _buildFilterPanel() {
-    final df   = DateFormat('dd MMM yyyy');
-    final chips = ['All', 'This Month', 'Last Month', 'This Year'];
+    final df       = DateFormat('dd MMM yyyy');
+    final chips    = ['All', 'This Month', 'Last Month', 'This Year'];
     final isCustom = _fromDate != null || _toDate != null;
 
     return Container(
@@ -350,97 +381,89 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: staffCardBorder),
       ),
-      child: Column(
-        children: [
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: chips.map((chip) {
-                final isActive = _activeChip == chip;
-                return GestureDetector(
-                  onTap: () => _applyQuickChip(chip),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    margin: const EdgeInsets.only(right: 8),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 7),
-                    decoration: BoxDecoration(
-                      color: isActive
-                          ? staffPrimary
-                          : staffPrimary.withOpacity(0.07),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                          color: isActive
-                              ? staffPrimary
-                              : staffPrimary.withOpacity(0.2)),
-                    ),
-                    child: Text(chip,
-                        style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: isActive
-                                ? Colors.white
-                                : staffPrimary)),
+      child: Column(children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: chips.map((chip) {
+              final isActive = _activeChip == chip;
+              return GestureDetector(
+                onTap: () => _applyQuickChip(chip),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: isActive
+                        ? staffPrimary
+                        : staffPrimary.withOpacity(0.07),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                        color: isActive
+                            ? staffPrimary
+                            : staffPrimary.withOpacity(0.2)),
                   ),
-                );
-              }).toList(),
+                  child: Text(chip,
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color:
+                              isActive ? Colors.white : staffPrimary)),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: _pickFromDate,
+              child: _datePill(
+                  label: _fromDate != null
+                      ? df.format(_fromDate!)
+                      : 'From date',
+                  active: _fromDate != null),
             ),
           ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: _pickFromDate,
-                  child: _datePill(
-                      label: _fromDate != null
-                          ? df.format(_fromDate!)
-                          : 'From date',
-                      active: _fromDate != null),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Text('→',
-                    style: TextStyle(
-                        color: Colors.grey.shade400,
-                        fontWeight: FontWeight.bold)),
-              ),
-              Expanded(
-                child: GestureDetector(
-                  onTap: _pickToDate,
-                  child: _datePill(
-                      label: _toDate != null
-                          ? df.format(_toDate!)
-                          : 'To date',
-                      active: _toDate != null),
-                ),
-              ),
-              if (isCustom) ...[
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: () => _applyQuickChip('All'),
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.08),
-                        shape: BoxShape.circle),
-                    child: const Icon(Icons.close_rounded,
-                        size: 16, color: Colors.redAccent),
-                  ),
-                ),
-              ],
-            ],
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text('→',
+                style: TextStyle(
+                    color: Colors.grey.shade400,
+                    fontWeight: FontWeight.bold)),
           ),
-        ],
-      ),
+          Expanded(
+            child: GestureDetector(
+              onTap: _pickToDate,
+              child: _datePill(
+                  label: _toDate != null ? df.format(_toDate!) : 'To date',
+                  active: _toDate != null),
+            ),
+          ),
+          if (isCustom) ...[
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () => _applyQuickChip('All'),
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.08),
+                    shape: BoxShape.circle),
+                child: const Icon(Icons.close_rounded,
+                    size: 16, color: Colors.redAccent),
+              ),
+            ),
+          ],
+        ]),
+      ]),
     );
   }
 
   Widget _datePill({required String label, required bool active}) =>
       Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         decoration: BoxDecoration(
           color: active
               ? staffPrimary.withOpacity(0.07)
@@ -451,25 +474,21 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
                   ? staffPrimary.withOpacity(0.4)
                   : Colors.grey.shade200),
         ),
-        child: Row(
-          children: [
-            Icon(Icons.calendar_today_rounded,
-                size: 13,
-                color: active ? staffPrimary : Colors.grey),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(label,
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: active ? staffPrimary : Colors.grey),
-                  overflow: TextOverflow.ellipsis),
-            ),
-          ],
-        ),
+        child: Row(children: [
+          Icon(Icons.calendar_today_rounded,
+              size: 13, color: active ? staffPrimary : Colors.grey),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(label,
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: active ? staffPrimary : Colors.grey),
+                overflow: TextOverflow.ellipsis),
+          ),
+        ]),
       );
 
-  // ── Claim card ───────────────────────────────────────────────────────────────
   Widget _buildClaimCard(Claim claim, {bool showDelete = false}) {
     Color statusColor   = Colors.orange;
     Color statusBgColor = Colors.orange.withOpacity(0.1);
@@ -531,8 +550,7 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
                         const Icon(Icons.calendar_today_rounded,
                             size: 12, color: Colors.grey),
                         const SizedBox(width: 4),
-                        Text(
-                            claim.claimDate.toString().split(' ')[0],
+                        Text(claim.claimDate.toString().split(' ')[0],
                             style: TextStyle(
                                 color: Colors.grey.shade600,
                                 fontSize: 12,
@@ -545,15 +563,18 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
                         decoration: BoxDecoration(
                             color: statusBgColor,
                             borderRadius: BorderRadius.circular(12)),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          Icon(statusIcon, size: 12, color: statusColor),
-                          const SizedBox(width: 4),
-                          Text(claim.status,
-                              style: TextStyle(
-                                  color: statusColor,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold)),
-                        ]),
+                        child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(statusIcon,
+                                  size: 12, color: statusColor),
+                              const SizedBox(width: 4),
+                              Text(claim.status,
+                                  style: TextStyle(
+                                      color: statusColor,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold)),
+                            ]),
                       ),
                       if (claim.status == 'Rejected' &&
                           claim.rejectionReason != null &&
@@ -565,8 +586,7 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
                             color: Colors.red.withOpacity(0.05),
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
-                                color:
-                                    Colors.redAccent.withOpacity(0.3)),
+                                color: Colors.redAccent.withOpacity(0.3)),
                           ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -702,28 +722,30 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
         centerTitle: true,
         actions: [
           Consumer4<Leaves, Claims, Schedules, ScheduleExchanges>(
-  builder: (context, leaves, claims, schedules, exchanges, child) {
-    final total =
-        leaves.leaves.where((l) => l.staffId == widget.staffId && l.status != 'Pending').length +
-        claims.claims.where((c) => c.staffId == widget.staffId && c.status != 'Pending').length +
-        schedules.schedules.where((s) => s.staffId == widget.staffId).length +
-        exchanges.exchanges.where((e) => e.targetId == widget.staffId && e.status == 0).length +
-        exchanges.exchanges.where((e) => e.requesterId == widget.staffId && e.status != 0).length;
+            builder: (context, leaves, claims, schedules, exchanges, child) {
+              final total =
+                  leaves.leaves.where((l) => l.staffId == widget.staffId && l.status != 'Pending').length +
+                  claims.claims.where((c) => c.staffId == widget.staffId && c.status != 'Pending').length +
+                  schedules.schedules.where((s) => s.staffId == widget.staffId).length +
+                  exchanges.exchanges.where((e) => e.targetId == widget.staffId && e.status == 0).length +
+                  exchanges.exchanges.where((e) => e.requesterId == widget.staffId && e.status != 0).length;
 
-    return IconButton(
-      icon: total > 0
-          ? Badge(
-              label: Text(total.toString()),
-              backgroundColor: Colors.redAccent,
-              child: const Icon(Icons.notifications_active_rounded))
-          : const Icon(Icons.notifications_none_rounded),
-      onPressed: () => Navigator.push(context,
-          MaterialPageRoute(
-              builder: (_) => StaffNotificationScreen(
-                  staffId: widget.staffId))),
-    );
-  },
-),
+              return IconButton(
+                icon: total > 0
+                    ? Badge(
+                        label: Text(total.toString()),
+                        backgroundColor: Colors.redAccent,
+                        child: const Icon(Icons.notifications_active_rounded))
+                    : const Icon(Icons.notifications_none_rounded),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) =>
+                          StaffNotificationScreen(staffId: widget.staffId)),
+                ),
+              );
+            },
+          ),
           IconButton(
               icon: const Icon(Icons.logout_rounded), onPressed: _logout),
           const SizedBox(width: 8),
@@ -748,33 +770,32 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
           final pending  = claimsData.claims.where((c) => c.status == 'Pending').toList();
           final approved = claimsData.claims.where((c) => c.status == 'Approved').toList();
           final rejected = claimsData.claims.where((c) => c.status == 'Rejected').toList();
-          return Column(
-            children: [
-              // ── Date filter panel ────────────────────────────────────────
-              _buildFilterPanel(),
-              const SizedBox(height: 8),
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildClaimList(pending,  showDelete: true),
-                    _buildClaimList(approved),
-                    _buildClaimList(rejected),
-                  ],
-                ),
+          return Column(children: [
+            _buildFilterPanel(),
+            const SizedBox(height: 8),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildClaimList(pending,  showDelete: true),
+                  _buildClaimList(approved),
+                  _buildClaimList(rejected),
+                ],
               ),
-            ],
-          );
+            ),
+          ]);
         },
       ),
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 24.0),
         child: FloatingActionButton.extended(
           onPressed: () async {
-            final submitted = await Navigator.push<bool>(context,
-                MaterialPageRoute(
-                    builder: (_) =>
-                        ApplyClaimScreen(staffId: widget.staffId)));
+            final submitted = await Navigator.push<bool>(
+              context,
+              MaterialPageRoute(
+                  builder: (_) =>
+                      ApplyClaimScreen(staffId: widget.staffId)),
+            );
             if (submitted == true) {
               await _fetchClaimData();
               _tabController.animateTo(0);
@@ -791,6 +812,7 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
       bottomNavigationBar: BottomNavStaff(
         selectedIndex: _selectedIndex,
         onItemTapped: _onItemTapped,
+        showMyselfDot: _isProfileIncomplete(context), // ✅
       ),
     );
   }

@@ -1,7 +1,10 @@
 import 'package:charms/HRmodels/leave.dart';
+import 'package:charms/HRmodels/staff.dart';
 import 'package:charms/HRproviders/leaves.dart';
 import 'package:charms/HRproviders/claims.dart';
 import 'package:charms/HRproviders/schedules.dart';
+import 'package:charms/HRproviders/staffs.dart';
+import 'package:charms/HRproviders/auth.dart' as hr_auth;
 import 'package:charms/HRscreens/staff/apply_leave_screen.dart';
 import 'package:charms/HRscreens/staff/claim_dashboard.dart';
 import 'package:charms/HRscreens/staff/payroll_dashboard_screen.dart';
@@ -34,22 +37,45 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int _selectedIndex = 1;
-  bool _processing = false;
+  bool _processing   = false;
 
-  // ── Filter state ────────────────────────────────────────────────────────────
   DateTime? _fromDate;
   DateTime? _toDate;
-  String _activeChip = 'All'; // 'All', 'This Month', 'Last Month', 'This Year'
+  String _activeChip = 'All';
 
-  // ── Palette ─────────────────────────────────────────────────────────────────
   final Color staffPrimary    = const Color(0xFF4F46E5);
   final Color staffBg         = const Color(0xFFF8FAFC);
   final Color staffCardBorder = const Color(0xFFE2E8F0);
 
   final Map<String, Map<String, int>> _leaveBalance = {
-    'Annual Leave': {'total': 20, 'taken': 0, 'remaining': 20},
+    'Annual Leave':  {'total': 20, 'taken': 0, 'remaining': 20},
     'Medical Leave': {'total': 22, 'taken': 0, 'remaining': 22},
   };
+
+  // ── Profile completion check ───────────────────────────────────────────────
+  bool _isProfileIncomplete(BuildContext context) {
+    try {
+      final auth  = context.read<hr_auth.Auth>();
+      final staffs = context.read<Staffs>();
+      final Staff staff = staffs.staffList.firstWhere(
+        (s) => s.username == auth.username,
+        orElse: () => throw Exception('not found'),
+      );
+      return staff.idNum.isEmpty ||
+          staff.phone.isEmpty ||
+          staff.nationality.isEmpty ||
+          staff.religion.isEmpty ||
+          staff.address1.isEmpty ||
+          staff.city.isEmpty ||
+          staff.state.isEmpty ||
+          staff.country.isEmpty ||
+          staff.emergencyName.isEmpty ||
+          staff.emergencyPhone.isEmpty ||
+          staff.dob.isEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
 
   @override
   void initState() {
@@ -100,13 +126,13 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
             _leaveBalance['Medical Leave']!['taken']!;
   }
 
-  // ── Date filter logic ────────────────────────────────────────────────────────
   List<Leave> _applyDateFilter(List<Leave> leaves) {
     if (_fromDate == null && _toDate == null) return leaves;
     return leaves.where((l) {
       final d = l.startDate;
       if (_fromDate != null) {
-        final from = DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day);
+        final from =
+            DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day);
         if (d.isBefore(from)) return false;
       }
       if (_toDate != null) {
@@ -136,7 +162,6 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
           _fromDate = DateTime(now.year, 1, 1);
           _toDate   = DateTime(now.year, 12, 31);
           break;
-        case 'All':
         default:
           _fromDate = null;
           _toDate   = null;
@@ -186,10 +211,14 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
         child: child!,
       ),
     );
-    if (picked != null) setState(() { _toDate = picked; _activeChip = 'Custom'; });
+    if (picked != null) {
+      setState(() {
+        _toDate     = picked;
+        _activeChip = 'Custom';
+      });
+    }
   }
 
-  // ── Delete pending leave ─────────────────────────────────────────────────────
   Future<void> _deleteLeave(Leave leave) async {
     if (_processing) return;
     final confirm = await showDialog<bool>(
@@ -203,8 +232,8 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('No, Keep It',
-                style: TextStyle(color: Colors.grey)),
+            child:
+                const Text('No, Keep It', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -228,18 +257,16 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
           .deleteLeave(leave.leaveId);
       await _fetchLeaveData();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Leave request cancelled successfully'),
-            backgroundColor: Colors.teal),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Leave request cancelled successfully'),
+        backgroundColor: Colors.teal,
+      ));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Failed to cancel leave: $e'),
-            backgroundColor: Colors.redAccent),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Failed to cancel leave: $e'),
+        backgroundColor: Colors.redAccent,
+      ));
     } finally {
       if (mounted) setState(() => _processing = false);
     }
@@ -277,10 +304,10 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
     }
   }
 
-  // ── Filter panel ─────────────────────────────────────────────────────────────
+  // ── Filter panel ──────────────────────────────────────────────────────────
   Widget _buildFilterPanel() {
-    final df = DateFormat('dd MMM yyyy');
-    final chips = ['All', 'This Month', 'Last Month', 'This Year'];
+    final df       = DateFormat('dd MMM yyyy');
+    final chips    = ['All', 'This Month', 'Last Month', 'This Year'];
     final isCustom = _fromDate != null || _toDate != null;
 
     return Container(
@@ -294,95 +321,85 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Quick chips
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
-              children: [
-                ...chips.map((chip) {
-                  final isActive = _activeChip == chip;
-                  return GestureDetector(
-                    onTap: () => _applyQuickChip(chip),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 7),
-                      decoration: BoxDecoration(
+              children: chips.map((chip) {
+                final isActive = _activeChip == chip;
+                return GestureDetector(
+                  onTap: () => _applyQuickChip(chip),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: isActive
+                          ? staffPrimary
+                          : staffPrimary.withOpacity(0.07),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
                         color: isActive
                             ? staffPrimary
-                            : staffPrimary.withOpacity(0.07),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: isActive
-                              ? staffPrimary
-                              : staffPrimary.withOpacity(0.2),
-                        ),
+                            : staffPrimary.withOpacity(0.2),
                       ),
-                      child: Text(chip,
-                          style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: isActive
-                                  ? Colors.white
-                                  : staffPrimary)),
                     ),
-                  );
-                }),
-              ],
+                    child: Text(chip,
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color:
+                                isActive ? Colors.white : staffPrimary)),
+                  ),
+                );
+              }).toList(),
             ),
           ),
-
           const SizedBox(height: 10),
-
-          // From → To date pickers
-          Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: _pickFromDate,
-                  child: _datePill(
-                    label: _fromDate != null
-                        ? df.format(_fromDate!)
-                        : 'From date',
-                    active: _fromDate != null,
-                  ),
+          Row(children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: _pickFromDate,
+                child: _datePill(
+                  label: _fromDate != null
+                      ? df.format(_fromDate!)
+                      : 'From date',
+                  active: _fromDate != null,
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Text('→',
-                    style: TextStyle(
-                        color: Colors.grey.shade400,
-                        fontWeight: FontWeight.bold)),
-              ),
-              Expanded(
-                child: GestureDetector(
-                  onTap: _pickToDate,
-                  child: _datePill(
-                    label:
-                        _toDate != null ? df.format(_toDate!) : 'To date',
-                    active: _toDate != null,
-                  ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text('→',
+                  style: TextStyle(
+                      color: Colors.grey.shade400,
+                      fontWeight: FontWeight.bold)),
+            ),
+            Expanded(
+              child: GestureDetector(
+                onTap: _pickToDate,
+                child: _datePill(
+                  label: _toDate != null ? df.format(_toDate!) : 'To date',
+                  active: _toDate != null,
                 ),
               ),
-              if (isCustom) ...[
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: () => _applyQuickChip('All'),
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.08),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.close_rounded,
-                        size: 16, color: Colors.redAccent),
+            ),
+            if (isCustom) ...[
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () => _applyQuickChip('All'),
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.08),
+                    shape: BoxShape.circle,
                   ),
+                  child: const Icon(Icons.close_rounded,
+                      size: 16, color: Colors.redAccent),
                 ),
-              ],
+              ),
             ],
-          ),
+          ]),
         ],
       ),
     );
@@ -390,12 +407,10 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
 
   Widget _datePill({required String label, required bool active}) {
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: active
-            ? staffPrimary.withOpacity(0.07)
-            : Colors.grey.shade50,
+        color:
+            active ? staffPrimary.withOpacity(0.07) : Colors.grey.shade50,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: active
@@ -403,30 +418,24 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
               : Colors.grey.shade200,
         ),
       ),
-      child: Row(
-        children: [
-          Icon(Icons.calendar_today_rounded,
-              size: 13,
-              color: active ? staffPrimary : Colors.grey),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              label,
+      child: Row(children: [
+        Icon(Icons.calendar_today_rounded,
+            size: 13, color: active ? staffPrimary : Colors.grey),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(label,
               style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: active ? staffPrimary : Colors.grey),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
+              overflow: TextOverflow.ellipsis),
+        ),
+      ]),
     );
   }
 
-  // ── Leave balance card ────────────────────────────────────────────────────────
   Widget _buildLeaveBalanceCard(String leaveType) {
-    final balance  = _leaveBalance[leaveType]!;
+    final balance   = _leaveBalance[leaveType]!;
     final isMedical = leaveType == 'Medical Leave';
     return Container(
       width: 220,
@@ -442,35 +451,33 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: isMedical
-                        ? Colors.redAccent.withOpacity(0.1)
-                        : Colors.orange.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    isMedical
-                        ? Icons.local_hospital_rounded
-                        : Icons.beach_access_rounded,
-                    color: isMedical ? Colors.redAccent : Colors.orange,
-                    size: 18,
-                  ),
+            Row(children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: isMedical
+                      ? Colors.redAccent.withOpacity(0.1)
+                      : Colors.orange.withOpacity(0.1),
+                  shape: BoxShape.circle,
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(leaveType,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                          color: Color(0xFF1E293B)),
-                      overflow: TextOverflow.ellipsis),
+                child: Icon(
+                  isMedical
+                      ? Icons.local_hospital_rounded
+                      : Icons.beach_access_rounded,
+                  color: isMedical ? Colors.redAccent : Colors.orange,
+                  size: 18,
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(leaveType,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: Color(0xFF1E293B)),
+                    overflow: TextOverflow.ellipsis),
+              ),
+            ]),
             const Spacer(),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -511,10 +518,9 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
     );
   }
 
-  // ── Leave card ───────────────────────────────────────────────────────────────
   Widget _buildLeaveCard(Leave leave, {bool showDelete = false}) {
-    final status = leave.status.trim().toLowerCase();
-    Color statusColor   = Colors.orange;
+    final status       = leave.status.trim().toLowerCase();
+    Color statusColor  = Colors.orange;
     Color statusBgColor = Colors.orange.withOpacity(0.1);
     IconData statusIcon = Icons.pending_actions_rounded;
 
@@ -561,18 +567,15 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
                           color: statusBgColor,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(statusIcon, size: 12, color: statusColor),
-                            const SizedBox(width: 4),
-                            Text(leave.status,
-                                style: TextStyle(
-                                    color: statusColor,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold)),
-                          ],
-                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(statusIcon, size: 12, color: statusColor),
+                          const SizedBox(width: 4),
+                          Text(leave.status,
+                              style: TextStyle(
+                                  color: statusColor,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold)),
+                        ]),
                       ),
                     ],
                   ),
@@ -599,19 +602,17 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
               padding: const EdgeInsets.symmetric(vertical: 12.0),
               child: Divider(color: Colors.grey.shade200, height: 1),
             ),
-            Row(
-              children: [
-                Icon(Icons.date_range_rounded,
-                    size: 16, color: Colors.grey.shade500),
-                const SizedBox(width: 8),
-                Text(
-                  '${DateFormat('dd MMM yyyy').format(leave.startDate)} → ${DateFormat('dd MMM yyyy').format(leave.endDate)}',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF334155)),
-                ),
-              ],
-            ),
+            Row(children: [
+              Icon(Icons.date_range_rounded,
+                  size: 16, color: Colors.grey.shade500),
+              const SizedBox(width: 8),
+              Text(
+                '${DateFormat('dd MMM yyyy').format(leave.startDate)} → ${DateFormat('dd MMM yyyy').format(leave.endDate)}',
+                style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF334155)),
+              ),
+            ]),
             const SizedBox(height: 8),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -624,8 +625,6 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
                         style: TextStyle(color: Colors.grey.shade700))),
               ],
             ),
-
-            // Rejection reason
             if (status == 'rejected' &&
                 leave.rejectionReason != null &&
                 leave.rejectionReason!.isNotEmpty) ...[
@@ -664,7 +663,6 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
                 ),
               ),
             ],
-
             const SizedBox(height: 12),
             ProofAttachmentViewer(
               fileUrl:  leave.proofFileUrl,
@@ -677,7 +675,6 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
     );
   }
 
-  // ── Leave list with date filter applied ──────────────────────────────────────
   Widget _buildLeaveList(List<Leave> leaves, {bool showDelete = false}) {
     final filtered = _applyDateFilter(
         leaves.where((l) => l.staffId == widget.staffId).toList());
@@ -737,28 +734,30 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
         centerTitle: true,
         actions: [
           Consumer4<Leaves, Claims, Schedules, ScheduleExchanges>(
-          builder: (context, leaves, claims, schedules, exchanges, child) {
-            final total =
-                leaves.leaves.where((l) => l.staffId == widget.staffId && l.status != 'Pending').length +
-                claims.claims.where((c) => c.staffId == widget.staffId && c.status != 'Pending').length +
-                schedules.schedules.where((s) => s.staffId == widget.staffId).length +
-                exchanges.exchanges.where((e) => e.targetId == widget.staffId && e.status == 0).length +
-                exchanges.exchanges.where((e) => e.requesterId == widget.staffId && e.status != 0).length;
+            builder: (context, leaves, claims, schedules, exchanges, child) {
+              final total =
+                  leaves.leaves.where((l) => l.staffId == widget.staffId && l.status != 'Pending').length +
+                  claims.claims.where((c) => c.staffId == widget.staffId && c.status != 'Pending').length +
+                  schedules.schedules.where((s) => s.staffId == widget.staffId).length +
+                  exchanges.exchanges.where((e) => e.targetId == widget.staffId && e.status == 0).length +
+                  exchanges.exchanges.where((e) => e.requesterId == widget.staffId && e.status != 0).length;
 
-            return IconButton(
-              icon: total > 0
-                  ? Badge(
-                      label: Text(total.toString()),
-                      backgroundColor: Colors.redAccent,
-                      child: const Icon(Icons.notifications_active_rounded))
-                  : const Icon(Icons.notifications_none_rounded),
-              onPressed: () => Navigator.push(context,
+              return IconButton(
+                icon: total > 0
+                    ? Badge(
+                        label: Text(total.toString()),
+                        backgroundColor: Colors.redAccent,
+                        child: const Icon(Icons.notifications_active_rounded))
+                    : const Icon(Icons.notifications_none_rounded),
+                onPressed: () => Navigator.push(
+                  context,
                   MaterialPageRoute(
-                      builder: (_) => StaffNotificationScreen(
-                          staffId: widget.staffId))),
-            );
-          },
-        ),
+                      builder: (_) =>
+                          StaffNotificationScreen(staffId: widget.staffId)),
+                ),
+              );
+            },
+          ),
           IconButton(
               icon: const Icon(Icons.logout_rounded), onPressed: _logout),
           const SizedBox(width: 8),
@@ -780,7 +779,7 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
       ),
       body: Consumer<Leaves>(
         builder: (context, leavesData, child) {
-          final all = leavesData.leaves
+          final all      = leavesData.leaves
               .where((l) => l.staffId == widget.staffId)
               .toList();
           final pending  = all.where((l) => l.status.trim().toLowerCase() == 'pending').toList();
@@ -790,7 +789,6 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Leave balances
               const SizedBox(height: 16),
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16.0),
@@ -811,11 +809,8 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
                       .toList(),
                 ),
               ),
-
-              // ── Date filter panel ──────────────────────────────────────────
               _buildFilterPanel(),
               const SizedBox(height: 8),
-
               Expanded(
                 child: TabBarView(
                   controller: _tabController,
@@ -834,10 +829,12 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
         padding: const EdgeInsets.only(bottom: 24.0),
         child: FloatingActionButton.extended(
           onPressed: () async {
-            final created = await Navigator.push(context,
-                MaterialPageRoute(
-                    builder: (_) =>
-                        LeaveFormScreen(staffId: widget.staffId)));
+            final created = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) =>
+                      LeaveFormScreen(staffId: widget.staffId)),
+            );
             if (created == true && mounted) {
               await Provider.of<Leaves>(context, listen: false)
                   .getLeaveByStaffId(staffId: widget.staffId);
@@ -857,6 +854,7 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
       bottomNavigationBar: BottomNavStaff(
         selectedIndex: _selectedIndex,
         onItemTapped: _onItemTapped,
+        showMyselfDot: _isProfileIncomplete(context), // ✅
       ),
     );
   }
