@@ -13,6 +13,7 @@ class RegisterService {
   Map<String, String> _headers() {
     final headers = <String, String>{
       'Content-Type': 'application/json; charset=UTF-8',
+      'Accept': 'application/json',
     };
 
     if (token != null && token!.isNotEmpty) {
