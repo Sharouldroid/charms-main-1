@@ -46,11 +46,19 @@ class RegisterService {
     print('');
 
     if (response.statusCode == 201 || response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return data['id'] as int;
+      final jsonResponse = jsonDecode(response.body);
+      // ✅ Grab the ID from the nested 'data' object returned by Laravel
+      return jsonResponse['data']['id'] as int; 
+    } 
+    // ✅ Catch the duplicate registration conflict!
+    else if (response.statusCode == 409) {
+      throw Exception('DUPLICATE_REGISTRATION'); 
+    } 
+    // Handle other errors gracefully
+    else {
+      final errorData = jsonDecode(response.body);
+      throw Exception(errorData['message'] ?? 'Failed to register: ${response.statusCode}');
     }
-
-    throw Exception('Failed to register: ${response.statusCode} ${response.body}');
   }
 
   // GET /api/internship/registers

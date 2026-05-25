@@ -67,37 +67,52 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
     await scheduleProvider.loadSchedules();
   }
 
-  // ✅ Load all schedules user is registered for
   Future<void> _loadUserRegistrations() async {
-    if (widget.isAdmin) return; // Only for interns
+  if (widget.isAdmin) return;
 
-    try {
-      final response = await http.get(
-        Uri.parse('${AppConfig.hostname}/api/internship/registers/by-user/${widget.userId}'),
-      );
+  try {
+    final response = await http.get(
+      Uri.parse('${AppConfig.hostname}/api/internship/registers/by-user/${widget.userId}'),
+    );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+    print('📥 Registration check status: ${response.statusCode}');
+    print('📥 Registration check body: ${response.body}');
 
-        // Handle both single registration and multiple registrations
-        if (data is Map) {
-          setState(() {
-            _userRegisteredScheduleIds = [data['schedule_id'] as int];
-          });
-        } else if (data is List) {
-          setState(() {
-            _userRegisteredScheduleIds = data
-                .map((item) => item['schedule_id'] as int)
-                .toList();
-          });
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body);
+
+      // ✅ Handle new controller response format: { "success": true, "data": [...] }
+      List<dynamic> registrations = [];
+
+      if (decoded is Map && decoded['data'] != null) {
+        final inner = decoded['data'];
+        if (inner is List) {
+          registrations = inner;
+        } else if (inner is Map) {
+          registrations = [inner]; // single registration wrapped in data
         }
-
-        print('✅ User registered for schedules: $_userRegisteredScheduleIds');
+      } else if (decoded is List) {
+        registrations = decoded; // fallback: bare list
       }
-    } catch (e) {
-      print('Error loading user registrations: $e');
+
+      setState(() {
+        _userRegisteredScheduleIds = registrations
+            .map((item) => item['schedule_id'] as int)
+            .toList();
+      });
+
+      print('✅ User registered schedule IDs: $_userRegisteredScheduleIds');
+
+    } else if (response.statusCode == 404) {
+      // No registrations yet — that's fine
+      setState(() => _userRegisteredScheduleIds = []);
     }
+
+  } catch (e) {
+    print('❌ Error loading user registrations: $e');
+    setState(() => _userRegisteredScheduleIds = []);
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -446,18 +461,17 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
     }
   }
 
-  // ✅ Check registration with duplicate prevention
+  // ✅ Check registration with duplicate prevention - FIXED (no more dead code)
   Future<void> _checkRegistrationLimit(int scheduleId) async {
     try {
-
-    print('');
-    print('========================================');
-    print('📋 SCHEDULE TAPPED');
-    print('========================================');
-    print('Schedule ID: $scheduleId');  // ✅ What schedule was clicked?
-    print('User ID: ${widget.userId}');
-    print('========================================');
-    
+      print('');
+      print('========================================');
+      print('📋 SCHEDULE TAPPED');
+      print('========================================');
+      print('Schedule ID: $scheduleId');
+      print('User ID: ${widget.userId}');
+      print('========================================');
+      
       // ✅ STEP 1: Check if user already registered for THIS schedule
       if (_userRegisteredScheduleIds.contains(scheduleId)) {
         ScaffoldMessenger.of(context).showSnackBar(
