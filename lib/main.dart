@@ -36,6 +36,7 @@ import 'package:charms/internshipproviders/register_provider.dart';
 import 'package:charms/internshipproviders/schedule_provider.dart';
 import 'package:charms/internshipproviders/assessment_provider.dart';
 import 'package:charms/internshipscreens/dashboard_screen.dart' as internship_screens;
+import 'package:charms/internshipproviders/internship_notification_provider.dart';
 // ------------------------
 // 🌟 HR MODULE IMPORTS (ADDED)
 // ------------------------
@@ -139,6 +140,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (context) => RegisterProvider()),
         ChangeNotifierProvider(create: (context) => ScheduleProvider()),
         ChangeNotifierProvider(create: (context) => AssessmentProvider()),
+        ChangeNotifierProvider(create: (_) => InternshipNotificationProvider()),
 
         // --------------------------------
         // 🌟 HR MODULE PROVIDERS (ADDED)

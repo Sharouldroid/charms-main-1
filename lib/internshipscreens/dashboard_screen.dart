@@ -12,6 +12,8 @@ import 'admin_submissions.dart';
 import 'docs_upload.dart';
 import 'registration_status.dart';
 import 'intern_myself_screen.dart';
+import 'package:charms/internshipproviders/internship_notification_provider.dart';
+import 'package:charms/internshipscreens/internship_notification_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String username;
@@ -38,6 +40,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _loadStaffData();
+    // ✅ Fetch unread notification count on dashboard load
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<InternshipNotificationProvider>().fetchUnreadCount(
+        widget.userId,
+        widget.role == 'Admin',
+      );
+    });
   }
 
   Future<void> _loadStaffData() async {
@@ -71,9 +80,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       if (matches.isEmpty) {
         debugPrint('❌ No matching staff found for userId=${widget.userId}');
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() { _isLoading = false; });
         return;
       }
 
@@ -111,9 +118,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       debugPrint('');
     } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() { _isLoading = false; });
       }
     }
   }
@@ -122,243 +127,137 @@ class _DashboardScreenState extends State<DashboardScreen> {
     await LogoutHelper.fullLogout(context);
   }
 
-  // ✅ Navigate to document upload with intern ID lookup
   Future<void> _navigateToDocumentUpload() async {
     if (widget.role == 'Intern') {
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(),
-        ),
+        builder: (context) => const Center(child: CircularProgressIndicator()),
       );
 
       try {
-        debugPrint('🔍 Looking up intern ID for userId: ${widget.userId}');
-        
         final internId = await InternHelper.getInternIdByUserId(widget.userId);
-        
-        debugPrint('📋 Intern ID result: $internId');
-        
         if (mounted) Navigator.pop(context);
 
         if (internId != null) {
-          debugPrint('✅ Found intern ID: $internId, navigating to upload');
-          
           if (mounted) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => DocsUpload(
-                  userId: internId,
-                  scheduleId: null,
-                ),
-              ),
-            );
+            Navigator.push(context, MaterialPageRoute(
+              builder: (context) => DocsUpload(userId: internId, scheduleId: null),
+            ));
           }
         } else {
-          debugPrint('⚠️ No registration found, redirecting to registration');
-          
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('⚠️ Please complete your registration first'),
-                backgroundColor: Colors.orange,
-                duration: Duration(seconds: 3),
-              ),
-            );
-
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ScheduleCalendar(
-                  isAdmin: false,
-                  userId: widget.userId,
-                ),
-              ),
-            );
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('⚠️ Please complete your registration first'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 3),
+            ));
+            Navigator.push(context, MaterialPageRoute(
+              builder: (context) => ScheduleCalendar(isAdmin: false, userId: widget.userId),
+            ));
           }
         }
       } catch (e) {
-        debugPrint('❌ Error looking up intern ID: $e');
-        
         if (mounted) {
           Navigator.pop(context);
-          
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('❌ Error: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('❌ Error: $e'),
+            backgroundColor: Colors.red,
+          ));
         }
       }
     }
   }
 
-  // ✅ NEW: Navigate to monitor performance with intern ID lookup
   Future<void> _navigateToMonitorPerformance() async {
     if (widget.role == 'Intern') {
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(),
-        ),
+        builder: (context) => const Center(child: CircularProgressIndicator()),
       );
 
       try {
-        debugPrint('🔍 Looking up intern ID for Monitor Performance: ${widget.userId}');
-        
         final internId = await InternHelper.getInternIdByUserId(widget.userId);
-        
-        debugPrint('📋 Intern ID for performance: $internId');
-        
         if (mounted) Navigator.pop(context);
 
         if (internId != null) {
-          debugPrint('✅ Found intern ID: $internId, navigating to monitor performance');
-          
           if (mounted) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => MonitorPerformancePage(
-                  role: widget.role,
-                  userId: internId, // ✅ Use internId!
-                ),
-              ),
-            );
+            Navigator.push(context, MaterialPageRoute(
+              builder: (context) => MonitorPerformancePage(role: widget.role, userId: internId),
+            ));
           }
         } else {
-          debugPrint('⚠️ No registration found for performance monitoring');
-          
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('⚠️ Please complete your registration first'),
-                backgroundColor: Colors.orange,
-                duration: Duration(seconds: 3),
-              ),
-            );
-
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ScheduleCalendar(
-                  isAdmin: false,
-                  userId: widget.userId,
-                ),
-              ),
-            );
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('⚠️ Please complete your registration first'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 3),
+            ));
+            Navigator.push(context, MaterialPageRoute(
+              builder: (context) => ScheduleCalendar(isAdmin: false, userId: widget.userId),
+            ));
           }
         }
       } catch (e) {
-        debugPrint('❌ Error looking up intern ID for performance: $e');
-        
         if (mounted) {
           Navigator.pop(context);
-          
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('❌ Error: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('❌ Error: $e'),
+            backgroundColor: Colors.red,
+          ));
         }
       }
     } else {
-      // Admin view - no lookup needed
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => MonitorPerformancePage(
-            role: widget.role,
-            userId: widget.userId,
-          ),
-        ),
-      );
+      Navigator.push(context, MaterialPageRoute(
+        builder: (context) => MonitorPerformancePage(role: widget.role, userId: widget.userId),
+      ));
     }
   }
 
-  // ✅ NEW: Navigate to assessment with intern ID lookup
   Future<void> _navigateToAssessment() async {
     if (widget.role == 'Intern') {
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(),
-        ),
+        builder: (context) => const Center(child: CircularProgressIndicator()),
       );
 
       try {
-        debugPrint('🔍 Looking up intern ID for Assessment: ${widget.userId}');
-        
         final internId = await InternHelper.getInternIdByUserId(widget.userId);
-        
-        debugPrint('📋 Intern ID for assessment: $internId');
-        
         if (mounted) Navigator.pop(context);
 
         if (internId != null) {
-          debugPrint('✅ Found intern ID: $internId, navigating to assessment');
-          
           if (mounted) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => AssessmentInternPage(
-                  internId: internId, // ✅ Use internId!
-                ),
-              ),
-            );
+            Navigator.push(context, MaterialPageRoute(
+              builder: (context) => AssessmentInternPage(internId: internId),
+            ));
           }
         } else {
-          debugPrint('⚠️ No registration found for assessment');
-          
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('⚠️ Please complete your registration first'),
-                backgroundColor: Colors.orange,
-                duration: Duration(seconds: 3),
-              ),
-            );
-
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ScheduleCalendar(
-                  isAdmin: false,
-                  userId: widget.userId,
-                ),
-              ),
-            );
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('⚠️ Please complete your registration first'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 3),
+            ));
+            Navigator.push(context, MaterialPageRoute(
+              builder: (context) => ScheduleCalendar(isAdmin: false, userId: widget.userId),
+            ));
           }
         }
       } catch (e) {
-        debugPrint('❌ Error looking up intern ID for assessment: $e');
-        
         if (mounted) {
           Navigator.pop(context);
-          
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('❌ Error: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('❌ Error: $e'),
+            backgroundColor: Colors.red,
+          ));
         }
       }
     } else {
-      // This shouldn't happen for interns, but kept for safety
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => AssessmentInternPage(internId: widget.userId),
-        ),
-      );
+      Navigator.push(context, MaterialPageRoute(
+        builder: (context) => AssessmentInternPage(internId: widget.userId),
+      ));
     }
   }
 
@@ -375,17 +274,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(
-                color: Colors.blueAccent,
-              ),
+              CircularProgressIndicator(color: Colors.blueAccent),
               SizedBox(height: 20),
-              Text(
-                'Loading Dashboard...',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
-                ),
-              ),
+              Text('Loading Dashboard...', style: TextStyle(fontSize: 16, color: Colors.grey)),
             ],
           ),
         ),
@@ -398,6 +289,61 @@ class _DashboardScreenState extends State<DashboardScreen> {
         title: Text('${widget.role} Dashboard'),
         backgroundColor: Colors.blueAccent,
         actions: [
+          // ✅ Notification bell with unread badge
+          Consumer<InternshipNotificationProvider>(
+            builder: (context, notifProvider, _) {
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_rounded, color: Colors.white),
+                    tooltip: 'Notifications',
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => InternshipNotificationScreen(
+                            userId: widget.userId,
+                            isAdmin: widget.role == 'Admin',
+                          ),
+                        ),
+                      );
+                      // ✅ Refresh count after returning
+                      if (mounted) {
+                        context.read<InternshipNotificationProvider>().fetchUnreadCount(
+                          widget.userId,
+                          widget.role == 'Admin',
+                        );
+                      }
+                    },
+                  ),
+                  // ✅ Red badge
+                  if (notifProvider.unreadCount > 0)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                        child: Text(
+                          notifProvider.unreadCount > 99 ? '99+' : '${notifProvider.unreadCount}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.logout_rounded),
             tooltip: 'Logout',
@@ -416,10 +362,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Container(
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [
-                      Colors.blueAccent,
-                      Color.fromARGB(255, 123, 64, 251)
-                    ],
+                    colors: [Colors.blueAccent, Color.fromARGB(255, 123, 64, 251)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -428,9 +371,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Card(
                   elevation: 0,
                   color: Colors.transparent,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Row(
@@ -445,8 +386,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             : CircleAvatar(
                                 radius: 50,
                                 backgroundColor: Colors.blueAccent.withOpacity(0.12),
-                                child: const Icon(Icons.person_rounded,
-                                    size: 52, color: Colors.blueAccent),
+                                child: const Icon(Icons.person_rounded, size: 52, color: Colors.blueAccent),
                               ),
                         const SizedBox(width: 20),
                         Column(
@@ -457,15 +397,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               style: const TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
-                                color: Color.fromARGB(255, 255, 255, 255),
+                                color: Colors.white,
                               ),
                             ),
                             Text(
                               widget.role,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                color: Color.fromARGB(255, 255, 255, 255),
-                              ),
+                              style: const TextStyle(fontSize: 16, color: Colors.white),
                             ),
                           ],
                         ),
@@ -479,10 +416,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Container(
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [
-                      Colors.blueAccent,
-                      Color.fromARGB(255, 123, 64, 251)
-                    ],
+                    colors: [Colors.blueAccent, Color.fromARGB(255, 123, 64, 251)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -515,9 +449,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               content: const Text('This will be your chat interface.'),
               actions: [
                 TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
+                  onPressed: () => Navigator.of(context).pop(),
                   child: const Text('Close'),
                 ),
               ],
@@ -530,18 +462,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.schedule),
-            label: 'Schedule',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.feedback),
-            label: 'Feedback',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.schedule), label: 'Schedule'),
+          BottomNavigationBarItem(icon: Icon(Icons.feedback), label: 'Feedback'),
         ],
         selectedItemColor: Colors.blueAccent,
         onTap: (index) {
@@ -550,13 +473,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Navigator.pop(context);
               break;
             case 1:
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ScheduleCalendar(
-                      isAdmin: widget.role == 'Admin', userId: widget.userId),
+              Navigator.push(context, MaterialPageRoute(
+                builder: (context) => ScheduleCalendar(
+                  isAdmin: widget.role == 'Admin',
+                  userId: widget.userId,
                 ),
-              );
+              ));
               break;
             case 2:
               break;
@@ -572,89 +494,55 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (widget.role == 'Admin') {
       buttons.addAll([
         _buildDashboardButton(context, 'Create Schedule', Icons.calendar_today, () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ScheduleCalendar(
-                isAdmin: true,
-                userId: widget.userId,
-              ),
-            ),
-          );
+          Navigator.push(context, MaterialPageRoute(
+            builder: (context) => ScheduleCalendar(isAdmin: true, userId: widget.userId),
+          ));
         }),
-        _buildDashboardButton(context, 'Intern List', Icons.person_add, () {
-          // Placeholder action for Registration
-        }),
+        _buildDashboardButton(context, 'Intern List', Icons.person_add, () {}),
         _buildDashboardButton(context, 'Monitor Performance', Icons.monitor, () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => MonitorPerformancePage(
-                role: widget.role,
-                userId: widget.userId,
-              ),
-            ),
-          );
+          Navigator.push(context, MaterialPageRoute(
+            builder: (context) => MonitorPerformancePage(role: widget.role, userId: widget.userId),
+          ));
         }),
         _buildDashboardButton(context, 'Assessment', Icons.assessment, () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const InternListPage()),
-          );
+          Navigator.push(context, MaterialPageRoute(
+            builder: (context) => const InternListPage(),
+          ));
         }),
         _buildDashboardButton(context, 'Intern Submissions', Icons.assignment, () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => AdminSubmissionsPage(adminId: widget.userId),
-            ),
-          );
+          Navigator.push(context, MaterialPageRoute(
+            builder: (context) => AdminSubmissionsPage(adminId: widget.userId),
+          ));
         }),
       ]);
     } else if (widget.role == 'Intern') {
       buttons.addAll([
         _buildDashboardButton(context, 'Register', Icons.calendar_today, () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ScheduleCalendar(
-                isAdmin: false,
-                userId: widget.userId,
-              ),
-            ),
-          );
+          Navigator.push(context, MaterialPageRoute(
+            builder: (context) => ScheduleCalendar(isAdmin: false, userId: widget.userId),
+          ));
         }),
-        // ✅ FIXED: Monitor Performance with intern ID lookup
         _buildDashboardButton(context, 'Monitor Performance', Icons.monitor, () {
           _navigateToMonitorPerformance();
         }),
-        // ✅ FIXED: Assessment with intern ID lookup
         _buildDashboardButton(context, 'Assessment', Icons.assessment, () {
           _navigateToAssessment();
         }),
-        // ✅ FIXED: Check Status with real API
         _buildDashboardButton(context, 'Check Status', Icons.check_circle, () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => RegistrationStatusPage(userId: widget.userId),
-            ),
-          );
+          Navigator.push(context, MaterialPageRoute(
+            builder: (context) => RegistrationStatusPage(userId: widget.userId),
+          ));
         }),
-        // ✅ FIXED: Upload Documents with intern ID lookup
         _buildDashboardButton(context, 'Upload Documents', Icons.upload_file, () {
           _navigateToDocumentUpload();
         }),
-         _buildDashboardButton(context, 'My Profile', Icons.account_circle, () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => InternMySelfScreen(
-                userId: widget.userId,
-                username: widget.username,
-              ),
+        _buildDashboardButton(context, 'My Profile', Icons.account_circle, () {
+          Navigator.push(context, MaterialPageRoute(
+            builder: (context) => InternMySelfScreen(
+              userId: widget.userId,
+              username: widget.username,
             ),
-          );
+          ));
         }),
       ]);
     }
@@ -662,8 +550,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return buttons;
   }
 
-  Widget _buildDashboardButton(BuildContext context, String title,
-      IconData icon, VoidCallback onPressed) {
+  Widget _buildDashboardButton(BuildContext context, String title, IconData icon, VoidCallback onPressed) {
     final buttonWidth = (MediaQuery.of(context).size.width / 3) - 32;
     const buttonHeight = 120.0;
 
@@ -675,8 +562,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(
             padding: EdgeInsets.zero,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
             backgroundColor: Colors.blueAccent,
             elevation: 3,
           ),
