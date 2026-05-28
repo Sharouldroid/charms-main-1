@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:charms/main.dart';
+
 class AdminSubmissionsPage extends StatefulWidget {
   final int adminId;
 
@@ -31,7 +32,6 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
     });
 
     try {
-      // 2. UPDATED URL: Points to Laravel 'internship/documents/admin/submissions'
       final response = await http.get(
         Uri.parse('${AppConfig.hostname}/api/internship/documents/admin/submissions')
       );
@@ -57,28 +57,28 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
     try {
       _showLoadingDialog('Downloading file...');
 
-     final response = await http.get(
+      final response = await http.get(
         Uri.parse('${AppConfig.hostname}/api/internship/documents/download/$submissionId')
       );
-      Navigator.of(context).pop(); // Close loading dialog
+      
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+      }
 
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content:
-                Text('File download initiated. Check your downloads folder.'),
+            content: Text('File download initiated. Check your downloads folder.'),
             backgroundColor: Colors.green,
           ),
         );
-
-        // Note: In a real app, you might want to use a file picker plugin
-        // to let the user choose where to save the file, or use platform-specific
-        // download handling
       } else {
         _showErrorMessage('Failed to download file');
       }
     } catch (e) {
-      Navigator.of(context).pop(); // Close loading dialog if open
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog if open
+      }
       _showErrorMessage('Error downloading file: $e');
     }
   }
@@ -93,12 +93,13 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'status': status,
-          'adminComments': comments,
-          'reviewedBy': widget.adminId,
+          'adminComments': comments, // Fixed: Changed from 'admin_comments' to 'adminComments'
         }),
       );
 
-      Navigator.of(context).pop(); // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+      }
 
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -109,11 +110,26 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
         );
         _loadSubmissions(); // Reload submissions
       } else {
-        final errorData = jsonDecode(response.body);
-        _showErrorMessage('Failed to update status: ${errorData['message']}');
+        // Handle error response safely
+        String errorMessage = 'Failed to update status';
+        
+        try {
+          final errorData = jsonDecode(response.body);
+          errorMessage = errorData['error'] ?? errorData['message'] ?? 'Unknown error';
+        } catch (e) {
+          if (response.body.contains('<!DOCTYPE') || response.body.contains('<html')) {
+            errorMessage = 'Server error (${response.statusCode}). Please check the API endpoint.';
+          } else {
+            errorMessage = 'Server error: ${response.body}';
+          }
+        }
+        
+        _showErrorMessage(errorMessage);
       }
     } catch (e) {
-      Navigator.of(context).pop(); // Close loading dialog if open
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog if open
+      }
       _showErrorMessage('Error updating status: $e');
     }
   }
@@ -142,18 +158,16 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
               const Text('Status:', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                initialValue: selectedStatus,
+                value: selectedStatus,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
                 items: const [
                   DropdownMenuItem(value: 'pending', child: Text('Pending')),
                   DropdownMenuItem(value: 'approved', child: Text('Approved')),
                   DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
-                  DropdownMenuItem(
-                      value: 'resubmit', child: Text('Request Resubmit')),
+                  DropdownMenuItem(value: 'resubmit', child: Text('Request Resubmit')),
                 ],
                 onChanged: (value) {
                   selectedStatus = value!;
@@ -331,8 +345,7 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
                         ),
                         Text(
                           'Uploaded: ${DateTime.parse(submission['upload_date']).toString().split(' ')[0]}',
-                          style:
-                              TextStyle(color: Colors.grey[600], fontSize: 12),
+                          style: TextStyle(color: Colors.grey[600], fontSize: 12),
                         ),
                       ],
                     ),
@@ -457,15 +470,13 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.inbox,
-                                size: 64, color: Colors.grey[400]),
+                            Icon(Icons.inbox, size: 64, color: Colors.grey[400]),
                             const SizedBox(height: 16),
                             Text(
                               _filterStatus == 'all'
                                   ? 'No submissions yet'
                                   : 'No $_filterStatus submissions',
-                              style: TextStyle(
-                                  color: Colors.grey[600], fontSize: 16),
+                              style: TextStyle(color: Colors.grey[600], fontSize: 16),
                             ),
                           ],
                         ),
@@ -473,8 +484,7 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
                     : ListView.builder(
                         itemCount: filteredSubmissions.length,
                         itemBuilder: (context, index) {
-                          return _buildSubmissionCard(
-                              filteredSubmissions[index]);
+                          return _buildSubmissionCard(filteredSubmissions[index]);
                         },
                       ),
           ),

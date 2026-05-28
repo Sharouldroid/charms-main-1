@@ -31,6 +31,7 @@ class Staff {
   final String? filename;
   final String? department;
   final DateTime? createdAt;
+  final double dayRate;
 
   Staff({
     required this.staffId,
@@ -65,7 +66,10 @@ class Staff {
     this.filename,
     this.department,
     this.createdAt,
+    this.dayRate = 0.0,
   });
+
+  bool get isPartTimer => usertype == 12;
 
   factory Staff.fromJson(Map<String, dynamic> json) {
     return Staff(
@@ -101,6 +105,7 @@ class Staff {
       filename: json['filename'],   
       department: json['department'],
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
+      dayRate: double.tryParse(json['day_rate']?.toString() ?? '0') ?? 0.0,
     );
   }
 
@@ -137,6 +142,7 @@ class Staff {
       // ✅ filepath and filename NOT included in toJson
       // — these are managed by uploadStaffPhoto endpoint only
       'department': department,
+      'day_rate': dayRate,
     };
   }
 }

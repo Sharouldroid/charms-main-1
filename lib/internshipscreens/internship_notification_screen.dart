@@ -24,6 +24,7 @@ class _InternshipNotificationScreenState
     extends State<InternshipNotificationScreen> {
   List<Map<String, dynamic>> _notifications = [];
   bool _isLoading = true;
+  String? _debugError; // ✅ Show error on screen for debugging
 
   final Color bgColor = const Color(0xFFF4F7FA);
   final Color primaryBlue = const Color(0xFF2563EB);
@@ -35,28 +36,64 @@ class _InternshipNotificationScreenState
   }
 
   Future<void> _loadNotifications() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _debugError = null;
+    });
+
     try {
       final url = widget.isAdmin
           ? '${AppConfig.hostname}/api/internship/notifications/admin'
           : '${AppConfig.hostname}/api/internship/notifications/user/${widget.userId}';
 
+      print('📥 Fetching notifications from: $url');
+      print('📥 isAdmin: ${widget.isAdmin} | userId: ${widget.userId}');
+
       final response = await http.get(Uri.parse(url));
+
+      print('📥 Status: ${response.statusCode}');
+      print('📥 Body: ${response.body}');
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
+
+        print('📥 Decoded type: ${decoded.runtimeType}');
+
         List<dynamic> list = [];
-        if (decoded is Map && decoded['data'] != null) {
-          list = decoded['data'] is List ? decoded['data'] : [decoded['data']];
+
+        if (decoded is Map) {
+          print('📥 Keys: ${decoded.keys.toList()}');
+          if (decoded['data'] != null) {
+            final inner = decoded['data'];
+            print('📥 data type: ${inner.runtimeType}');
+            if (inner is List) {
+              list = inner;
+            } else if (inner is Map) {
+              list = [inner];
+            }
+          } else {
+            // Maybe response is flat map with notifications at root
+            print('📥 No data key found — keys: ${decoded.keys}');
+            setState(() => _debugError = 'Response has no "data" key. Keys: ${decoded.keys.toList()}');
+          }
         } else if (decoded is List) {
           list = decoded;
         }
+
+        print('📥 Total notifications parsed: ${list.length}');
+
         setState(() {
           _notifications = list.map((e) => Map<String, dynamic>.from(e)).toList();
         });
+
+      } else {
+        print('❌ Non-200 status: ${response.statusCode}');
+        setState(() => _debugError = 'API returned ${response.statusCode}: ${response.body}');
       }
-    } catch (e) {
-      print('❌ Error loading notifications: $e');
+    } catch (e, stack) {
+      print('❌ Exception: $e');
+      print('❌ Stack: $stack');
+      setState(() => _debugError = 'Exception: $e');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -72,7 +109,6 @@ class _InternshipNotificationScreenState
         final index = _notifications.indexWhere((n) => n['id'] == notificationId);
         if (index != -1) _notifications[index]['is_read'] = 1;
       });
-      // ✅ Sync provider badge
       if (mounted) context.read<InternshipNotificationProvider>().decrementCount();
     } catch (e) {
       print('❌ Error marking as read: $e');
@@ -91,7 +127,6 @@ class _InternshipNotificationScreenState
         for (final n in _notifications) n['is_read'] = 1;
       });
 
-      // ✅ Clear badge in provider
       if (mounted) {
         context.read<InternshipNotificationProvider>().clearCount();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -133,9 +168,48 @@ class _InternshipNotificationScreenState
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _notifications.isEmpty
-              ? _buildEmptyState()
-              : _buildNotificationList(),
+          : _debugError != null
+              ? _buildErrorState()
+              : _notifications.isEmpty
+                  ? _buildEmptyState()
+                  : _buildNotificationList(),
+    );
+  }
+
+  // ✅ Show error details on screen to help debug
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, color: Colors.red, size: 64),
+            const SizedBox(height: 16),
+            const Text('Failed to load notifications',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Text(
+                _debugError!,
+                style: TextStyle(fontSize: 12, color: Colors.red.shade800),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _loadNotifications,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -148,6 +222,12 @@ class _InternshipNotificationScreenState
           const SizedBox(height: 16),
           Text('No notifications yet',
               style: TextStyle(color: Colors.grey.shade500, fontSize: 16, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          // ✅ Show debug info
+          Text(
+            'URL: ${widget.isAdmin ? "admin" : "user/${widget.userId}"}',
+            style: TextStyle(color: Colors.grey.shade400, fontSize: 11),
+          ),
         ],
       ),
     );
@@ -220,7 +300,7 @@ class _InternshipNotificationScreenState
         break;
       case 'document_rejected':
         icon = Icons.cancel_rounded; iconColor = Colors.redAccent;
-        title = 'Document Rejected ❌';
+        title = notification['title'] ?? 'Document Rejected ❌';
         subtitle = notification['message'] ?? 'Your document was rejected. Please resubmit';
         break;
       case 'registration_confirmed':
@@ -230,13 +310,18 @@ class _InternshipNotificationScreenState
         break;
       case 'new_document':
         icon = Icons.upload_file_rounded; iconColor = Colors.orange;
-        title = 'New Document Submitted';
+        title = notification['title'] ?? 'New Document Submitted';
         subtitle = notification['message'] ?? 'A new document has been uploaded';
         break;
       case 'new_registration':
         icon = Icons.person_add_rounded; iconColor = Colors.purple;
         title = 'New Intern Registered';
         subtitle = notification['message'] ?? 'A new intern has registered';
+        break;
+      case 'document_resubmit':
+        icon = Icons.refresh_rounded; iconColor = Colors.blue;
+        title = notification['title'] ?? 'Resubmission Requested 🔄';
+        subtitle = notification['message'] ?? 'Please resubmit your document';
         break;
       default:
         icon = Icons.notifications_rounded; iconColor = Colors.blueAccent;
@@ -249,9 +334,9 @@ class _InternshipNotificationScreenState
       try {
         final dt   = DateTime.parse(notification['created_at']);
         final diff = DateTime.now().difference(dt);
-        if (diff.inMinutes < 60)      timeAgo = '${diff.inMinutes}m ago';
-        else if (diff.inHours < 24)   timeAgo = '${diff.inHours}h ago';
-        else                          timeAgo = '${diff.inDays}d ago';
+        if (diff.inMinutes < 60)    timeAgo = '${diff.inMinutes}m ago';
+        else if (diff.inHours < 24) timeAgo = '${diff.inHours}h ago';
+        else                        timeAgo = '${diff.inDays}d ago';
       } catch (_) {}
     }
 
