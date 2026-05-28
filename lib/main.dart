@@ -52,6 +52,7 @@ import 'package:charms/HRproviders/theme_provider.dart';
 import 'package:charms/HRproviders/users.dart' as hr_users;
 import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
 import 'package:charms/HRproviders/schedule_exchanges.dart';
+import 'package:charms/HRscreens/staff/part_timer_dashboard_screen.dart';
 // 🌟 ADDED CHARMS MAINTENANCE PAGES
 import 'campsite_maintenance.dart';
 import 'maintenance_page.dart';
@@ -356,6 +357,12 @@ class MyApp extends StatelessWidget {
         debugPrint('staffMember check: ${UserRoles.staffMember.contains(userType)}');
         debugPrint('hrAdmin check:     ${UserRoles.hrAdmin.contains(userType)}');
         debugPrint('internGroup check: ${UserRoles.internGroup.contains(userType)}'); // ✅ ADDED
+
+        // ✅ Part Timer → Part Timer Dashboard
+        if (UserRoles.partTimerGroup.contains(userType)) {
+          debugPrint('→ Routing to Part Timer Dashboard');
+          return PartTimerDashboardScreen(username: username ?? 'Part Timer');
+        }
 
         // ✅ NEW: Check if user is intern/trainee (usertype 10)
         if (UserRoles.internGroup.contains(userType)) {

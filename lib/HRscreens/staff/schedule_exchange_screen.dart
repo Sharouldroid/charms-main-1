@@ -3,6 +3,7 @@ import 'package:charms/HRmodels/staff.dart';
 import 'package:charms/HRproviders/schedule_exchanges.dart';
 import 'package:charms/HRproviders/schedules.dart';
 import 'package:charms/HRproviders/staffs.dart';
+import 'package:charms/constants/user_roles.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -24,17 +25,18 @@ class ScheduleExchangeScreen extends StatefulWidget {
 class _ScheduleExchangeScreenState extends State<ScheduleExchangeScreen> {
   final Color primaryBlue = const Color(0xFF4F46E5);
 
-  Staff? _selectedStaff;
-  Schedule? _selectedTargetSchedule;
-  List<Schedule> _targetSchedules = [];
-  bool _loadingSchedules = false;
-  bool _submitting       = false;
-  String _deptFilter     = 'All';
+  Staff?          _selectedStaff;
+  Schedule?       _selectedTargetSchedule;
+  List<Schedule>  _targetSchedules   = [];
+  bool            _loadingSchedules  = false;
+  bool            _submitting        = false;
+  String          _deptFilter        = 'All';
   final TextEditingController _noteController = TextEditingController();
 
-  static const _depts = ['All', 'Marine Biologist', 'Taaras', 'General'];
+  // ✅ includes Part Timer in filter options
+  static const _depts = ['All', 'Marine Biologist', 'Taaras', 'General', 'Part Timer'];
 
-  // ── Location helper ───────────────────────────────────────────────────────
+  // ── Location helpers ───────────────────────────────────────────────────────
   static String _locationName(int loc) {
     switch (loc) {
       case 1: return 'Chagar Hutang';
@@ -46,12 +48,30 @@ class _ScheduleExchangeScreenState extends State<ScheduleExchangeScreen> {
 
   static Color _locationColor(int loc) {
     switch (loc) {
-      case 1: return const Color(0xFF0891B2); // cyan – Chagar Hutang
-      case 2: return const Color(0xFF7C3AED); // violet – Turtle Lab
-      case 3: return const Color(0xFFF59E0B); // amber – UMT
+      case 1: return const Color(0xFF0891B2);
+      case 2: return const Color(0xFF7C3AED);
+      case 3: return const Color(0xFFF59E0B);
       default: return Colors.grey;
     }
   }
+
+  Widget _locationBadge(int loc) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    decoration: BoxDecoration(
+      color: _locationColor(loc).withOpacity(0.12),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: _locationColor(loc).withOpacity(0.4)),
+    ),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(Icons.location_on_rounded, size: 11, color: _locationColor(loc)),
+      const SizedBox(width: 3),
+      Text(_locationName(loc),
+          style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: _locationColor(loc))),
+    ]),
+  );
 
   @override
   void dispose() {
@@ -72,7 +92,9 @@ class _ScheduleExchangeScreenState extends State<ScheduleExchangeScreen> {
       final now = DateTime.now();
       setState(() {
         _targetSchedules = schedules.where((s) =>
-            s.workDate.isAfter(DateTime(now.year, now.month, now.day))).toList();
+            s.workDate.isAfter(DateTime(now.year, now.month, now.day)) &&
+            s.workDate != widget.mySchedule.workDate // block same date
+        ).toList();
         _loadingSchedules = false;
       });
     } catch (e) {
@@ -96,7 +118,9 @@ class _ScheduleExchangeScreenState extends State<ScheduleExchangeScreen> {
           targetId:       _selectedStaff!.staffId,
           requesterSched: widget.mySchedule.schedId,
           targetSched:    _selectedTargetSchedule!.schedId,
-          note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+          note: _noteController.text.trim().isEmpty
+              ? null
+              : _noteController.text.trim(),
         );
     setState(() => _submitting = false);
 
@@ -116,11 +140,10 @@ class _ScheduleExchangeScreenState extends State<ScheduleExchangeScreen> {
         .where((s) => s.staffId != widget.myStaffId)
         .toList();
 
-    final filteredStaff = _deptFilter == 'All'
-        ? allStaff
-        : _deptFilter == 'General'
-            ? allStaff.where((s) => s.department == null || s.department!.isEmpty).toList()
-            : allStaff.where((s) => s.department == _deptFilter).toList();
+    // ✅ Filter logic — Part Timer tab shows only part timers
+    //    Regular staff + part timers shown in All
+    //    Regular dept filters exclude part timers
+    final filteredStaff = _buildFilteredStaff(allStaff);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -128,10 +151,14 @@ class _ScheduleExchangeScreenState extends State<ScheduleExchangeScreen> {
         backgroundColor: primaryBlue,
         iconTheme: const IconThemeData(color: Colors.white),
         title: const Text('Request Schedule Exchange',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+            style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 15)),
         centerTitle: true,
         shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(bottom: Radius.circular(20))),
+            borderRadius:
+                BorderRadius.vertical(bottom: Radius.circular(20))),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -139,12 +166,12 @@ class _ScheduleExchangeScreenState extends State<ScheduleExchangeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
 
-            // ── My schedule card ──────────────────────────────────────────────
+            // ── My schedule ────────────────────────────────────────────────
             _sectionLabel('Your Schedule', Icons.event_note_rounded),
             _scheduleCard(widget.mySchedule, isMe: true),
             const SizedBox(height: 20),
 
-            // ── Dept filter chips ─────────────────────────────────────────────
+            // ── Dept filter chips ──────────────────────────────────────────
             _sectionLabel('Filter by Department', Icons.account_tree_rounded),
             const SizedBox(height: 8),
             SingleChildScrollView(
@@ -152,25 +179,52 @@ class _ScheduleExchangeScreenState extends State<ScheduleExchangeScreen> {
               child: Row(
                 children: _depts.map((dept) {
                   final active = _deptFilter == dept;
+                  final isPartTimer = dept == 'Part Timer';
                   return GestureDetector(
                     onTap: () => setState(() {
-                      _deptFilter = dept;
-                      _selectedStaff = null;
+                      _deptFilter             = dept;
+                      _selectedStaff          = null;
                       _selectedTargetSchedule = null;
-                      _targetSchedules = [];
+                      _targetSchedules        = [];
                     }),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 180),
                       margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
                       decoration: BoxDecoration(
-                        color: active ? primaryBlue : Colors.white,
+                        color: active
+                            ? (isPartTimer
+                                ? Colors.orange
+                                : primaryBlue)
+                            : Colors.white,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: active ? primaryBlue : Colors.grey.shade300),
+                        border: Border.all(
+                            color: active
+                                ? (isPartTimer
+                                    ? Colors.orange
+                                    : primaryBlue)
+                                : Colors.grey.shade300),
                       ),
-                      child: Text(dept,
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
-                              color: active ? Colors.white : Colors.grey.shade600)),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        if (isPartTimer) ...[
+                          Icon(Icons.access_time_rounded,
+                              size: 12,
+                              color: active
+                                  ? Colors.white
+                                  : Colors.orange),
+                          const SizedBox(width: 4),
+                        ],
+                        Text(dept,
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: active
+                                    ? Colors.white
+                                    : (isPartTimer
+                                        ? Colors.orange
+                                        : Colors.grey.shade600))),
+                      ]),
                     ),
                   );
                 }).toList(),
@@ -178,57 +232,140 @@ class _ScheduleExchangeScreenState extends State<ScheduleExchangeScreen> {
             ),
             const SizedBox(height: 16),
 
-            // ── Staff picker ──────────────────────────────────────────────────
-            _sectionLabel('Select Staff to Exchange With', Icons.people_rounded),
+            // ── Part timer notice ──────────────────────────────────────────
+            if (_deptFilter == 'Part Timer') ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: Colors.orange.withOpacity(0.3)),
+                ),
+                child: Row(children: [
+                  const Icon(Icons.info_outline_rounded,
+                      color: Colors.orange, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Part timers can only receive exchange requests, not initiate them.',
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.orange.shade700,
+                          fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ]),
+              ),
+            ],
+
+            // ── Staff picker ───────────────────────────────────────────────
+            _sectionLabel(
+                'Select Staff to Exchange With', Icons.people_rounded),
             const SizedBox(height: 8),
             filteredStaff.isEmpty
-                ? _emptyBox('No staff found for this department')
+                ? _emptyBox('No staff found for this filter')
                 : SizedBox(
                     height: 130,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
                       itemCount: filteredStaff.length,
                       itemBuilder: (ctx, i) {
-                        final staff = filteredStaff[i];
-                        final selected = _selectedStaff?.staffId == staff.staffId;
+                        final staff    = filteredStaff[i];
+                        final selected =
+                            _selectedStaff?.staffId == staff.staffId;
+                        final isPT     = staff.isPartTimer;
+
                         return GestureDetector(
                           onTap: () => _onStaffSelected(staff),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 180),
                             width: 95,
-                            margin: const EdgeInsets.only(right: 10, bottom: 4),
+                            margin: const EdgeInsets.only(
+                                right: 10, bottom: 4),
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: selected ? primaryBlue.withOpacity(0.1) : Colors.white,
+                              color: selected
+                                  ? (isPT
+                                      ? Colors.orange.withOpacity(0.1)
+                                      : primaryBlue.withOpacity(0.1))
+                                  : Colors.white,
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
-                                  color: selected ? primaryBlue : Colors.grey.shade200,
+                                  color: selected
+                                      ? (isPT
+                                          ? Colors.orange
+                                          : primaryBlue)
+                                      : Colors.grey.shade200,
                                   width: selected ? 2 : 1),
-                              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03),
-                                  blurRadius: 6, offset: const Offset(0, 2))],
+                              boxShadow: [
+                                BoxShadow(
+                                    color:
+                                        Colors.black.withOpacity(0.03),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2))
+                              ],
                             ),
                             child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisAlignment:
+                                  MainAxisAlignment.center,
                               children: [
                                 CircleAvatar(
                                   radius: 22,
-                                  backgroundColor: primaryBlue.withOpacity(0.1),
-                                  child: Icon(Icons.person_rounded,
-                                      color: primaryBlue, size: 22),
+                                  backgroundColor: (isPT
+                                          ? Colors.orange
+                                          : primaryBlue)
+                                      .withOpacity(0.1),
+                                  child: Icon(
+                                      isPT
+                                          ? Icons.access_time_rounded
+                                          : Icons.person_rounded,
+                                      color: isPT
+                                          ? Colors.orange
+                                          : primaryBlue,
+                                      size: 22),
                                 ),
                                 const SizedBox(height: 6),
-                                Text('${staff.firstname}\n${staff.lastname}',
-                                    textAlign: TextAlign.center,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                        color: selected ? primaryBlue : const Color(0xFF1E293B))),
-                                if (staff.department != null && staff.department!.isNotEmpty)
+                                Text(
+                                  '${staff.firstname}\n${staff.lastname}',
+                                  textAlign: TextAlign.center,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: selected
+                                          ? (isPT
+                                              ? Colors.orange
+                                              : primaryBlue)
+                                          : const Color(0xFF1E293B)),
+                                ),
+                                if (isPT)
+                                  Container(
+                                    margin: const EdgeInsets.only(top: 2),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 4, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange.withOpacity(0.1),
+                                      borderRadius:
+                                          BorderRadius.circular(6),
+                                    ),
+                                    child: const Text('Part Timer',
+                                        style: TextStyle(
+                                            fontSize: 8,
+                                            color: Colors.orange,
+                                            fontWeight:
+                                                FontWeight.w700)),
+                                  )
+                                else if (staff.department != null &&
+                                    staff.department!.isNotEmpty)
                                   Text(staff.department!,
-                                      style: TextStyle(fontSize: 9,
-                                          color: Colors.teal.shade600, fontWeight: FontWeight.w600)),
+                                      style: TextStyle(
+                                          fontSize: 9,
+                                          color: Colors.teal.shade600,
+                                          fontWeight:
+                                              FontWeight.w600)),
                               ],
                             ),
                           ),
@@ -238,7 +375,7 @@ class _ScheduleExchangeScreenState extends State<ScheduleExchangeScreen> {
                   ),
             const SizedBox(height: 20),
 
-            // ── Target schedule picker ────────────────────────────────────────
+            // ── Target schedule picker ─────────────────────────────────────
             if (_selectedStaff != null) ...[
               _sectionLabel(
                   'Select ${_selectedStaff!.firstname}\'s Schedule to Swap',
@@ -247,72 +384,74 @@ class _ScheduleExchangeScreenState extends State<ScheduleExchangeScreen> {
               _loadingSchedules
                   ? const Center(child: CircularProgressIndicator())
                   : _targetSchedules.isEmpty
-                      ? _emptyBox('No upcoming schedules for this staff')
+                      ? _emptyBox(
+                          'No upcoming schedules for this staff')
                       : Column(
                           children: _targetSchedules.map((sched) {
-                            final selected = _selectedTargetSchedule?.schedId == sched.schedId;
+                            final selected =
+                                _selectedTargetSchedule?.schedId ==
+                                    sched.schedId;
                             return GestureDetector(
-                              onTap: () => setState(() => _selectedTargetSchedule = sched),
+                              onTap: () => setState(
+                                  () => _selectedTargetSchedule = sched),
                               child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 180),
-                                margin: const EdgeInsets.only(bottom: 10),
+                                duration:
+                                    const Duration(milliseconds: 180),
+                                margin:
+                                    const EdgeInsets.only(bottom: 10),
                                 padding: const EdgeInsets.all(14),
                                 decoration: BoxDecoration(
-                                  color: selected ? primaryBlue.withOpacity(0.07) : Colors.white,
-                                  borderRadius: BorderRadius.circular(14),
+                                  color: selected
+                                      ? primaryBlue.withOpacity(0.07)
+                                      : Colors.white,
+                                  borderRadius:
+                                      BorderRadius.circular(14),
                                   border: Border.all(
-                                      color: selected ? primaryBlue : Colors.grey.shade200,
+                                      color: selected
+                                          ? primaryBlue
+                                          : Colors.grey.shade200,
                                       width: selected ? 2 : 1),
                                 ),
                                 child: Row(children: [
                                   Icon(Icons.calendar_today_rounded,
-                                      color: selected ? primaryBlue : Colors.grey, size: 18),
+                                      color: selected
+                                          ? primaryBlue
+                                          : Colors.grey,
+                                      size: 18),
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        Text(DateFormat('dd MMM yyyy (EEE)').format(sched.workDate),
-                                            style: TextStyle(fontWeight: FontWeight.bold,
-                                                fontSize: 13,
-                                                color: selected ? primaryBlue : const Color(0xFF1E293B))),
-                                        const SizedBox(height: 4),
-                                        Text('${sched.workStartTime ?? '—'} → ${sched.workEndTime ?? '—'}',
-                                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                                        const SizedBox(height: 6),
-                                        // ── Location badge ──────────────────
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                          decoration: BoxDecoration(
-                                            color: _locationColor(sched.workLocation).withOpacity(0.12),
-                                            borderRadius: BorderRadius.circular(20),
-                                            border: Border.all(
-                                              color: _locationColor(sched.workLocation).withOpacity(0.4),
-                                            ),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(Icons.location_on_rounded,
-                                                  size: 11,
-                                                  color: _locationColor(sched.workLocation)),
-                                              const SizedBox(width: 3),
-                                              Text(
-                                                _locationName(sched.workLocation),
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: _locationColor(sched.workLocation),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
+                                        Text(
+                                          DateFormat('dd MMM yyyy (EEE)')
+                                              .format(sched.workDate),
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                              color: selected
+                                                  ? primaryBlue
+                                                  : const Color(
+                                                      0xFF1E293B)),
                                         ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          '${sched.workStartTime ?? '—'} → ${sched.workEndTime ?? '—'}',
+                                          style: TextStyle(
+                                              fontSize: 12,
+                                              color:
+                                                  Colors.grey.shade600),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        _locationBadge(
+                                            sched.workLocation),
                                       ],
                                     ),
                                   ),
                                   if (selected)
-                                    Icon(Icons.check_circle_rounded, color: primaryBlue, size: 20),
+                                    Icon(Icons.check_circle_rounded,
+                                        color: primaryBlue, size: 20),
                                 ]),
                               ),
                             );
@@ -321,7 +460,7 @@ class _ScheduleExchangeScreenState extends State<ScheduleExchangeScreen> {
               const SizedBox(height: 20),
             ],
 
-            // ── Note ─────────────────────────────────────────────────────────
+            // ── Note ──────────────────────────────────────────────────────
             _sectionLabel('Note (Optional)', Icons.note_rounded),
             const SizedBox(height: 8),
             TextField(
@@ -329,36 +468,51 @@ class _ScheduleExchangeScreenState extends State<ScheduleExchangeScreen> {
               maxLines: 3,
               decoration: InputDecoration(
                 hintText: 'e.g. I have a family event on that day...',
-                hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+                hintStyle: TextStyle(
+                    color: Colors.grey.shade400, fontSize: 13),
                 filled: true,
                 fillColor: Colors.white,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: Colors.grey.shade200)),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: Colors.grey.shade200)),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: primaryBlue, width: 1.5)),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide:
+                        BorderSide(color: Colors.grey.shade200)),
+                enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide:
+                        BorderSide(color: Colors.grey.shade200)),
+                focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide:
+                        BorderSide(color: primaryBlue, width: 1.5)),
               ),
             ),
             const SizedBox(height: 24),
 
-            // ── Submit ────────────────────────────────────────────────────────
+            // ── Submit ─────────────────────────────────────────────────────
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryBlue, foregroundColor: Colors.white,
+                  backgroundColor: primaryBlue,
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
                   elevation: 0,
                 ),
                 onPressed: _submitting ? null : _submitRequest,
                 icon: _submitting
-                    ? const SizedBox(width: 18, height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
                     : const Icon(Icons.send_rounded),
-                label: Text(_submitting ? 'Sending...' : 'Send Exchange Request',
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                label: Text(
+                  _submitting ? 'Sending...' : 'Send Exchange Request',
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.bold),
+                ),
               ),
             ),
             const SizedBox(height: 32),
@@ -368,66 +522,85 @@ class _ScheduleExchangeScreenState extends State<ScheduleExchangeScreen> {
     );
   }
 
+  // ── Filter logic ───────────────────────────────────────────────────────────
+  List<Staff> _buildFilteredStaff(List<Staff> allStaff) {
+    switch (_deptFilter) {
+      case 'All':
+        // Show everyone — regular staff AND part timers
+        return allStaff;
+      case 'Part Timer':
+        // Only part timers (usertype 12)
+        return allStaff
+            .where((s) => UserRoles.partTimerGroup.contains(s.usertype))
+            .toList();
+      case 'General':
+        // Regular staff with no department (exclude part timers)
+        return allStaff
+            .where((s) =>
+                !UserRoles.partTimerGroup.contains(s.usertype) &&
+                (s.department == null || s.department!.isEmpty))
+            .toList();
+      default:
+        // Marine Biologist / Taaras (exclude part timers)
+        return allStaff
+            .where((s) =>
+                !UserRoles.partTimerGroup.contains(s.usertype) &&
+                s.department == _deptFilter)
+            .toList();
+    }
+  }
+
+  // ── Helper widgets ─────────────────────────────────────────────────────────
   Widget _sectionLabel(String text, IconData icon) => Row(children: [
     Icon(icon, size: 16, color: primaryBlue),
     const SizedBox(width: 8),
-    Text(text, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: primaryBlue)),
+    Text(text,
+        style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: primaryBlue)),
   ]);
 
-  // ── Schedule card (Your Schedule + location badge) ────────────────────────
   Widget _scheduleCard(Schedule s, {bool isMe = false}) => Container(
     padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
       color: isMe ? primaryBlue.withOpacity(0.07) : Colors.white,
       borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: isMe ? primaryBlue.withOpacity(0.3) : Colors.grey.shade200),
+      border: Border.all(
+          color: isMe
+              ? primaryBlue.withOpacity(0.3)
+              : Colors.grey.shade200),
     ),
     child: Row(children: [
       Icon(Icons.event_rounded, color: primaryBlue, size: 20),
       const SizedBox(width: 12),
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(DateFormat('dd MMM yyyy (EEE)').format(s.workDate),
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            style: const TextStyle(
+                fontWeight: FontWeight.bold, fontSize: 13)),
         const SizedBox(height: 2),
-        Text('${s.workStartTime ?? '—'} → ${s.workEndTime ?? '—'}',
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-        const SizedBox(height: 6),
-        // ── Location badge ──────────────────────────────────────────────────
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: _locationColor(s.workLocation).withOpacity(0.12),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: _locationColor(s.workLocation).withOpacity(0.4)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.location_on_rounded, size: 11, color: _locationColor(s.workLocation)),
-              const SizedBox(width: 3),
-              Text(
-                _locationName(s.workLocation),
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: _locationColor(s.workLocation),
-                ),
-              ),
-            ],
-          ),
+        Text(
+          '${s.workStartTime ?? '—'} → ${s.workEndTime ?? '—'}',
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
         ),
+        const SizedBox(height: 6),
+        _locationBadge(s.workLocation),
       ]),
     ]),
   );
 
   Widget _emptyBox(String msg) => Container(
     padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(color: Colors.grey.shade50,
+    decoration: BoxDecoration(
+        color: Colors.grey.shade50,
         borderRadius: BorderRadius.circular(12)),
     child: Row(children: [
-      Icon(Icons.info_outline_rounded, color: Colors.grey.shade400, size: 18),
+      Icon(Icons.info_outline_rounded,
+          color: Colors.grey.shade400, size: 18),
       const SizedBox(width: 8),
-      Text(msg, style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+      Text(msg,
+          style: TextStyle(
+              color: Colors.grey.shade500, fontSize: 13)),
     ]),
   );
 }

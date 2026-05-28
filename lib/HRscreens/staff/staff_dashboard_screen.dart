@@ -18,7 +18,6 @@ import 'package:charms/HRscreens/admin/admin_dashboard_screen.dart';
 import 'package:charms/constants/user_roles.dart';
 import 'package:charms/HRproviders/auth.dart' as hr_auth;
 import 'package:charms/utils/logout_helper.dart';
-import 'dart:async';
 import 'package:charms/HRproviders/schedule_exchanges.dart';
 import 'package:charms/HRscreens/staff/staff_attendance_history_screen.dart';
 
@@ -95,8 +94,6 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
       final claimsProvider    = Provider.of<Claims>(context, listen: false);
       final hrAuth            = Provider.of<hr_auth.Auth>(context, listen: false);
       final exchangesProvider = Provider.of<ScheduleExchanges>(context, listen: false);
-      debugPrint('HR Auth token: ${hrAuth.token}');
-      debugPrint('HR Auth username: ${hrAuth.username}');
 
       await Future.wait([
         staffsProvider.fetchStaff(),
@@ -128,16 +125,16 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
 
             if (_staffSchedules.isNotEmpty) {
               workLocation = _staffSchedules[0].workLocation;
-              branch = getBranchName(workLocation);
+              branch       = getBranchName(workLocation);
             }
             lastLoginTime = DateTime.now();
-            _isLoading = false;
+            _isLoading    = false;
           });
         }
       } else {
         if (_mounted) {
           setState(() {
-            _isLoading = false;
+            _isLoading    = false;
             lastLoginTime = DateTime.now();
           });
         }
@@ -155,14 +152,16 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
       case 0: return;
       case 1:
         nextScreen = LeaveDashboardScreen(
-            username: widget.username, staffId: _currentStaff?.staffId ?? 0);
+            username: widget.username,
+            staffId:  _currentStaff?.staffId ?? 0);
         break;
       case 2:
         nextScreen = PayrollDashboardScreen(username: widget.username);
         break;
       case 3:
         nextScreen = ClaimDashboardScreen(
-            username: widget.username, staffId: _currentStaff?.staffId ?? 0);
+            username: widget.username,
+            staffId:  _currentStaff?.staffId ?? 0);
         break;
       case 4:
         nextScreen = const StaffMySelfScreen();
@@ -176,10 +175,10 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
   Future<void> _logout() async => LogoutHelper.fullLogout(context);
 
   String formatDateTime(DateTime dateTime) {
-    return "${dateTime.day} ${_getMonthName(dateTime.month)} ${dateTime.year}, "
-        "${dateTime.hour.toString().padLeft(2, '0')}:"
-        "${dateTime.minute.toString().padLeft(2, '0')} "
-        "${dateTime.hour >= 12 ? 'PM' : 'AM'}";
+    return '${dateTime.day} ${_getMonthName(dateTime.month)} ${dateTime.year}, '
+        '${dateTime.hour.toString().padLeft(2, '0')}:'
+        '${dateTime.minute.toString().padLeft(2, '0')} '
+        '${dateTime.hour >= 12 ? 'PM' : 'AM'}';
   }
 
   String _getMonthName(int month) {
@@ -212,19 +211,19 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
             IconButton(
               icon: const Icon(Icons.admin_panel_settings_rounded),
               tooltip: 'Switch to Admin Mode',
-              onPressed: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) =>
-                          AdminDashboardScreen(username: widget.username)),
-                );
-              },
+              onPressed: () => Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => AdminDashboardScreen(
+                        username: widget.username)),
+              ),
             ),
           Consumer4<Leaves, Claims, Schedules, ScheduleExchanges>(
             builder: (context, leaves, claims, schedules, exchanges, child) {
-              int staffId = _currentStaff?.staffId ?? 0;
-              if (staffId == 0) return const Icon(Icons.notifications_none_rounded);
+              final staffId = _currentStaff?.staffId ?? 0;
+              if (staffId == 0) {
+                return const Icon(Icons.notifications_none_rounded);
+              }
 
               final totalNotifications =
                   leaves.leaves.where((l) => l.staffId == staffId && l.status != 'Pending').length +
@@ -238,16 +237,21 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                     ? Badge(
                         label: Text(totalNotifications.toString()),
                         backgroundColor: Colors.redAccent,
-                        child: const Icon(Icons.notifications_active_rounded))
+                        child: const Icon(
+                            Icons.notifications_active_rounded))
                     : const Icon(Icons.notifications_none_rounded),
                 onPressed: () async {
                   final result = await Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (context) => StaffNotificationScreen(
-                            staffId: _currentStaff?.staffId ?? 0)),
+                      builder: (context) => StaffNotificationScreen(
+                        staffId:     _currentStaff?.staffId ?? 0,
+                        isPartTimer: false, // ✅ regular staff
+                      ),
+                    ),
                   );
-                  if (result != null && result['refreshDashboard'] == true) {
+                  if (result != null &&
+                      result['refreshDashboard'] == true) {
                     await _loadStaffData();
                   }
                 },
@@ -263,9 +267,9 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
       ),
       body: _buildDashboardContent(),
       bottomNavigationBar: BottomNavStaff(
-        selectedIndex: _selectedIndex,
-        onItemTapped: _onItemTapped,
-        showMyselfDot: _isProfileIncomplete, // ← dot shows when profile incomplete
+        selectedIndex:  _selectedIndex,
+        onItemTapped:   _onItemTapped,
+        showMyselfDot:  _isProfileIncomplete,
       ),
     );
   }
@@ -274,41 +278,44 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // ── Welcome header ────────────────────────────────────────────────
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.only(top: 20, bottom: 28, left: 24, right: 24),
+          padding: const EdgeInsets.only(
+              top: 20, bottom: 28, left: 24, right: 24),
           decoration: BoxDecoration(
             color: staffPrimary,
-            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
+            borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(30)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Hello, ${widget.username} !",
+              Text('Hello, ${widget.username} !',
                   style: const TextStyle(
-                      fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white)),
               const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(Icons.access_time_rounded,
-                      size: 16, color: Colors.indigo.shade200),
-                  const SizedBox(width: 6),
-                  Text(
-                    lastLoginTime != null
-                        ? "Last Login: ${formatDateTime(lastLoginTime!)}"
-                        : "Last Login: Not available",
-                    style: TextStyle(
-                        color: Colors.indigo.shade100,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500),
-                  ),
-                ],
-              ),
+              Row(children: [
+                Icon(Icons.access_time_rounded,
+                    size: 16, color: Colors.indigo.shade200),
+                const SizedBox(width: 6),
+                Text(
+                  lastLoginTime != null
+                      ? 'Last Login: ${formatDateTime(lastLoginTime!)}'
+                      : 'Last Login: Not available',
+                  style: TextStyle(
+                      color: Colors.indigo.shade100,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500),
+                ),
+              ]),
             ],
           ),
         ),
 
-        // ── Attendance History Card ────────────────────────────────────────
+        // ── Attendance history card ───────────────────────────────────────
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
           child: GestureDetector(
@@ -316,7 +323,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
               context,
               MaterialPageRoute(
                 builder: (_) => StaffAttendanceHistoryScreen(
-                  staffId: _currentStaff?.staffId ?? 0,
+                  staffId:  _currentStaff?.staffId ?? 0,
                   username: widget.username,
                 ),
               ),
@@ -328,35 +335,34 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: staffCardBorder),
               ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                        color: staffPrimary.withOpacity(0.1),
-                        shape: BoxShape.circle),
-                    child: Icon(Icons.history_rounded,
-                        color: staffPrimary, size: 22),
+              child: Row(children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                      color: staffPrimary.withOpacity(0.1),
+                      shape: BoxShape.circle),
+                  child: Icon(Icons.history_rounded,
+                      color: staffPrimary, size: 22),
+                ),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Attendance History',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                              color: Color(0xFF1E293B))),
+                      Text('View your clock in/out records',
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.grey)),
+                    ],
                   ),
-                  const SizedBox(width: 14),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Attendance History',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 14,
-                                color: Color(0xFF1E293B))),
-                        Text('View your clock in/out records',
-                            style: TextStyle(fontSize: 12, color: Colors.grey)),
-                      ],
-                    ),
-                  ),
-                  Icon(Icons.arrow_forward_ios_rounded,
-                      size: 14, color: Colors.grey.shade400),
-                ],
-              ),
+                ),
+                Icon(Icons.arrow_forward_ios_rounded,
+                    size: 14, color: Colors.grey.shade400),
+              ]),
             ),
           ),
         ),
@@ -368,15 +374,17 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
 
   Widget _buildSchedulesCards() {
     if (_isLoading) {
-      return Center(child: CircularProgressIndicator(color: staffPrimary));
+      return Center(
+          child: CircularProgressIndicator(color: staffPrimary));
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 24, right: 24, top: 20, bottom: 8),
-          child: Text("Your Upcoming Shifts",
+          padding: const EdgeInsets.only(
+              left: 24, right: 24, top: 20, bottom: 8),
+          child: Text('Your Upcoming Shifts',
               style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -406,7 +414,8 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                   itemCount: _staffSchedules.length,
                   itemBuilder: (context, index) {
                     final schedule      = _staffSchedules[index];
-                    final currentBranch = getBranchName(schedule.workLocation);
+                    final currentBranch =
+                        getBranchName(schedule.workLocation);
                     final dateObj       = schedule.workDate;
 
                     return Container(
@@ -420,15 +429,19 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                         borderRadius: BorderRadius.circular(16),
                         onTap: () async {
                           final attendanceProvider =
-                              Provider.of<Attendances>(context, listen: false);
-                          final isClockIn = await attendanceProvider.checkAttendance(
-                              staffId: _currentStaff?.staffId ?? 0,
-                              scheduleId: schedule.schedId);
+                              Provider.of<Attendances>(context,
+                                  listen: false);
+                          final isClockIn =
+                              await attendanceProvider.checkAttendance(
+                                  staffId:
+                                      _currentStaff?.staffId ?? 0,
+                                  scheduleId: schedule.schedId);
                           if (!mounted) return;
                           final result = await Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => StaffScheduleDetailsScreen(
+                              builder: (context) =>
+                                  StaffScheduleDetailsScreen(
                                 location:         currentBranch,
                                 workDate:         schedule.workDate,
                                 assignedStaff:    [_currentStaff?.firstname ?? ''],
@@ -441,106 +454,118 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                                 staffId:          _currentStaff?.staffId ?? 0,
                                 acceptanceStatus: schedule.acceptanceStatus,
                                 staffNote:        schedule.staffNote,
+                                staffUsertype:    _currentStaff?.usertype ?? 7, // ✅
                               ),
                             ),
                           );
-                          if (result != null && result['refreshDashboard'] == true) {
+                          if (result != null &&
+                              result['refreshDashboard'] == true) {
                             await _loadStaffData();
                           }
                         },
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 80,
-                              padding: const EdgeInsets.symmetric(vertical: 20),
-                              decoration: BoxDecoration(
-                                color: staffPrimary.withOpacity(0.08),
-                                borderRadius: const BorderRadius.only(
-                                    topLeft: Radius.circular(16),
-                                    bottomLeft: Radius.circular(16)),
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(_getMonthName(dateObj.month).toUpperCase(),
-                                      style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                          color: staffPrimary)),
-                                  Text(dateObj.day.toString(),
-                                      style: TextStyle(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.w900,
-                                          color: staffPrimary)),
-                                ],
-                              ),
+                        child: Row(children: [
+                          // Date block
+                          Container(
+                            width: 80,
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 20),
+                            decoration: BoxDecoration(
+                              color: staffPrimary.withOpacity(0.08),
+                              borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(16),
+                                  bottomLeft: Radius.circular(16)),
                             ),
-                            Container(width: 1, height: 60, color: staffCardBorder),
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16.0, vertical: 12.0),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(currentBranch,
-                                        style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                            color: Color(0xFF1E293B))),
-                                    const SizedBox(height: 6),
-                                    Row(
-                                      children: [
-                                        Icon(Icons.access_time_rounded,
-                                            size: 14, color: Colors.grey.shade500),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                            '${schedule.workStartTime} - ${schedule.workEndTime}',
-                                            style: TextStyle(
-                                                color: Colors.grey.shade600,
-                                                fontWeight: FontWeight.w500)),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: schedule.acceptanceStatus == 1
-                                            ? Colors.green.withOpacity(0.1)
-                                            : schedule.acceptanceStatus == 2
-                                                ? Colors.red.withOpacity(0.1)
-                                                : Colors.orange.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        schedule.acceptanceStatus == 1
-                                            ? '✅ Accepted'
-                                            : schedule.acceptanceStatus == 2
-                                                ? '❌ Not Accepted'
-                                                : '⏳ Pending',
+                            child: Column(
+                              mainAxisAlignment:
+                                  MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                    _getMonthName(dateObj.month)
+                                        .toUpperCase(),
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: staffPrimary)),
+                                Text(dateObj.day.toString(),
+                                    style: TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.w900,
+                                        color: staffPrimary)),
+                              ],
+                            ),
+                          ),
+                          Container(
+                              width: 1,
+                              height: 60,
+                              color: staffCardBorder),
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16.0, vertical: 12.0),
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  Text(currentBranch,
+                                      style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF1E293B))),
+                                  const SizedBox(height: 6),
+                                  Row(children: [
+                                    Icon(Icons.access_time_rounded,
+                                        size: 14,
+                                        color: Colors.grey.shade500),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                        '${schedule.workStartTime} - ${schedule.workEndTime}',
                                         style: TextStyle(
+                                            color: Colors.grey.shade600,
+                                            fontWeight:
+                                                FontWeight.w500)),
+                                  ]),
+                                  const SizedBox(height: 4),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: schedule.acceptanceStatus == 1
+                                          ? Colors.green.withOpacity(0.1)
+                                          : schedule.acceptanceStatus == 2
+                                              ? Colors.red.withOpacity(0.1)
+                                              : Colors.orange.withOpacity(0.1),
+                                      borderRadius:
+                                          BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      schedule.acceptanceStatus == 1
+                                          ? '✅ Accepted'
+                                          : schedule.acceptanceStatus == 2
+                                              ? '❌ Not Accepted'
+                                              : '⏳ Pending',
+                                      style: TextStyle(
                                           fontSize: 10,
                                           fontWeight: FontWeight.w700,
                                           color: schedule.acceptanceStatus == 1
                                               ? Colors.green
                                               : schedule.acceptanceStatus == 2
                                                   ? Colors.red
-                                                  : Colors.orange,
-                                        ),
-                                      ),
+                                                  : Colors.orange),
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
                             ),
-                            Padding(
-                              padding: const EdgeInsets.only(right: 16.0),
-                              child: Icon(Icons.arrow_forward_ios_rounded,
-                                  size: 16, color: Colors.grey.shade400),
-                            ),
-                          ],
-                        ),
+                          ),
+                          Padding(
+                            padding:
+                                const EdgeInsets.only(right: 16.0),
+                            child: Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                size: 16,
+                                color: Colors.grey.shade400),
+                          ),
+                        ]),
                       ),
                     );
                   },

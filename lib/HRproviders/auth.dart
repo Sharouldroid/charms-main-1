@@ -206,6 +206,7 @@ class Auth with ChangeNotifier {
           'emergency_gender':   staffData['emergency_gender'],
           'emergency_phone':    staffData['emergency_phone'],
           'department':         staffData['department'],
+          'day_rate':           staffData['day_rate'] ?? '0',
           'plain_password':     cleanPass,
         }),
       );

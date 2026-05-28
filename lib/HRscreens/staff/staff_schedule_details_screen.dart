@@ -23,6 +23,7 @@ class StaffScheduleDetailsScreen extends StatefulWidget {
   final int staffId;
   final int acceptanceStatus;
   final String? staffNote;
+   final int staffUsertype;
 
   const StaffScheduleDetailsScreen({
     super.key,
@@ -38,6 +39,7 @@ class StaffScheduleDetailsScreen extends StatefulWidget {
     required this.staffId,
     this.acceptanceStatus = 0,
     this.staffNote,
+    required this.staffUsertype,
   });
 
   @override

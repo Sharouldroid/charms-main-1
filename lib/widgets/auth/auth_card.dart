@@ -18,6 +18,7 @@ import 'package:charms/constants/user_roles.dart';
 import 'package:charms/HRproviders/auth.dart' as hr_auth;
 import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
 import 'package:charms/internshipscreens/dashboard_screen.dart' as internship_screens;
+import 'package:charms/HRscreens/staff/part_timer_dashboard_screen.dart';
 
 enum AuthMode { Signup, Login }
 
@@ -286,7 +287,7 @@ class AuthCardState extends State<AuthCard> {
     }
   }
 
-  // ✅ NEW: Centralized routing logic
+    // ✅ NEW: Centralized routing logic
   void _routeAfterLogin(int usertype, String username, int? userId) {
     debugPrint('');
     debugPrint('========================================');
@@ -295,11 +296,25 @@ class AuthCardState extends State<AuthCard> {
     debugPrint('usertype: $usertype');
     debugPrint('username: $username');
     debugPrint('userId: $userId');
+    debugPrint('partTimerGroup check: ${UserRoles.partTimerGroup.contains(usertype)}');
     debugPrint('internGroup check: ${UserRoles.internGroup.contains(usertype)}');
     debugPrint('staffMember check: ${UserRoles.staffMember.contains(usertype)}');
     debugPrint('hrAdmin check: ${UserRoles.hrAdmin.contains(usertype)}');
     debugPrint('========================================');
     debugPrint('');
+
+    // ✅ Priority 0: Part-Timer (usertype 12) → Part-Timer Dashboard
+    if (UserRoles.partTimerGroup.contains(usertype)) {
+      debugPrint('→ Routing to Part-Timer Dashboard');
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => PartTimerDashboardScreen(
+            username: username,
+          ),
+        ),
+      );
+      return;
+    }
 
     // ✅ Priority 1: Intern/Trainee (usertype 10) → Internship Dashboard
     if (UserRoles.internGroup.contains(usertype)) {
@@ -331,6 +346,7 @@ class AuthCardState extends State<AuthCard> {
     debugPrint('→ Routing to CHARMS Dashboard');
     Navigator.of(context).pushReplacementNamed('/dashboard');
   }
+
 
   Future<void> _handleLogin() async {
     try {
