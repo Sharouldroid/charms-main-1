@@ -4,7 +4,7 @@ import 'package:intl/intl.dart'; // ← NEW
 
 import 'package:charms/HRmodels/staff.dart';
 import 'package:charms/HRmodels/user.dart';
-import 'package:charms/HRproviders/auth.dart' as hr_auth;
+import 'package:charms/providers/auth.dart' as app_auth;
 import 'package:charms/HRproviders/staffs.dart';
 import 'package:charms/HRproviders/users.dart' as hr_users;
 import 'package:charms/HRscreens/admin/admin_dashboard_screen.dart';
@@ -83,7 +83,7 @@ class _MySelfScreenState extends State<MySelfScreen> {
   Future<void> _loadUserData() async {
     try {
       final usersProvider = Provider.of<hr_users.Users>(context, listen: false);
-      final authProvider = context.read<hr_auth.Auth>();
+      final authProvider = context.read<app_auth.Auth>();
       final token = authProvider.token;
 
       await usersProvider.fetchUserByUsername(authProvider.username,
@@ -107,7 +107,7 @@ class _MySelfScreenState extends State<MySelfScreen> {
   Future<void> _loadStaffData() async {
     try {
       final staffsProvider = context.read<Staffs>();
-      final authProvider = context.read<hr_auth.Auth>();
+      final authProvider = context.read<app_auth.Auth>();
       final username = authProvider.username.trim().toLowerCase();
 
       await staffsProvider.fetchStaff();
@@ -221,7 +221,7 @@ class _MySelfScreenState extends State<MySelfScreen> {
 
     try {
       setState(() => _isLoading = true);
-      final authProvider = context.read<hr_auth.Auth>();
+      final authProvider = context.read<app_auth.Auth>();
       final token = authProvider.token;
 
       // ← NEW: format DOB as yyyy-MM-dd for backend
@@ -325,7 +325,7 @@ class _MySelfScreenState extends State<MySelfScreen> {
     if (index == _selectedIndex) return;
     setState(() => _selectedIndex = index);
 
-    final username = context.read<hr_auth.Auth>().username;
+    final username = context.read<app_auth.Auth>().username;
     final routes = [
       () => AdminDashboard(username: username),
       () => ManageStaffScreen(username: username),

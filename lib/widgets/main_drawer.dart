@@ -19,7 +19,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
-import 'package:charms/HRproviders/auth.dart' as hr_auth;
+import 'package:charms/providers/auth.dart' as app_auth;
 
 class MainDrawer extends StatelessWidget {
   const MainDrawer({
@@ -452,7 +452,7 @@ class MainDrawer extends StatelessWidget {
         try {
           // Clear BOTH auth providers
           await Provider.of<Auth>(context, listen: false).logout();
-          await Provider.of<hr_auth.Auth>(context, listen: false).logout(); // ← add this
+          await Provider.of<app_auth.Auth>(context, listen: false).logout(); // ← add this
 
           Navigator.of(context).pop(); // close drawer
           Navigator.of(context).pop(); // close loading

@@ -4,7 +4,7 @@ import 'package:charms/HRproviders/claims.dart';
 import 'package:charms/HRproviders/leaves.dart';
 import 'package:charms/HRproviders/schedules.dart';
 import 'package:charms/HRproviders/staffs.dart';
-import 'package:charms/HRproviders/auth.dart' as hr_auth;
+import 'package:charms/providers/auth.dart' as app_auth;
 import 'package:charms/HRscreens/staff/apply_claim_screen.dart';
 import 'package:charms/HRscreens/staff/leave_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/payroll_dashboard_screen.dart';
@@ -50,7 +50,7 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
 
   bool _isProfileIncomplete(BuildContext context) {
     try {
-      final auth   = context.read<hr_auth.Auth>();
+      final auth   = context.read<app_auth.Auth>();
       final staffs = context.read<Staffs>();
       final Staff staff = staffs.staffList.firstWhere(
         (s) => s.username == auth.username,

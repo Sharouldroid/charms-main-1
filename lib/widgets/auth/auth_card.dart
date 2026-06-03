@@ -15,7 +15,6 @@ import 'auth_constants.dart';
 import 'package:flutter/services.dart';
 import 'auth_utils.dart';
 import 'package:charms/constants/user_roles.dart';
-import 'package:charms/HRproviders/auth.dart' as hr_auth;
 import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
 import 'package:charms/internshipscreens/dashboard_screen.dart' as internship_screens;
 import 'package:charms/HRscreens/staff/part_timer_dashboard_screen.dart';
@@ -194,18 +193,6 @@ class AuthCardState extends State<AuthCard> {
       final authProvider = Provider.of<Auth>(context, listen: false);
       await authProvider.authenticate(username, passkey);
 
-      // Seed HR auth silently
-      final usertype = authProvider.usertype;
-      if (UserRoles.hrAdmin.contains(usertype) ||
-          UserRoles.staffMember.contains(usertype)) {
-        try {
-          await Provider.of<hr_auth.Auth>(context, listen: false)
-              .authenticate(username, passkey, saveSession: false);
-        } catch (e) {
-          debugPrint('HR silent auth failed: $e');
-        }
-      }
-
       return true;
     } catch (e) {
       return false;
@@ -366,17 +353,6 @@ class AuthCardState extends State<AuthCard> {
       final username = authProvider.username;
       final userId = authProvider.userId;
       final passkey = _authData['passkey']!;
-
-      // ── Seed HR Auth silently for staff/admin roles ──────────────
-      if (UserRoles.hrAdmin.contains(usertype) ||
-          UserRoles.staffMember.contains(usertype)) {
-        try {
-          await Provider.of<hr_auth.Auth>(context, listen: false)
-              .authenticate(username, passkey);
-        } catch (e) {
-          debugPrint('HR silent auth failed: $e');
-        }
-      }
 
       if (!mounted) return;
 

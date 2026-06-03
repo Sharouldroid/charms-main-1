@@ -1,4 +1,4 @@
-import 'package:charms/HRproviders/auth.dart' as hr_auth;
+import 'package:charms/providers/auth.dart' as app_auth;
 import 'package:charms/HRscreens/admin/admin_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
 import 'package:flutter/material.dart';
@@ -40,8 +40,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       // Use the Auth provider to login — this saves username, token, usertype
-      final authProvider = Provider.of<hr_auth.Auth>(context, listen: false);
-      final usertype = await authProvider.authenticate(username, password);
+      final authProvider = Provider.of<app_auth.Auth>(context, listen: false);
+      await authProvider.authenticate(username, password);
+      final usertype = authProvider.usertype;
       final loggedUsername = authProvider.username;
 
       if (!mounted) return;

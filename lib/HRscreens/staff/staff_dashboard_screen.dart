@@ -16,11 +16,11 @@ import 'package:charms/HRwidgets/staff/bottom_nav_staff.dart';
 import 'package:charms/HRscreens/staff/staff_notification_screen.dart';
 import 'package:charms/HRscreens/admin/admin_dashboard_screen.dart';
 import 'package:charms/constants/user_roles.dart';
-import 'package:charms/HRproviders/auth.dart' as hr_auth;
+
 import 'package:charms/utils/logout_helper.dart';
 import 'package:charms/HRproviders/schedule_exchanges.dart';
 import 'package:charms/HRscreens/staff/staff_attendance_history_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // ✅ NEW
+import 'package:shared_preferences/shared_preferences.dart'; 
 
 class StaffDashboardScreen extends StatefulWidget {
   final String username;

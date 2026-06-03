@@ -41,7 +41,7 @@ import 'package:charms/internshipproviders/internship_notification_provider.dart
 // 🌟 HR MODULE IMPORTS (ADDED)
 // ------------------------
 import 'package:charms/camera_service.dart';
-import 'package:charms/HRproviders/auth.dart' as hr_auth;
+
 import 'package:charms/HRproviders/attendances.dart';
 import 'package:charms/HRproviders/claims.dart';
 import 'package:charms/HRproviders/leaves.dart';
@@ -111,7 +111,7 @@ class MyApp extends StatelessWidget {
         // CHARMS PROVIDERS
         // --------------------------------
         ChangeNotifierProvider<app_auth.Auth>(create: (_) => app_auth.Auth()),
-        ChangeNotifierProvider<hr_auth.Auth>(create: (_) => hr_auth.Auth()),
+        
         ChangeNotifierProvider<charms_users.Users>(
             create: (_) => charms_users.Users()),
         ChangeNotifierProvider<hr_users.Users>(

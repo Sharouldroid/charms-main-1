@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
-import 'package:charms/HRproviders/auth.dart' as hr_auth;
+import 'package:charms/providers/auth.dart' as app_auth;
 import 'package:charms/HRproviders/staffs.dart';
 import 'package:charms/HRmodels/staff.dart';
 import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
@@ -136,7 +136,7 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
   Future<void> _loadStaffData() async {
     try {
       final staffsProvider = context.read<Staffs>();
-      final authProvider   = context.read<hr_auth.Auth>();
+      final authProvider   = context.read<app_auth.Auth>();
 
       await staffsProvider.fetchStaff();
 

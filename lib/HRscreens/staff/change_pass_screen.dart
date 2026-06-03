@@ -2,7 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
-import 'package:charms/HRproviders/auth.dart' as hr_auth;
+import 'package:charms/providers/auth.dart' as app_auth;
+
 
 class ChangePassScreen extends StatefulWidget {
   const ChangePassScreen({super.key});
@@ -57,7 +58,7 @@ class _ChangePassScreenState extends State<ChangePassScreen>
   // ── Change Password ──────────────────────────────────────────────────────────
   Future<void> _submitPassword() async {
     if (!_passFormKey.currentState!.validate()) return;
-    final authProvider = context.read<hr_auth.Auth>();
+    final authProvider = context.read<app_auth.Auth>();
     final username = authProvider.username;
     setState(() => _isLoading = true);
     try {
@@ -96,7 +97,7 @@ class _ChangePassScreenState extends State<ChangePassScreen>
   // ── Change Username ──────────────────────────────────────────────────────────
   Future<void> _submitUsername() async {
     if (!_userFormKey.currentState!.validate()) return;
-    final authProvider = context.read<hr_auth.Auth>();
+    final authProvider = context.read<app_auth.Auth>();
     final currentUsername = authProvider.username;
     setState(() => _isLoading = true);
     try {
