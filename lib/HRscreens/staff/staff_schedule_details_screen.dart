@@ -454,7 +454,8 @@ class _StaffScheduleDetailsScreenState
                   ],
 
                   // Exchange button — only when Accepted and not past
-                  if (_acceptanceStatus == 1 &&
+                  if (widget.staffUsertype != 12 &&
+                      _acceptanceStatus == 1 &&
                       !isPast &&
                       !isClockIn &&
                       !isClockOut) ...[

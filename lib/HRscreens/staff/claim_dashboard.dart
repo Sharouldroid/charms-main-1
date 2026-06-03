@@ -18,6 +18,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:charms/HRproviders/schedule_exchanges.dart';
 import 'package:charms/utils/logout_helper.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ClaimDashboardScreen extends StatefulWidget {
   final String username;
@@ -47,7 +48,6 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
   final Color staffBg         = const Color(0xFFF8FAFC);
   final Color staffCardBorder = const Color(0xFFE2E8F0);
 
-  // ── Profile completion check ───────────────────────────────────────────────
   bool _isProfileIncomplete(BuildContext context) {
     try {
       final auth   = context.read<hr_auth.Auth>();
@@ -90,18 +90,31 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
 
   Future<void> _logout() async => LogoutHelper.fullLogout(context);
 
+  // ✅ Same helper as staff_dashboard_screen
+  Future<Map<String, Set<String>>> _loadDismissedIds(int staffId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return {
+        'leaves':    (prefs.getStringList('dismissed_leaves_$staffId')    ?? []).toSet(),
+        'claims':    (prefs.getStringList('dismissed_claims_$staffId')    ?? []).toSet(),
+        'schedules': (prefs.getStringList('dismissed_schedules_$staffId') ?? []).toSet(),
+        'exchanges': (prefs.getStringList('dismissed_exchanges_$staffId') ?? []).toSet(),
+      };
+    } catch (_) {
+      return {'leaves': {}, 'claims': {}, 'schedules': {}, 'exchanges': {}};
+    }
+  }
+
   List<Claim> _applyDateFilter(List<Claim> claims) {
     if (_fromDate == null && _toDate == null) return claims;
     return claims.where((c) {
       final d = c.claimDate;
       if (_fromDate != null) {
-        final from =
-            DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day);
+        final from = DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day);
         if (d.isBefore(from)) return false;
       }
       if (_toDate != null) {
-        final to = DateTime(
-            _toDate!.year, _toDate!.month, _toDate!.day, 23, 59, 59);
+        final to = DateTime(_toDate!.year, _toDate!.month, _toDate!.day, 23, 59, 59);
         if (d.isAfter(to)) return false;
       }
       return true;
@@ -129,7 +142,6 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
         default:
           _fromDate = null;
           _toDate   = null;
-          break;
       }
     });
   }
@@ -173,12 +185,7 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
         child: child!,
       ),
     );
-    if (p != null) {
-      setState(() {
-        _toDate     = p;
-        _activeChip = 'Custom';
-      });
-    }
+    if (p != null) setState(() { _toDate = p; _activeChip = 'Custom'; });
   }
 
   Future<void> _deleteClaim(Claim claim) async {
@@ -236,21 +243,18 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
     switch (index) {
       case 0:
         Navigator.pushReplacement(context,
-            MaterialPageRoute(
-                builder: (_) =>
-                    StaffDashboardScreen(username: widget.username)));
+            MaterialPageRoute(builder: (_) =>
+                StaffDashboardScreen(username: widget.username)));
         break;
       case 1:
         Navigator.pushReplacement(context,
-            MaterialPageRoute(
-                builder: (_) => LeaveDashboardScreen(
-                    username: widget.username, staffId: widget.staffId)));
+            MaterialPageRoute(builder: (_) => LeaveDashboardScreen(
+                username: widget.username, staffId: widget.staffId)));
         break;
       case 2:
         Navigator.pushReplacement(context,
-            MaterialPageRoute(
-                builder: (_) =>
-                    PayrollDashboardScreen(username: widget.username)));
+            MaterialPageRoute(builder: (_) =>
+                PayrollDashboardScreen(username: widget.username)));
         break;
       case 3:
         return;
@@ -282,28 +286,23 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
             children: [
               _detailRow('Claim ID', claim.claimId.toString()),
               _detailRow('Type', claim.claimType),
-              _detailRow('Amount',
-                  'RM ${claim.amount.toStringAsFixed(2)}',
+              _detailRow('Amount', 'RM ${claim.amount.toStringAsFixed(2)}',
                   isHighlight: true),
               _detailRow('Date', claim.claimDate.toString().split(' ')[0]),
               _detailRow('Status', claim.status),
               const SizedBox(height: 8),
               const Text('Description:',
-                  style: TextStyle(
-                      color: Colors.grey,
-                      fontSize: 12,
+                  style: TextStyle(color: Colors.grey, fontSize: 12,
                       fontWeight: FontWeight.w600)),
               const SizedBox(height: 4),
               Text(claim.description,
-                  style: const TextStyle(
-                      fontSize: 14, color: Color(0xFF334155))),
+                  style: const TextStyle(fontSize: 14, color: Color(0xFF334155))),
               const SizedBox(height: 16),
               Divider(color: Colors.grey.shade200),
               const SizedBox(height: 8),
               if (hasProof) ...[
                 Text('Attachment: ${claim.proofFileName ?? 'Proof File'}',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w600,
+                    style: const TextStyle(fontWeight: FontWeight.w600,
                         color: Color(0xFF1E293B))),
                 const SizedBox(height: 8),
                 ProofAttachmentViewer(
@@ -313,8 +312,7 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
                 ),
               ] else
                 Row(children: [
-                  Icon(Icons.attachment_rounded,
-                      size: 16, color: Colors.grey.shade400),
+                  Icon(Icons.attachment_rounded, size: 16, color: Colors.grey.shade400),
                   const SizedBox(width: 8),
                   Text('No proof attached.',
                       style: TextStyle(color: Colors.grey.shade500)),
@@ -325,46 +323,35 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
         actions: [
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-                backgroundColor: staffPrimary,
-                elevation: 0,
+                backgroundColor: staffPrimary, elevation: 0,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10))),
             onPressed: () => Navigator.pop(context),
-            child:
-                const Text('Close', style: TextStyle(color: Colors.white)),
+            child: const Text('Close', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
   }
 
-  Widget _detailRow(String label, String value,
-      {bool isHighlight = false}) {
+  Widget _detailRow(String label, String value, {bool isHighlight = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text('$label:',
-                style: const TextStyle(
-                    color: Colors.grey,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600)),
-          ),
-          Expanded(
-            child: Text(value,
-                style: TextStyle(
-                    fontSize: 14,
-                    fontWeight:
-                        isHighlight ? FontWeight.bold : FontWeight.w500,
-                    color: isHighlight
-                        ? staffPrimary
-                        : const Color(0xFF334155))),
-          ),
-        ],
-      ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        SizedBox(
+          width: 80,
+          child: Text('$label:',
+              style: const TextStyle(color: Colors.grey, fontSize: 13,
+                  fontWeight: FontWeight.w600)),
+        ),
+        Expanded(
+          child: Text(value,
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: isHighlight ? FontWeight.bold : FontWeight.w500,
+                  color: isHighlight ? staffPrimary : const Color(0xFF334155))),
+        ),
+      ]),
     );
   }
 
@@ -392,24 +379,16 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
                   margin: const EdgeInsets.only(right: 8),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 7),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                   decoration: BoxDecoration(
-                    color: isActive
-                        ? staffPrimary
-                        : staffPrimary.withOpacity(0.07),
+                    color: isActive ? staffPrimary : staffPrimary.withOpacity(0.07),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                        color: isActive
-                            ? staffPrimary
-                            : staffPrimary.withOpacity(0.2)),
+                        color: isActive ? staffPrimary : staffPrimary.withOpacity(0.2)),
                   ),
                   child: Text(chip,
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color:
-                              isActive ? Colors.white : staffPrimary)),
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
+                          color: isActive ? Colors.white : staffPrimary)),
                 ),
               );
             }).toList(),
@@ -421,18 +400,14 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
             child: GestureDetector(
               onTap: _pickFromDate,
               child: _datePill(
-                  label: _fromDate != null
-                      ? df.format(_fromDate!)
-                      : 'From date',
+                  label: _fromDate != null ? df.format(_fromDate!) : 'From date',
                   active: _fromDate != null),
             ),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Text('→',
-                style: TextStyle(
-                    color: Colors.grey.shade400,
-                    fontWeight: FontWeight.bold)),
+                style: TextStyle(color: Colors.grey.shade400, fontWeight: FontWeight.bold)),
           ),
           Expanded(
             child: GestureDetector(
@@ -449,10 +424,8 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
               child: Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.08),
-                    shape: BoxShape.circle),
-                child: const Icon(Icons.close_rounded,
-                    size: 16, color: Colors.redAccent),
+                    color: Colors.red.withOpacity(0.08), shape: BoxShape.circle),
+                child: const Icon(Icons.close_rounded, size: 16, color: Colors.redAccent),
               ),
             ),
           ],
@@ -465,14 +438,10 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         decoration: BoxDecoration(
-          color: active
-              ? staffPrimary.withOpacity(0.07)
-              : Colors.grey.shade50,
+          color: active ? staffPrimary.withOpacity(0.07) : Colors.grey.shade50,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-              color: active
-                  ? staffPrimary.withOpacity(0.4)
-                  : Colors.grey.shade200),
+              color: active ? staffPrimary.withOpacity(0.4) : Colors.grey.shade200),
         ),
         child: Row(children: [
           Icon(Icons.calendar_today_rounded,
@@ -480,9 +449,7 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
           const SizedBox(width: 6),
           Expanded(
             child: Text(label,
-                style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
                     color: active ? staffPrimary : Colors.grey),
                 overflow: TextOverflow.ellipsis),
           ),
@@ -518,148 +485,106 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
           onTap: () => _showClaimDetails(claim),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.1),
-                      shape: BoxShape.circle),
-                  child: const Icon(Icons.request_quote_rounded,
-                      size: 24, color: Colors.orange),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(claim.claimType,
-                          style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF1E293B))),
-                      const SizedBox(height: 4),
-                      Text('RM ${claim.amount.toStringAsFixed(2)}',
-                          style: TextStyle(
-                              color: staffPrimary,
-                              fontSize: 15,
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1), shape: BoxShape.circle),
+                child: const Icon(Icons.request_quote_rounded,
+                    size: 24, color: Colors.orange),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(claim.claimType,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E293B))),
+                  const SizedBox(height: 4),
+                  Text('RM ${claim.amount.toStringAsFixed(2)}',
+                      style: TextStyle(color: staffPrimary, fontSize: 15,
+                          fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Row(children: [
+                    const Icon(Icons.calendar_today_rounded, size: 12, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Text(claim.claimDate.toString().split(' ')[0],
+                        style: TextStyle(color: Colors.grey.shade600, fontSize: 12,
+                            fontWeight: FontWeight.w500)),
+                  ]),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(color: statusBgColor,
+                        borderRadius: BorderRadius.circular(12)),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(statusIcon, size: 12, color: statusColor),
+                      const SizedBox(width: 4),
+                      Text(claim.status,
+                          style: TextStyle(color: statusColor, fontSize: 12,
                               fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 4),
-                      Row(children: [
-                        const Icon(Icons.calendar_today_rounded,
-                            size: 12, color: Colors.grey),
-                        const SizedBox(width: 4),
-                        Text(claim.claimDate.toString().split(' ')[0],
-                            style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500)),
-                      ]),
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                            color: statusBgColor,
-                            borderRadius: BorderRadius.circular(12)),
-                        child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(statusIcon,
-                                  size: 12, color: statusColor),
-                              const SizedBox(width: 4),
-                              Text(claim.status,
-                                  style: TextStyle(
-                                      color: statusColor,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold)),
-                            ]),
-                      ),
-                      if (claim.status == 'Rejected' &&
-                          claim.rejectionReason != null &&
-                          claim.rejectionReason!.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.05),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                                color: Colors.redAccent.withOpacity(0.3)),
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Icon(Icons.info_outline_rounded,
-                                  size: 16, color: Colors.redAccent),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    const Text('Rejection Reason',
-                                        style: TextStyle(
-                                            color: Colors.redAccent,
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 12)),
-                                    const SizedBox(height: 2),
-                                    Text(claim.rejectionReason!,
-                                        style: const TextStyle(
-                                            color: Colors.redAccent,
-                                            fontSize: 13)),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ],
+                    ]),
                   ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    if (showDelete)
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.05),
-                            borderRadius: BorderRadius.circular(10)),
-                        child: IconButton(
-                          icon: const Icon(Icons.delete_outline_rounded,
-                              color: Colors.redAccent, size: 20),
-                          tooltip: 'Cancel Claim',
-                          constraints: const BoxConstraints(),
-                          padding: const EdgeInsets.all(8),
-                          onPressed: _processing
-                              ? null
-                              : () => _deleteClaim(claim),
-                        ),
-                      ),
+                  if (claim.status == 'Rejected' &&
+                      claim.rejectionReason != null &&
+                      claim.rejectionReason!.isNotEmpty) ...[
+                    const SizedBox(height: 8),
                     Container(
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                          color: staffPrimary.withOpacity(0.05),
-                          borderRadius: BorderRadius.circular(10)),
-                      child: IconButton(
-                        icon: Icon(
-                            hasProof
-                                ? Icons.attachment_rounded
-                                : Icons.visibility_rounded,
-                            color: staffPrimary,
-                            size: 20),
-                        tooltip: 'View Details',
-                        constraints: const BoxConstraints(),
-                        padding: const EdgeInsets.all(8),
-                        onPressed: () => _showClaimDetails(claim),
+                        color: Colors.red.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
                       ),
+                      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        const Icon(Icons.info_outline_rounded,
+                            size: 16, color: Colors.redAccent),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            const Text('Rejection Reason',
+                                style: TextStyle(color: Colors.redAccent,
+                                    fontWeight: FontWeight.w700, fontSize: 12)),
+                            const SizedBox(height: 2),
+                            Text(claim.rejectionReason!,
+                                style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
+                          ]),
+                        ),
+                      ]),
                     ),
                   ],
+                ]),
+              ),
+              Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                if (showDelete)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(10)),
+                    child: IconButton(
+                      icon: const Icon(Icons.delete_outline_rounded,
+                          color: Colors.redAccent, size: 20),
+                      tooltip: 'Cancel Claim',
+                      constraints: const BoxConstraints(),
+                      padding: const EdgeInsets.all(8),
+                      onPressed: _processing ? null : () => _deleteClaim(claim),
+                    ),
+                  ),
+                Container(
+                  decoration: BoxDecoration(
+                      color: staffPrimary.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(10)),
+                  child: IconButton(
+                    icon: Icon(hasProof ? Icons.attachment_rounded : Icons.visibility_rounded,
+                        color: staffPrimary, size: 20),
+                    tooltip: 'View Details',
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.all(8),
+                    onPressed: () => _showClaimDetails(claim),
+                  ),
                 ),
-              ],
-            ),
+              ]),
+            ]),
           ),
         ),
       ),
@@ -670,37 +595,29 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
     final filtered = _applyDateFilter(claims);
     if (filtered.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.inbox_rounded,
-                size: 64, color: Colors.grey.shade300),
-            const SizedBox(height: 16),
-            Text(
-              (_fromDate != null || _toDate != null)
-                  ? 'No records for selected period'
-                  : 'No claims found',
-              style: TextStyle(
-                  color: Colors.grey.shade500,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500),
-            ),
-            if (_fromDate != null || _toDate != null) ...[
-              const SizedBox(height: 8),
-              TextButton(
-                  onPressed: () => _applyQuickChip('All'),
-                  child: const Text('Clear filter')),
-            ],
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(Icons.inbox_rounded, size: 64, color: Colors.grey.shade300),
+          const SizedBox(height: 16),
+          Text(
+            (_fromDate != null || _toDate != null)
+                ? 'No records for selected period'
+                : 'No claims found',
+            style: TextStyle(color: Colors.grey.shade500, fontSize: 16,
+                fontWeight: FontWeight.w500),
+          ),
+          if (_fromDate != null || _toDate != null) ...[
+            const SizedBox(height: 8),
+            TextButton(onPressed: () => _applyQuickChip('All'),
+                child: const Text('Clear filter')),
           ],
-        ),
+        ]),
       );
     }
     return ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.only(top: 12, bottom: 100),
       itemCount: filtered.length,
-      itemBuilder: (_, i) =>
-          _buildClaimCard(filtered[i], showDelete: showDelete),
+      itemBuilder: (_, i) => _buildClaimCard(filtered[i], showDelete: showDelete),
     );
   }
 
@@ -714,35 +631,52 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
         iconTheme: const IconThemeData(color: Colors.white),
         automaticallyImplyLeading: false,
         title: const Text('MY CLAIMS',
-            style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold,
                 letterSpacing: 1.2)),
         backgroundColor: staffPrimary,
         centerTitle: true,
         actions: [
+          // ✅ FIXED bell badge
           Consumer4<Leaves, Claims, Schedules, ScheduleExchanges>(
             builder: (context, leaves, claims, schedules, exchanges, child) {
-              final total =
-                  leaves.leaves.where((l) => l.staffId == widget.staffId && l.status != 'Pending').length +
-                  claims.claims.where((c) => c.staffId == widget.staffId && c.status != 'Pending').length +
-                  schedules.schedules.where((s) => s.staffId == widget.staffId).length +
-                  exchanges.exchanges.where((e) => e.targetId == widget.staffId && e.status == 0).length +
-                  exchanges.exchanges.where((e) => e.requesterId == widget.staffId && e.status != 0).length;
+              return FutureBuilder<Map<String, Set<String>>>(
+                future: _loadDismissedIds(widget.staffId),
+                builder: (context, snapshot) {
+                  final dismissed = snapshot.data ?? {
+                    'leaves': <String>{}, 'claims': <String>{},
+                    'schedules': <String>{}, 'exchanges': <String>{},
+                  };
+                  final dl = dismissed['leaves']!;
+                  final dc = dismissed['claims']!;
+                  final ds = dismissed['schedules']!;
+                  final de = dismissed['exchanges']!;
 
-              return IconButton(
-                icon: total > 0
-                    ? Badge(
-                        label: Text(total.toString()),
-                        backgroundColor: Colors.redAccent,
-                        child: const Icon(Icons.notifications_active_rounded))
-                    : const Icon(Icons.notifications_none_rounded),
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) =>
-                          StaffNotificationScreen(staffId: widget.staffId)),
-                ),
+                  final total =
+                      leaves.leaves.where((l) => l.staffId == widget.staffId &&
+                          l.status != 'Pending' && !dl.contains(l.leaveId.toString())).length +
+                      claims.claims.where((c) => c.staffId == widget.staffId &&
+                          c.status != 'Pending' && !dc.contains(c.claimId.toString())).length +
+                      schedules.schedules.where((s) => s.staffId == widget.staffId &&
+                          !ds.contains(s.schedId.toString())).length +
+                      exchanges.exchanges.where((e) => e.targetId == widget.staffId &&
+                          e.status == 0 && !de.contains(e.exchangeId.toString())).length +
+                      exchanges.exchanges.where((e) => e.requesterId == widget.staffId &&
+                          e.status != 0 && !de.contains(e.exchangeId.toString())).length;
+
+                  return IconButton(
+                    icon: total > 0
+                        ? Badge(label: Text(total.toString()),
+                            backgroundColor: Colors.redAccent,
+                            child: const Icon(Icons.notifications_active_rounded))
+                        : const Icon(Icons.notifications_none_rounded),
+                    onPressed: () async {
+                      await Navigator.push(context, MaterialPageRoute(
+                          builder: (_) => StaffNotificationScreen(
+                              staffId: widget.staffId)));
+                      if (mounted) setState(() {});
+                    },
+                  );
+                },
               );
             },
           ),
@@ -754,10 +688,8 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
           controller: _tabController,
           indicatorColor: Colors.white,
           indicatorWeight: 3,
-          labelStyle:
-              const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-          unselectedLabelStyle:
-              const TextStyle(fontWeight: FontWeight.normal),
+          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal),
           tabs: const [
             Tab(child: Text('Applied',  style: TextStyle(color: Colors.white))),
             Tab(child: Text('Approved', style: TextStyle(color: Colors.white))),
@@ -793,8 +725,7 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
             final submitted = await Navigator.push<bool>(
               context,
               MaterialPageRoute(
-                  builder: (_) =>
-                      ApplyClaimScreen(staffId: widget.staffId)),
+                  builder: (_) => ApplyClaimScreen(staffId: widget.staffId)),
             );
             if (submitted == true) {
               await _fetchClaimData();
@@ -805,14 +736,13 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
           elevation: 4,
           icon: const Icon(Icons.add_rounded, color: Colors.white),
           label: const Text('Apply Claim',
-              style: TextStyle(
-                  color: Colors.white, fontWeight: FontWeight.bold)),
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         ),
       ),
       bottomNavigationBar: BottomNavStaff(
         selectedIndex: _selectedIndex,
-        onItemTapped: _onItemTapped,
-        showMyselfDot: _isProfileIncomplete(context), // ✅
+        onItemTapped:  _onItemTapped,
+        showMyselfDot: _isProfileIncomplete(context),
       ),
     );
   }

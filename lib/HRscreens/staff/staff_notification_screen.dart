@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:charms/HRproviders/leaves.dart';
@@ -11,12 +10,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class StaffNotificationScreen extends StatefulWidget {
   final int staffId;
-  final bool isPartTimer; // ✅ NEW
+  final bool isPartTimer;
 
   const StaffNotificationScreen({
     super.key,
     required this.staffId,
-    this.isPartTimer = false, // ✅ default false — safe for existing callers
+    this.isPartTimer = false,
   });
 
   @override
@@ -51,11 +50,8 @@ class _StaffNotificationScreenState
             .fetchExchangesByStaff(widget.staffId));
   }
 
+  // ✅ FIXED — removed kIsWeb guard, works on mobile + PWA
   Future<void> _loadDismissed() async {
-    if (kIsWeb) {
-      setState(() => _isLoadingPrefs = false);
-      return;
-    }
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _dismissedLeaves    = (prefs.getStringList(_leaveKey)    ?? []).toSet();
@@ -66,8 +62,8 @@ class _StaffNotificationScreenState
     });
   }
 
+  // ✅ FIXED — removed kIsWeb guard, works on mobile + PWA
   Future<void> _saveDismissed() async {
-    if (kIsWeb) return;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(_leaveKey,    _dismissedLeaves.toList());
     await prefs.setStringList(_claimKey,    _dismissedClaims.toList());
@@ -164,14 +160,14 @@ class _StaffNotificationScreenState
   }
 
   Widget _buildDismissBackground() => Container(
-    alignment: Alignment.centerRight,
-    padding: const EdgeInsets.only(right: 20),
-    decoration: BoxDecoration(
-        color: Colors.red.shade400,
-        borderRadius: BorderRadius.circular(16)),
-    child: const Icon(Icons.delete_rounded,
-        color: Colors.white, size: 22),
-  );
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        decoration: BoxDecoration(
+            color: Colors.red.shade400,
+            borderRadius: BorderRadius.circular(16)),
+        child: const Icon(Icons.delete_rounded,
+            color: Colors.white, size: 22),
+      );
 
   Widget _buildSectionHeader(
       String title, IconData icon, Color color) {
@@ -257,7 +253,7 @@ class _StaffNotificationScreenState
     );
   }
 
-  // ── Incoming exchange card ─────────────────────────────────────────────────
+  // ── Incoming exchange card ──────────────────────────────────────────────────
   Widget _buildExchangeIncomingCard(ScheduleExchange exchange) {
     String locationName(String? loc) {
       switch (loc) {
@@ -278,23 +274,25 @@ class _StaffNotificationScreenState
     }
 
     Widget locationBadge(String? loc) => Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: locationColor(loc).withOpacity(0.12),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: locationColor(loc).withOpacity(0.4)),
-      ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.location_on_rounded,
-            size: 11, color: locationColor(loc)),
-        const SizedBox(width: 3),
-        Text(locationName(loc),
-            style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: locationColor(loc))),
-      ]),
-    );
+          padding:
+              const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: locationColor(loc).withOpacity(0.12),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+                color: locationColor(loc).withOpacity(0.4)),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.location_on_rounded,
+                size: 11, color: locationColor(loc)),
+            const SizedBox(width: 3),
+            Text(locationName(loc),
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: locationColor(loc))),
+          ]),
+        );
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -347,10 +345,12 @@ class _StaffNotificationScreenState
                   const SizedBox(height: 2),
                   Text(exchange.requesterWorkDate ?? '—',
                       style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 12)),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12)),
                   Text(exchange.requesterStartTime ?? '—',
                       style: TextStyle(
-                          fontSize: 11, color: Colors.grey.shade600)),
+                          fontSize: 11,
+                          color: Colors.grey.shade600)),
                   const SizedBox(height: 4),
                   locationBadge(exchange.requesterWorkLocation),
                 ]),
@@ -369,10 +369,12 @@ class _StaffNotificationScreenState
                   const SizedBox(height: 2),
                   Text(exchange.targetWorkDate ?? '—',
                       style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 12)),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12)),
                   Text(exchange.targetStartTime ?? '—',
                       style: TextStyle(
-                          fontSize: 11, color: Colors.grey.shade600)),
+                          fontSize: 11,
+                          color: Colors.grey.shade600)),
                   const SizedBox(height: 4),
                   locationBadge(exchange.targetWorkLocation),
                 ]),
@@ -399,12 +401,10 @@ class _StaffNotificationScreenState
                         borderRadius: BorderRadius.circular(10)),
                     padding:
                         const EdgeInsets.symmetric(vertical: 10)),
-                onPressed: () =>
-                    _respondToExchange(exchange, true),
+                onPressed: () => _respondToExchange(exchange, true),
                 icon: const Icon(Icons.check_rounded, size: 16),
                 label: const Text('Accept',
-                    style:
-                        TextStyle(fontWeight: FontWeight.bold)),
+                    style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ),
             const SizedBox(width: 10),
@@ -417,12 +417,10 @@ class _StaffNotificationScreenState
                         borderRadius: BorderRadius.circular(10)),
                     padding:
                         const EdgeInsets.symmetric(vertical: 10)),
-                onPressed: () =>
-                    _respondToExchange(exchange, false),
+                onPressed: () => _respondToExchange(exchange, false),
                 icon: const Icon(Icons.close_rounded, size: 16),
                 label: const Text('Reject',
-                    style:
-                        TextStyle(fontWeight: FontWeight.bold)),
+                    style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ),
           ]),
@@ -445,7 +443,9 @@ class _StaffNotificationScreenState
               : '❌ Exchange rejected.'
           : 'Failed to respond. Try again.'),
       backgroundColor: success
-          ? accept ? Colors.green : Colors.redAccent
+          ? accept
+              ? Colors.green
+              : Colors.redAccent
           : Colors.grey,
     ));
 
@@ -492,16 +492,14 @@ class _StaffNotificationScreenState
       body: Consumer4<Leaves, Claims, Schedules, ScheduleExchanges>(
         builder: (context, leavesProvider, claimsProvider,
             schedulesProvider, exchangesProvider, child) {
-
-          // ✅ Part timers only see exchange notifications
-          // Regular staff see everything
           final myLeaves = widget.isPartTimer
               ? []
               : leavesProvider.leaves
                   .where((l) =>
                       l.staffId == widget.staffId &&
                       l.status != 'Pending' &&
-                      !_dismissedLeaves.contains(l.leaveId.toString()))
+                      !_dismissedLeaves
+                          .contains(l.leaveId.toString()))
                   .toList();
 
           final myClaims = widget.isPartTimer
@@ -510,7 +508,8 @@ class _StaffNotificationScreenState
                   .where((c) =>
                       c.staffId == widget.staffId &&
                       c.status != 'Pending' &&
-                      !_dismissedClaims.contains(c.claimId.toString()))
+                      !_dismissedClaims
+                          .contains(c.claimId.toString()))
                   .toList();
 
           final mySchedules = widget.isPartTimer
@@ -551,7 +550,7 @@ class _StaffNotificationScreenState
               myExchanges.length;
 
           return Column(children: [
-            // ── Header banner ─────────────────────────────────────────
+            // ── Header banner ─────────────────────────────────────
             Container(
               width: double.infinity,
               padding: const EdgeInsets.only(
@@ -567,7 +566,8 @@ class _StaffNotificationScreenState
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
                       children: [
                     Text('$totalCount',
                         style: const TextStyle(
@@ -582,17 +582,24 @@ class _StaffNotificationScreenState
                   ]),
                   if (hasAny)
                     GestureDetector(
-                      onTap: () => _dismissAll(myLeaves,
-                          myClaims, mySchedules,
-                          [...incomingExchanges, ...myExchanges]),
+                      onTap: () => _dismissAll(
+                          myLeaves,
+                          myClaims,
+                          mySchedules,
+                          [
+                            ...incomingExchanges,
+                            ...myExchanges
+                          ]),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius:
+                              BorderRadius.circular(20),
                           border: Border.all(
-                              color: Colors.white.withOpacity(0.3)),
+                              color:
+                                  Colors.white.withOpacity(0.3)),
                         ),
                         child: const Row(children: [
                           Icon(Icons.delete_sweep_rounded,
@@ -610,7 +617,7 @@ class _StaffNotificationScreenState
               ),
             ),
 
-            // ── List body ─────────────────────────────────────────────
+            // ── List body ─────────────────────────────────────────
             Expanded(
               child: !hasAny
                   ? Center(
@@ -634,165 +641,194 @@ class _StaffNotificationScreenState
                               CrossAxisAlignment.start,
                           children: [
 
-                        // ── Leave notifications ──────────────────
+                        // ── Leave notifications ──────────────
                         if (myLeaves.isNotEmpty) ...[
                           _buildSectionHeader(
                               'Leave Notifications',
                               Icons.beach_access_rounded,
                               Colors.red),
                           ...myLeaves.map((leave) => Dismissible(
-                            key: Key('leave_${leave.leaveId}'),
-                            direction:
-                                DismissDirection.endToStart,
-                            background: _buildDismissBackground(),
-                            onDismissed: (_) => _dismissLeave(
-                                leave.leaveId.toString()),
-                            child: _buildNotifCard(
-                              leading:
-                                  _buildStatusIcon(leave.status),
-                              title: 'Leave ${leave.status}',
-                              subtitle:
-                                  'From: ${leave.startDate}\nTo: ${leave.endDate}',
-                              accentColor:
-                                  leave.status == 'Approved'
-                                      ? Colors.green
-                                      : Colors.red,
-                              onDismiss: () => _dismissLeave(
-                                  leave.leaveId.toString()),
-                            ),
-                          )),
+                                key: Key(
+                                    'leave_${leave.leaveId}'),
+                                direction:
+                                    DismissDirection.endToStart,
+                                background:
+                                    _buildDismissBackground(),
+                                onDismissed: (_) => _dismissLeave(
+                                    leave.leaveId.toString()),
+                                child: _buildNotifCard(
+                                  leading: _buildStatusIcon(
+                                      leave.status),
+                                  title: 'Leave ${leave.status}',
+                                  subtitle:
+                                      'From: ${leave.startDate}\nTo: ${leave.endDate}',
+                                  accentColor:
+                                      leave.status == 'Approved'
+                                          ? Colors.green
+                                          : Colors.red,
+                                  onDismiss: () => _dismissLeave(
+                                      leave.leaveId.toString()),
+                                ),
+                              )),
                           const SizedBox(height: 20),
                         ],
 
-                        // ── Claim notifications ──────────────────
+                        // ── Claim notifications ──────────────
                         if (myClaims.isNotEmpty) ...[
                           _buildSectionHeader(
                               'Claim Notifications',
                               Icons.request_page_rounded,
                               Colors.teal),
                           ...myClaims.map((claim) => Dismissible(
-                            key: Key('claim_${claim.claimId}'),
-                            direction:
-                                DismissDirection.endToStart,
-                            background: _buildDismissBackground(),
-                            onDismissed: (_) => _dismissClaim(
-                                claim.claimId.toString()),
-                            child: _buildNotifCard(
-                              leading:
-                                  _buildStatusIcon(claim.status),
-                              title: 'Claim ${claim.status}',
-                              subtitle:
-                                  'Type: ${claim.claimType}\nAmount: RM ${claim.amount}',
-                              accentColor:
-                                  claim.status == 'Approved'
-                                      ? Colors.green
-                                      : Colors.red,
-                              onDismiss: () => _dismissClaim(
-                                  claim.claimId.toString()),
-                            ),
-                          )),
+                                key: Key(
+                                    'claim_${claim.claimId}'),
+                                direction:
+                                    DismissDirection.endToStart,
+                                background:
+                                    _buildDismissBackground(),
+                                onDismissed: (_) => _dismissClaim(
+                                    claim.claimId.toString()),
+                                child: _buildNotifCard(
+                                  leading: _buildStatusIcon(
+                                      claim.status),
+                                  title: 'Claim ${claim.status}',
+                                  subtitle:
+                                      'Type: ${claim.claimType}\nAmount: RM ${claim.amount}',
+                                  accentColor:
+                                      claim.status == 'Approved'
+                                          ? Colors.green
+                                          : Colors.red,
+                                  onDismiss: () => _dismissClaim(
+                                      claim.claimId.toString()),
+                                ),
+                              )),
                           const SizedBox(height: 20),
                         ],
 
-                        // ── Schedule notifications ───────────────
+                        // ── Schedule notifications ───────────
                         if (mySchedules.isNotEmpty) ...[
                           _buildSectionHeader(
                               'Your Schedules',
                               Icons.calendar_today_rounded,
                               Colors.orange),
-                          ...mySchedules.map((schedule) =>
-                              Dismissible(
-                            key: Key(
-                                'schedule_${schedule.schedId}'),
-                            direction:
-                                DismissDirection.endToStart,
-                            background: _buildDismissBackground(),
-                            onDismissed: (_) => _dismissSchedule(
-                                schedule.schedId.toString()),
-                            child: _buildNotifCard(
-                              leading: Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                    color: staffPrimary
-                                        .withOpacity(0.10),
-                                    shape: BoxShape.circle),
-                                child: Icon(
-                                    Icons.location_on_rounded,
-                                    size: 22,
-                                    color: staffPrimary),
-                              ),
-                              title: _getBranchName(
-                                  schedule.workLocation),
-                              subtitle:
-                                  'Date: ${DateFormat('dd MMM yyyy').format(schedule.workDate)}\n'
-                                  'Time: ${schedule.workStartTime} – ${schedule.workEndTime}',
-                              accentColor: staffPrimary,
-                              onDismiss: () => _dismissSchedule(
-                                  schedule.schedId.toString()),
-                            ),
-                          )),
+                          ...mySchedules
+                              .map((schedule) => Dismissible(
+                                    key: Key(
+                                        'schedule_${schedule.schedId}'),
+                                    direction: DismissDirection
+                                        .endToStart,
+                                    background:
+                                        _buildDismissBackground(),
+                                    onDismissed: (_) =>
+                                        _dismissSchedule(schedule
+                                            .schedId
+                                            .toString()),
+                                    child: _buildNotifCard(
+                                      leading: Container(
+                                        padding:
+                                            const EdgeInsets.all(
+                                                10),
+                                        decoration: BoxDecoration(
+                                            color: staffPrimary
+                                                .withOpacity(0.10),
+                                            shape:
+                                                BoxShape.circle),
+                                        child: Icon(
+                                            Icons
+                                                .location_on_rounded,
+                                            size: 22,
+                                            color: staffPrimary),
+                                      ),
+                                      title: _getBranchName(
+                                          schedule.workLocation),
+                                      subtitle:
+                                          'Date: ${DateFormat('dd MMM yyyy').format(schedule.workDate)}\n'
+                                          'Time: ${schedule.workStartTime} – ${schedule.workEndTime}',
+                                      accentColor: staffPrimary,
+                                      onDismiss: () =>
+                                          _dismissSchedule(schedule
+                                              .schedId
+                                              .toString()),
+                                    ),
+                                  )),
                           const SizedBox(height: 20),
                         ],
 
-                        // ── Incoming exchange requests ────────────
+                        // ── Incoming exchange requests ────────
                         if (incomingExchanges.isNotEmpty) ...[
                           _buildSectionHeader(
                               'Schedule Exchange Requests',
                               Icons.swap_horiz_rounded,
                               Colors.indigo),
-                          ...incomingExchanges.map((exchange) =>
-                              Dismissible(
-                            key: Key(
-                                'exchange_${exchange.exchangeId}'),
-                            direction:
-                                DismissDirection.endToStart,
-                            background: _buildDismissBackground(),
-                            onDismissed: (_) => _dismissExchange(
-                                exchange.exchangeId.toString()),
-                            child:
-                                _buildExchangeIncomingCard(exchange),
-                          )),
+                          ...incomingExchanges
+                              .map((exchange) => Dismissible(
+                                    key: Key(
+                                        'exchange_${exchange.exchangeId}'),
+                                    direction: DismissDirection
+                                        .endToStart,
+                                    background:
+                                        _buildDismissBackground(),
+                                    onDismissed: (_) =>
+                                        _dismissExchange(exchange
+                                            .exchangeId
+                                            .toString()),
+                                    child:
+                                        _buildExchangeIncomingCard(
+                                            exchange),
+                                  )),
                           const SizedBox(height: 20),
                         ],
 
-                        // ── My sent exchange updates ──────────────
+                        // ── My sent exchange updates ──────────
                         if (myExchanges.isNotEmpty) ...[
                           _buildSectionHeader(
                               'Exchange Request Updates',
                               Icons.update_rounded,
                               Colors.teal),
-                          ...myExchanges.map((exchange) =>
-                              Dismissible(
-                            key: Key(
-                                'myexchange_${exchange.exchangeId}'),
-                            direction:
-                                DismissDirection.endToStart,
-                            background: _buildDismissBackground(),
-                            onDismissed: (_) => _dismissExchange(
-                                exchange.exchangeId.toString()),
-                            child: _buildNotifCard(
-                              leading: Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                    color: exchange.statusColor
-                                        .withOpacity(0.1),
-                                    shape: BoxShape.circle),
-                                child: Icon(
-                                    Icons.swap_horiz_rounded,
-                                    color: exchange.statusColor,
-                                    size: 22),
-                              ),
-                              title:
-                                  'Exchange ${exchange.statusText}',
-                              subtitle:
-                                  'Your request to swap with ${exchange.targetName ?? "staff"}\n'
-                                  'Their date: ${exchange.targetWorkDate ?? "—"}'
-                                  '${exchange.status == 4 && exchange.hrNote != null && exchange.hrNote!.isNotEmpty ? "\nHR Reason: ${exchange.hrNote}" : ""}',
-                              accentColor: exchange.statusColor,
-                              onDismiss: () => _dismissExchange(
-                                  exchange.exchangeId.toString()),
-                            ),
-                          )),
+                          ...myExchanges
+                              .map((exchange) => Dismissible(
+                                    key: Key(
+                                        'myexchange_${exchange.exchangeId}'),
+                                    direction: DismissDirection
+                                        .endToStart,
+                                    background:
+                                        _buildDismissBackground(),
+                                    onDismissed: (_) =>
+                                        _dismissExchange(exchange
+                                            .exchangeId
+                                            .toString()),
+                                    child: _buildNotifCard(
+                                      leading: Container(
+                                        padding:
+                                            const EdgeInsets.all(
+                                                10),
+                                        decoration: BoxDecoration(
+                                            color: exchange
+                                                .statusColor
+                                                .withOpacity(0.1),
+                                            shape:
+                                                BoxShape.circle),
+                                        child: Icon(
+                                            Icons
+                                                .swap_horiz_rounded,
+                                            color: exchange
+                                                .statusColor,
+                                            size: 22),
+                                      ),
+                                      title:
+                                          'Exchange ${exchange.statusText}',
+                                      subtitle:
+                                          'Your request to swap with ${exchange.targetName ?? "staff"}\n'
+                                          'Their date: ${exchange.targetWorkDate ?? "—"}'
+                                          '${exchange.status == 4 && exchange.hrNote != null && exchange.hrNote!.isNotEmpty ? "\nHR Reason: ${exchange.hrNote}" : ""}',
+                                      accentColor:
+                                          exchange.statusColor,
+                                      onDismiss: () =>
+                                          _dismissExchange(exchange
+                                              .exchangeId
+                                              .toString()),
+                                    ),
+                                  )),
                           const SizedBox(height: 20),
                         ],
                       ]),

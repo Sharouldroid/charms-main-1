@@ -854,28 +854,90 @@ Future<void> _markAbsent(Map<String, dynamic> item, List<Staff> staffList) async
 
                   // Location
                   if (item['clock_in_location'] != null) ...[
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 8),
                     GestureDetector(
                       onTap: () {
-                        final uri = Uri.parse(
-                          'https://www.google.com/maps/search/?api=1&query=${item['clock_in_location']}',
-                        );
-                        launchUrl(uri,
-                            mode: LaunchMode.externalApplication);
+                        final locationStr = item['clock_in_location'] as String;
+
+                        // Extract coordinates from format: "Some Address\n(lat, lng)"
+                        // or fallback: raw "lat, lng"
+                        final coordRegex = RegExp(r'\((-?\d+\.\d+),\s*(-?\d+\.\d+)\)');
+                        final match = coordRegex.firstMatch(locationStr);
+
+                        Uri uri;
+                        if (match != null) {
+                          final lat = match.group(1);
+                          final lng = match.group(2);
+                          // Use geo: URI for exact pin — falls back to Maps search if no app
+                          uri = Uri.parse(
+                            'https://www.google.com/maps/search/?api=1&query=$lat,$lng',
+                          );
+                        } else {
+                          // Fallback: use whatever string is stored
+                          final encoded = Uri.encodeComponent(locationStr);
+                          uri = Uri.parse(
+                            'https://www.google.com/maps/search/?api=1&query=$encoded',
+                          );
+                        }
+
+                        launchUrl(uri, mode: LaunchMode.externalApplication);
                       },
-                      child: const Row(
-                        children: [
-                          Icon(Icons.location_on_rounded,
-                              size: 13, color: Colors.blue),
-                          SizedBox(width: 4),
-                          Text('View Location',
-                              style: TextStyle(
-                                color: Colors.blue,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                decoration: TextDecoration.underline,
-                              )),
-                        ],
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.green.withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withOpacity(0.15),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.location_pin,
+                                  color: Colors.green, size: 16),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Location Recorded',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 11,
+                                      color: Colors.green,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    item['clock_in_location'],
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.blue,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  const Text(
+                                    'Tap to view on Google Maps',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],

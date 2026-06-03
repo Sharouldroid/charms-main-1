@@ -29,13 +29,11 @@ class _AdminListScreenState extends State<AdminListScreen> {
   String _searchQuery = '';
   bool _isAscending = true;
   int _selectedIndex = 2;
-  Set<int> _activeFilters = {1, 2, 3}; // all shown by default
+  Set<int> _activeFilters = {1, 2, 3};
 
-  // ── Palette ──────────────────────────────────────────────────────────────────
   final Color _bgColor = const Color(0xFFF4F7FA);
   final Color _primaryBlue = const Color(0xFF2563EB);
 
-  // ── Category config ───────────────────────────────────────────────────────────
   static const _categoryConfig = [
     {
       'label': 'SEATRU',
@@ -149,15 +147,15 @@ class _AdminListScreenState extends State<AdminListScreen> {
 
     if (department == 'Marine Biologist') {
       label = 'Marine Biologist';
-      color = const Color(0xFF0891B2); // cyan
+      color = const Color(0xFF0891B2);
       icon  = Icons.water_rounded;
     } else if (department == 'Taaras') {
       label = 'Taaras';
-      color = const Color(0xFFD97706); // amber
+      color = const Color(0xFFD97706);
       icon  = Icons.villa_rounded;
     } else {
       label = 'General';
-      color = const Color(0xFF64748B); // slate
+      color = const Color(0xFF64748B);
       icon  = Icons.people_rounded;
     }
 
@@ -179,6 +177,33 @@ class _AdminListScreenState extends State<AdminListScreen> {
               fontSize: 11,
               fontWeight: FontWeight.w700,
               color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Part Timer badge ──────────────────────────────────────────────────────────
+  Widget _buildPartTimerBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.orange.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.orange.withOpacity(0.3)),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.access_time_rounded, size: 11, color: Colors.orange),
+          SizedBox(width: 4),
+          Text(
+            'Part Timer',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Colors.orange,
             ),
           ),
         ],
@@ -218,7 +243,9 @@ class _AdminListScreenState extends State<AdminListScreen> {
                         fontSize: 15, fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 4),
-                  Row(
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -235,8 +262,8 @@ class _AdminListScreenState extends State<AdminListScreen> {
                               color: categoryColor),
                         ),
                       ),
-                      const SizedBox(width: 6),
                       _buildDepartmentTag(staff.department),
+                      if (staff.isPartTimer) _buildPartTimerBadge(), // ✅
                     ],
                   ),
                 ],
@@ -266,6 +293,11 @@ class _AdminListScreenState extends State<AdminListScreen> {
             const SizedBox(height: 10),
             _dialogRow(Icons.phone_rounded, 'Phone',
                 staff.phone.isNotEmpty ? staff.phone : '—'),
+            if (staff.isPartTimer) ...[
+              const SizedBox(height: 10),
+              _dialogRow(Icons.payments_rounded, 'Day Rate',
+                  'RM ${staff.dayRate.toStringAsFixed(2)}'), // ✅
+            ],
           ],
         ),
         actions: [
@@ -324,7 +356,6 @@ class _AdminListScreenState extends State<AdminListScreen> {
     final staffProvider = context.watch<Staffs>();
     final allStaff = staffProvider.staffList;
 
-    // total visible across active filters
     final totalVisible = _activeFilters
         .map((cat) => _getFilteredByCategory(allStaff, cat).length)
         .fold(0, (a, b) => a + b);
@@ -346,38 +377,34 @@ class _AdminListScreenState extends State<AdminListScreen> {
         centerTitle: true,
         backgroundColor: _primaryBlue,
         shape: const RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.vertical(bottom: Radius.circular(20)),
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
         ),
         actions: [
           Consumer6<Leaves, Payments, Claims, ScheduleExchanges, Schedules, Staffs>(
-          builder: (context, leaves, payments, claims, exchanges, schedules, staffs, child) {
-    
-    // ── Exact same logic as NotificationScreen ──────────────
-    final pendingLeaves      = leaves.leaves.where((l) => l.status == 'Pending').length;
-    final pendingPayrolls    = payments.payments.where((p) => p.status == 'Pending').length;
-    final pendingClaims      = claims.claims.where((c) => c.status == 'Pending').length;
-    final pendingExchanges   = exchanges.exchanges.where((e) => e.status == 1).length;
-    final rejectedSchedules  = schedules.schedules
-        .where((s) => s.acceptanceStatus == 2 && !s.hrDismissed) // ← same filter
-        .length;
+            builder: (context, leaves, payments, claims, exchanges, schedules, staffs, child) {
+              final pendingLeaves     = leaves.leaves.where((l) => l.status == 'Pending').length;
+              final pendingPayrolls   = payments.payments.where((p) => p.status == 'Pending').length;
+              final pendingClaims     = claims.claims.where((c) => c.status == 'Pending').length;
+              final pendingExchanges  = exchanges.exchanges.where((e) => e.status == 1).length;
+              final rejectedSchedules = schedules.schedules
+                  .where((s) => s.acceptanceStatus == 2 && !s.hrDismissed)
+                  .length;
+              final totalPending = pendingLeaves + pendingPayrolls +
+                  pendingClaims + pendingExchanges + rejectedSchedules;
 
-    final totalPending = pendingLeaves + pendingPayrolls +
-        pendingClaims + pendingExchanges + rejectedSchedules;
-
-        return IconButton(
-          icon: totalPending > 0
-              ? Badge(
-                  label: Text(totalPending.toString()),
-                  backgroundColor: Colors.redAccent,
-                  child: const Icon(Icons.notifications_none_rounded, size: 26),
-                )
-              : const Icon(Icons.notifications_none_rounded, size: 26),
-          onPressed: () => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const NotificationScreen())),
-        );
-      },
-    ),
+              return IconButton(
+                icon: totalPending > 0
+                    ? Badge(
+                        label: Text(totalPending.toString()),
+                        backgroundColor: Colors.redAccent,
+                        child: const Icon(Icons.notifications_none_rounded, size: 26),
+                      )
+                    : const Icon(Icons.notifications_none_rounded, size: 26),
+                onPressed: () => Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const NotificationScreen())),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.logout_rounded),
             tooltip: 'Logout',
@@ -395,7 +422,7 @@ class _AdminListScreenState extends State<AdminListScreen> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [
 
-                  // ── Search + Filter header ──────────────────────────────
+                  // ── Search + Filter header ────────────────────────────────
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
@@ -403,7 +430,7 @@ class _AdminListScreenState extends State<AdminListScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
 
-                          // ── Total count + Sort ────────────────────────────
+                          // ── Total count + Sort ──────────────────────────────
                           Row(
                             children: [
                               Container(
@@ -440,8 +467,7 @@ class _AdminListScreenState extends State<AdminListScreen> {
                                     borderRadius: BorderRadius.circular(12),
                                     boxShadow: [
                                       BoxShadow(
-                                        color:
-                                            Colors.black.withOpacity(0.04),
+                                        color: Colors.black.withOpacity(0.04),
                                         blurRadius: 8,
                                         offset: const Offset(0, 3),
                                       )
@@ -470,7 +496,7 @@ class _AdminListScreenState extends State<AdminListScreen> {
                           ),
                           const SizedBox(height: 14),
 
-                          // ── Search bar ────────────────────────────────────
+                          // ── Search bar ──────────────────────────────────────
                           Container(
                             decoration: BoxDecoration(
                               color: Colors.white,
@@ -485,8 +511,7 @@ class _AdminListScreenState extends State<AdminListScreen> {
                             ),
                             child: TextField(
                               decoration: InputDecoration(
-                                hintText:
-                                    'Search staff by name or ID...',
+                                hintText: 'Search staff by name or ID...',
                                 hintStyle: TextStyle(
                                     color: Colors.grey.shade400,
                                     fontWeight: FontWeight.w500),
@@ -502,12 +527,11 @@ class _AdminListScreenState extends State<AdminListScreen> {
                           ),
                           const SizedBox(height: 12),
 
-                          // ── Filter chips ──────────────────────────────────
+                          // ── Filter chips ────────────────────────────────────
                           SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
                             child: Row(
                               children: [
-                                // All chip
                                 _buildFilterChip(
                                   label: 'All',
                                   isActive: _activeFilters.length == 3,
@@ -515,11 +539,8 @@ class _AdminListScreenState extends State<AdminListScreen> {
                                   onTap: () => setState(
                                       () => _activeFilters = {1, 2, 3}),
                                 ),
-
-                                // SEATRU / CMS / Intern chips
                                 ...(_categoryConfig.map((config) {
-                                  final category =
-                                      config['category'] as int;
+                                  final category = config['category'] as int;
                                   final label = config['label'] as String;
                                   final color = config['color'] as Color;
                                   final isActive =
@@ -531,7 +552,6 @@ class _AdminListScreenState extends State<AdminListScreen> {
                                     onTap: () {
                                       setState(() {
                                         if (isActive) {
-                                          // prevent deselecting last filter
                                           if (_activeFilters.length > 1) {
                                             _activeFilters.remove(category);
                                           }
@@ -553,8 +573,7 @@ class _AdminListScreenState extends State<AdminListScreen> {
 
                   // ── Sections: SEATRU → CMS → Intern ──────────────────────
                   for (final config in _categoryConfig) ...[
-                    if (_activeFilters
-                        .contains(config['category'] as int)) ...[
+                    if (_activeFilters.contains(config['category'] as int)) ...[
                       _buildSectionHeader(
                         label: config['label'] as String,
                         category: config['category'] as int,
@@ -571,7 +590,6 @@ class _AdminListScreenState extends State<AdminListScreen> {
                     ],
                   ],
 
-                  // ── Bottom padding ────────────────────────────────────────
                   const SliverToBoxAdapter(child: SizedBox(height: 100)),
                 ],
               ),
@@ -595,8 +613,7 @@ class _AdminListScreenState extends State<AdminListScreen> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         margin: const EdgeInsets.only(right: 8),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: isActive ? color : Colors.white,
           borderRadius: BorderRadius.circular(20),
@@ -656,8 +673,7 @@ class _AdminListScreenState extends State<AdminListScreen> {
             ),
             const SizedBox(width: 8),
             Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 10, vertical: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
               decoration: BoxDecoration(
                 color: color.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10),
@@ -692,8 +708,7 @@ class _AdminListScreenState extends State<AdminListScreen> {
     if (filtered.isEmpty) {
       return SliverToBoxAdapter(
         child: Padding(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -787,8 +802,17 @@ class _AdminListScreenState extends State<AdminListScreen> {
                       fontWeight: FontWeight.w500),
                 ),
                 const SizedBox(height: 6),
-                // ── Department tag ────────────────────────────────────
-                _buildDepartmentTag(staff.department),
+
+                // ── Department + Part Timer badges ────────────────────────
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    _buildDepartmentTag(staff.department),
+                    if (staff.isPartTimer) _buildPartTimerBadge(), // ✅
+                  ],
+                ),
+
                 const SizedBox(height: 4),
                 Row(
                   children: [

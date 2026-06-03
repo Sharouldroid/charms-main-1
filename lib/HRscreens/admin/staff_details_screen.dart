@@ -14,8 +14,7 @@ class StaffDetailsScreen extends StatefulWidget {
 }
 
 class _StaffDetailsScreenState extends State<StaffDetailsScreen> {
-  // Modern Color Palette Constants
-  final Color bgColor = const Color(0xFFF4F7FA);
+  final Color bgColor    = const Color(0xFFF4F7FA);
   final Color primaryBlue = const Color(0xFF2563EB);
 
   void _showDeleteConfirmationDialog() {
@@ -38,7 +37,7 @@ class _StaffDetailsScreenState extends State<StaffDetailsScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               onPressed: () async {
-                Navigator.of(dialogContext).pop(); // close dialog
+                Navigator.of(dialogContext).pop();
                 await _deleteStaff();
               },
               child: const Text('Delete', style: TextStyle(color: Colors.white)),
@@ -50,26 +49,18 @@ class _StaffDetailsScreenState extends State<StaffDetailsScreen> {
   }
 
   Future<void> _deleteStaff() async {
-    debugPrint('🔴 _deleteStaff called');
     final staffProvider = Provider.of<Staffs>(context, listen: false);
-
     try {
       await staffProvider.deleteStaff(widget.staff.staffId);
-      debugPrint('✅ deleteStaff() done');
-
-      // ✅ No mounted check needed — StatefulWidget manages this
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Staff deleted successfully!'),
-          backgroundColor: Colors.teal, // Modernized success color
+          backgroundColor: Colors.teal,
           duration: Duration(seconds: 2),
         ),
       );
-
       Navigator.of(context).pop(true);
-      debugPrint('✅ pop(true) called');
     } catch (error) {
-      debugPrint('❌ Error: $error');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to delete staff: $error'),
@@ -79,7 +70,6 @@ class _StaffDetailsScreenState extends State<StaffDetailsScreen> {
     }
   }
 
-  // Modern Card Builder for Sections
   Widget _buildInfoCard(String title, IconData icon, List<Widget> children) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16.0),
@@ -133,27 +123,29 @@ class _StaffDetailsScreenState extends State<StaffDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    String gender = widget.staff.emergencyGender == 1 ? 'Male' : 'Female';
-    String maritalStatus = widget.staff.maritalStatus == 1 ? 'Single' : 'Married';
+    // ✅ FIX: use widget.staff.gender (not emergencyGender) for staff gender
+    final String staffGender         = widget.staff.gender == 1 ? 'Male' : 'Female';
+    // ✅ FIX: separate variable for emergency contact gender
+    final String emergencyGender     = widget.staff.emergencyGender == 1 ? 'Male' : 'Female';
+    final String maritalStatus       = widget.staff.maritalStatus == 1 ? 'Single' : 'Married';
 
     return Scaffold(
-      backgroundColor: bgColor, // Modern Background
+      backgroundColor: bgColor,
       appBar: AppBar(
         elevation: 0,
         backgroundColor: primaryBlue,
         iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text('STAFF DETAILS', 
+        title: const Text(
+          'STAFF DETAILS',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
-            letterSpacing: 1.2
+            letterSpacing: 1.2,
           ),
         ),
         centerTitle: true,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(20),
-          ),
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
         ),
       ),
       body: SingleChildScrollView(
@@ -162,8 +154,8 @@ class _StaffDetailsScreenState extends State<StaffDetailsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            
-            // Profile Header Card
+
+            // ── Profile Header Card ────────────────────────────────────────
             Container(
               margin: const EdgeInsets.only(bottom: 16.0),
               decoration: BoxDecoration(
@@ -185,7 +177,8 @@ class _StaffDetailsScreenState extends State<StaffDetailsScreen> {
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: primaryBlue.withOpacity(0.2), width: 3),
+                        border: Border.all(
+                            color: primaryBlue.withOpacity(0.2), width: 3),
                       ),
                       child: CircleAvatar(
                         radius: 50,
@@ -196,14 +189,16 @@ class _StaffDetailsScreenState extends State<StaffDetailsScreen> {
                                 'https://devcms.com.my/charmsAPI/public/storage/${widget.staff.filepath}',
                               )
                             : null,
-                        child: (widget.staff.filepath == null || widget.staff.filepath!.isEmpty)
-                            ? Icon(Icons.person_rounded, size: 50, color: Colors.blue.shade200)
+                        child: (widget.staff.filepath == null ||
+                                widget.staff.filepath!.isEmpty)
+                            ? Icon(Icons.person_rounded,
+                                size: 50, color: Colors.blue.shade200)
                             : null,
                       ),
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      "${widget.staff.firstname} ${widget.staff.lastname}",
+                      '${widget.staff.firstname} ${widget.staff.lastname}',
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontSize: 22,
@@ -222,7 +217,7 @@ class _StaffDetailsScreenState extends State<StaffDetailsScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      "Staff ID: ${widget.staff.staffId}",
+                      'Staff ID: ${widget.staff.staffId}',
                       style: TextStyle(
                         fontSize: 13,
                         color: Colors.grey.shade500,
@@ -234,39 +229,41 @@ class _StaffDetailsScreenState extends State<StaffDetailsScreen> {
               ),
             ),
 
-            // Personal Details
-            _buildInfoCard("Personal Details", Icons.badge_rounded, [
-              DetailsRow(label: "IC Number", value: widget.staff.idNum),
-              DetailsRow(label: "Date of Birth", value: widget.staff.dob),
-              DetailsRow(label: "Nationality", value: widget.staff.nationality),
-              DetailsRow(label: "Religion", value: widget.staff.religion),
-              DetailsRow(label: "Gender", value: gender),
-              DetailsRow(label: "Marital Status", value: maritalStatus),
+            // ── Personal Details ───────────────────────────────────────────
+            _buildInfoCard('Personal Details', Icons.badge_rounded, [
+              DetailsRow(label: 'IC Number',     value: widget.staff.idNum),
+              DetailsRow(label: 'Date of Birth', value: widget.staff.dob),
+              DetailsRow(label: 'Nationality',   value: widget.staff.nationality),
+              DetailsRow(label: 'Religion',      value: widget.staff.religion),
+              // ✅ FIX: shows staff's own gender
+              DetailsRow(label: 'Gender',        value: staffGender),
+              DetailsRow(label: 'Marital Status', value: maritalStatus),
             ]),
 
-            // Address Details
-            _buildInfoCard("Contact & Address", Icons.location_on_rounded, [
-              DetailsRow(label: "Phone", value: widget.staff.phone),
-              DetailsRow(label: "Office Phone", value: widget.staff.officePhone ?? 'N/A'),
-              DetailsRow(label: "Email", value: widget.staff.email),
-              DetailsRow(label: "Address", value: "${widget.staff.address1}, ${widget.staff.address2}"),
-              DetailsRow(label: "City", value: widget.staff.city),
-              DetailsRow(label: "State", value: widget.staff.state),
-              DetailsRow(label: "Country", value: widget.staff.country),
+            // ── Contact & Address ──────────────────────────────────────────
+            _buildInfoCard('Contact & Address', Icons.location_on_rounded, [
+              DetailsRow(label: 'Phone',        value: widget.staff.phone),
+              DetailsRow(label: 'Office Phone', value: widget.staff.officePhone ?? 'N/A'),
+              DetailsRow(label: 'Email',        value: widget.staff.email),
+              DetailsRow(label: 'Address',      value: '${widget.staff.address1}, ${widget.staff.address2}'),
+              DetailsRow(label: 'City',         value: widget.staff.city),
+              DetailsRow(label: 'State',        value: widget.staff.state),
+              DetailsRow(label: 'Country',      value: widget.staff.country),
             ]),
 
-            // Emergency Contact Details
-            _buildInfoCard("Emergency Contact", Icons.health_and_safety_rounded, [
-              DetailsRow(label: "Name", value: widget.staff.emergencyName),
-              DetailsRow(label: "IC Number", value: widget.staff.emergencyIc),
-              DetailsRow(label: "Relation", value: widget.staff.emergencyRelation),
-              DetailsRow(label: "Gender", value: gender),
-              DetailsRow(label: "Phone", value: widget.staff.emergencyPhone),
+            // ── Emergency Contact ──────────────────────────────────────────
+            _buildInfoCard('Emergency Contact', Icons.health_and_safety_rounded, [
+              DetailsRow(label: 'Name',     value: widget.staff.emergencyName),
+              DetailsRow(label: 'IC Number', value: widget.staff.emergencyIc),
+              DetailsRow(label: 'Relation', value: widget.staff.emergencyRelation),
+              // ✅ FIX: uses emergencyGender, not staffGender
+              DetailsRow(label: 'Gender',   value: emergencyGender),
+              DetailsRow(label: 'Phone',    value: widget.staff.emergencyPhone),
             ]),
 
             const SizedBox(height: 8),
 
-            // Action Buttons
+            // ── Action Buttons ─────────────────────────────────────────────
             Row(
               children: [
                 Expanded(
@@ -276,18 +273,21 @@ class _StaffDetailsScreenState extends State<StaffDetailsScreen> {
                       foregroundColor: primaryBlue,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                     onPressed: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => EditStaffScreen(staff: widget.staff),
+                          builder: (context) =>
+                              EditStaffScreen(staff: widget.staff),
                         ),
                       );
                     },
                     icon: const Icon(Icons.edit_rounded, size: 18),
-                    label: const Text('Edit Staff', style: TextStyle(fontWeight: FontWeight.bold)),
+                    label: const Text('Edit Staff',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -298,11 +298,13 @@ class _StaffDetailsScreenState extends State<StaffDetailsScreen> {
                       foregroundColor: Colors.redAccent,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                     onPressed: _showDeleteConfirmationDialog,
                     icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                    label: const Text('Delete Staff', style: TextStyle(fontWeight: FontWeight.bold)),
+                    label: const Text('Delete Staff',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
@@ -332,12 +334,12 @@ class DetailsRow extends StatelessWidget {
           Expanded(
             flex: 2,
             child: Text(
-              label, 
+              label,
               style: TextStyle(
-                color: Colors.grey.shade600, 
-                fontSize: 13, 
-                fontWeight: FontWeight.w600
-              )
+                color: Colors.grey.shade600,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
           Expanded(
@@ -346,9 +348,9 @@ class DetailsRow extends StatelessWidget {
               value,
               textAlign: TextAlign.right,
               style: const TextStyle(
-                fontWeight: FontWeight.bold, 
-                fontSize: 14, 
-                color: Color(0xFF334155)
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: Color(0xFF334155),
               ),
             ),
           ),

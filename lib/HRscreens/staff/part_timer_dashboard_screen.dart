@@ -2,11 +2,13 @@ import 'package:charms/HRmodels/schedule.dart';
 import 'package:charms/HRmodels/staff.dart';
 import 'package:charms/HRproviders/attendances.dart';
 import 'package:charms/HRproviders/payments.dart';
+import 'package:charms/HRproviders/payment_claims.dart';
+import 'package:charms/HRproviders/schedule_exchanges.dart';
 import 'package:charms/HRproviders/schedules.dart';
 import 'package:charms/HRproviders/staffs.dart';
-import 'package:charms/HRproviders/auth.dart' as hr_auth;
-import 'package:charms/HRscreens/staff/staff_schedule_details_screen.dart';
-import 'package:charms/HRscreens/staff/staff_myself_screen.dart';
+import 'package:charms/HRscreens/staff/part_timer_notification_screen.dart';
+import 'package:charms/HRscreens/staff/part_timer_schedule_details_screen.dart';
+//import 'package:charms/HRscreens/staff/staff_myself_screen.dart';
 import 'package:charms/utils/logout_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -22,24 +24,25 @@ class PartTimerDashboardScreen extends StatefulWidget {
 }
 
 class _PartTimerDashboardScreenState extends State<PartTimerDashboardScreen> {
-  // ── Palette ───────────────────────────────────────────────────────────────
-  static const Color _primary   = Color(0xFFF97316); // orange — distinct from staff blue
-  static const Color _bg        = Color(0xFFFFF7ED);
+  static const Color _primary    = Color(0xFFF97316);
+  static const Color _bg         = Color(0xFFFFF7ED);
   static const Color _cardBorder = Color(0xFFFFE4C4);
 
-  Staff?          _currentStaff;
-  List<Schedule>  _schedules   = [];
-  List<Map<String, dynamic>> _payments = [];
-  bool            _isLoading   = true;
-  DateTime?       _lastLogin;
-  bool            _mounted     = true;
+  Staff?                     _currentStaff;
+  List<Schedule>             _schedules            = [];
+  List<Map<String, dynamic>> _payments             = [];
+  bool                       _isLoading            = true;
+  bool                       _submitting           = false;
+  DateTime?                  _lastLogin;
+  int                        _unreadNotifications  = 0;
+  Map<String, dynamic>       _dashboardData        = {};
 
-  // ── Location helpers (same as rest of app) ────────────────────────────────
+  // ── Location helper ────────────────────────────────────────────────────────
   static String _locationName(int loc) {
     switch (loc) {
-      case 1: return 'Chagar Hutang';
-      case 2: return 'Turtle Lab';
-      case 3: return 'UMT';
+      case 1:  return 'Chagar Hutang';
+      case 2:  return 'Turtle Lab';
+      case 3:  return 'UMT';
       default: return 'Unknown';
     }
   }
@@ -47,255 +50,548 @@ class _PartTimerDashboardScreenState extends State<PartTimerDashboardScreen> {
   String _monthName(int m) {
     const names = [
       '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
     ];
     return names[m];
   }
 
+  // ── Lifecycle ──────────────────────────────────────────────────────────────
   @override
   void initState() {
     super.initState();
     _load();
   }
 
-  @override
-  void dispose() {
-    _mounted = false;
-    super.dispose();
-  }
-
+  // ── Load ───────────────────────────────────────────────────────────────────
   Future<void> _load() async {
-    if (!_mounted) return;
+    debugPrint('=== PartTimer _load() CALLED ===');
+
+    if (!mounted) return;
+
+    // Show loading indicator on every refresh
+    setState(() => _isLoading = true);
+
     try {
-      final staffsProvider   = Provider.of<Staffs>(context, listen: false);
-      final schedProv        = Provider.of<Schedules>(context, listen: false);
-      final payProv          = Provider.of<Payments>(context, listen: false);
-      final auth             = Provider.of<hr_auth.Auth>(context, listen: false);
+      final staffsProv   = Provider.of<Staffs>(context, listen: false);
+      final schedProv    = Provider.of<Schedules>(context, listen: false);
+      final payProv      = Provider.of<Payments>(context, listen: false);
+      final exchangeProv = Provider.of<ScheduleExchanges>(context, listen: false);
+      final claimProv    = Provider.of<PaymentClaims>(context, listen: false);
 
-      await staffsProvider.fetchStaff();
+      // 1 — fetch staff list and find current user
+      await staffsProv.fetchStaff();
+      final staffList      = staffsProv.staffList;
+      final widgetUsername = widget.username.trim().toLowerCase();
 
-      final staffList = staffsProvider.staffList;
-      if (staffList.isNotEmpty) {
-        _currentStaff = staffList.firstWhere(
-          (s) => s.username == auth.username,
-          orElse: () => throw Exception('Staff not found'),
-        );
+      final Staff? staff = staffList.cast<Staff?>().firstWhere(
+        (s) => s?.username.trim().toLowerCase() == widgetUsername,
+        orElse: () => null,
+      );
 
-        // Fetch schedules
-        final all = await schedProv.fetchSchedulesByStaffId(_currentStaff!.staffId);
-        final cutoff = DateTime.now().subtract(const Duration(hours: 24));
-
-        // Fetch payments for this year
-        await payProv.fetchPaymentsByYear(DateTime.now().year);
-        final myPayments = payProv.payments
-            .where((p) => p.staffId == _currentStaff!.staffId)
-            .toList();
-
-        if (_mounted) {
-          setState(() {
-            _schedules = all
-                .where((s) => s.workDate.isAfter(cutoff))
-                .toList()
-              ..sort((a, b) => a.workDate.compareTo(b.workDate));
-            _payments  = myPayments
-                .map((p) => {
-                      'date':   p.workDate,
-                      'amount': p.totalSalary,
-                      'status': p.status,
-                    })
-                .toList()
-              ..sort((a, b) =>
-                  (b['date'] as DateTime).compareTo(a['date'] as DateTime));
-            _lastLogin = DateTime.now();
-            _isLoading = false;
-          });
-        }
+      if (staff == null) {
+        debugPrint('Staff not found for username: ${widget.username}');
+        if (mounted) setState(() => _isLoading = false);
+        return;
       }
-    } catch (e) {
-      debugPrint('PartTimer load error: $e');
-      if (_mounted) setState(() => _isLoading = false);
+
+      debugPrint('Staff found: ${staff.staffId} / ${staff.username}');
+
+      // 2 — schedules (past 24 h cutoff)
+      final allSchedules = await schedProv.fetchSchedulesByStaffId(staff.staffId);
+      final cutoff       = DateTime.now().subtract(const Duration(hours: 24));
+      final upcoming     = allSchedules
+          .where((s) => s.workDate.isAfter(cutoff))
+          .toList()
+        ..sort((a, b) => a.workDate.compareTo(b.workDate));
+
+      // 3 — payments (for payment history section)
+      // Fetch payments for display — last 3 months only
+      await payProv.fetchPaymentsByYear(DateTime.now().year);
+      final threeMonthsAgo = DateTime.now().subtract(const Duration(days: 90));
+      final myPayments = payProv.payments
+          .where((p) =>
+              p.staffId == staff.staffId &&
+              p.workDate.isAfter(threeMonthsAgo))
+          .toList();
+
+      // 4 — unread exchange notifications
+      await exchangeProv.fetchExchangesByStaff(staff.staffId);
+      final unread = exchangeProv.exchanges
+          .where((e) => e.targetId == staff.staffId && e.status == 0)
+          .length;
+
+      // 5 — payment claim dashboard (days worked, running total, claim status)
+      final dashboard = await claimProv.fetchDashboard(staff.staffId);
+
+      debugPrint('=== Dashboard API result ===');
+      debugPrint('  keys            : ${dashboard.keys.toList()}');
+      debugPrint('  days_worked     : ${dashboard['days_worked_this_month']}');
+      debugPrint('  running_total   : ${dashboard['running_total_amount']}');
+      debugPrint('  can_submit      : ${dashboard['can_submit_claim']}');
+      debugPrint('  current_claim   : ${dashboard['current_claim']}');
+
+      if (!mounted) return;
+
+      setState(() {
+        _currentStaff        = staff;
+        _schedules           = upcoming;
+        _payments            = myPayments
+            .map((p) => {
+                  'date':     p.workDate,
+                  'amount':   p.totalSalary,
+                  'status':   p.status,
+                  'claim_id': null,
+                })
+            .toList()
+          ..sort((a, b) =>
+              (b['date'] as DateTime).compareTo(a['date'] as DateTime));
+        _dashboardData       = dashboard;
+        _lastLogin           = DateTime.now();
+        _unreadNotifications = unread;
+        _isLoading           = false;
+      });
+
+      debugPrint('=== _load() COMPLETE — days: $_daysWorkedThisMonth, total: $_runningTotal ===');
+
+    } catch (e, stack) {
+      debugPrint('PartTimer _load() ERROR: $e');
+      debugPrint('$stack');
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  // ── Dashboard getters ──────────────────────────────────────────────────────
+  int    get _daysWorkedThisMonth => _dashboardData['days_worked_this_month'] ?? 0;
+  double get _runningTotal =>
+      ((_dashboardData['running_total_amount'] ?? 0) as num).toDouble();
+  bool   get _canSubmitClaim => _dashboardData['can_submit_claim'] == true;
+
+  Map<String, dynamic>? get _currentClaim =>
+      _dashboardData['current_claim'] as Map<String, dynamic>?;
+
+  String get _claimStatus {
+    if (_currentClaim == null) return 'Not Submitted';
+    return _currentClaim!['status']?.toString() ?? 'Pending';
+  }
+
+  // ── Logout ─────────────────────────────────────────────────────────────────
   Future<void> _logout() async => LogoutHelper.fullLogout(context);
 
-  // ── Total earned this month ────────────────────────────────────────────────
-  double get _earnedThisMonth {
-    final now = DateTime.now();
-    return _payments
-        .where((p) {
-          final d = p['date'] as DateTime;
-          return d.month == now.month && d.year == now.year;
-        })
-        .fold(0.0, (sum, p) => sum + (p['amount'] as double));
-  }
+  // ── Submit claim ───────────────────────────────────────────────────────────
+  Future<void> _submitClaim() async {
+    if (_currentStaff == null || _submitting) return;
 
-  // ── Total days worked this month ──────────────────────────────────────────
-  int get _daysWorkedThisMonth {
-    final now = DateTime.now();
-    return _payments
-        .where((p) {
-          final d = p['date'] as DateTime;
-          return d.month == now.month && d.year == now.year;
-        })
-        .length;
-  }
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Submit Payment Claim',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+       content: Builder(builder: (context) {
+  final draftDays = (_dashboardData['draft_days_unclaimed'] ?? 0) as int;
+  final draftAmount = draftDays * _currentStaff!.dayRate;
+  final alreadyClaimed = _daysWorkedThisMonth - draftDays;
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _bg,
-            appBar: AppBar(
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        backgroundColor: _primary,
-        toolbarHeight: 120,
-        title: Column(
+  return Column(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        'Submit claim for ${DateFormat('MMMM yyyy').format(DateTime.now())}?',
+        style: const TextStyle(fontWeight: FontWeight.w600),
+      ),
+      const SizedBox(height: 12),
+      Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.orange.withOpacity(0.07),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.orange.withOpacity(0.3)),
+        ),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Top row with title and icons
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'PART TIMER PORTAL',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.person_rounded,
-                          color: Colors.white, size: 24),
-                      tooltip: 'My Profile',
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const StaffMySelfScreen(),
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.logout_rounded,
-                          color: Colors.white, size: 24),
-                      tooltip: 'Logout',
-                      onPressed: _logout,
-                    ),
-                  ],
-                ),
+                const Text('Unclaimed days:',
+                    style: TextStyle(color: Colors.grey, fontSize: 13)),
+                Text('$draftDays day${draftDays > 1 ? 's' : ''}',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 13)),
               ],
             ),
-            const SizedBox(height: 12),
-            // Bottom row with greeting and last login
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Text(
-                //   'Hello, ${_currentStaff != null ? _currentStaff!.firstname : widget.username}!',
-                //   style: const TextStyle(
-                //     color: Colors.white,
-                //     fontSize: 24,
-                //     fontWeight: FontWeight.bold,
-                //   ),
-                // ),
-                const SizedBox(height: 4),
-                if (_lastLogin != null)
-                  Row(
-                    children: [
-                      const SizedBox(width: 6),
-                      Text(
-                        'Last Login: ${DateFormat('dd MMM yyyy, hh:mm a').format(_lastLogin!)}',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  )
-                else
-                  Row(
-                    children: [
-                      const SizedBox(width: 6),
-                      // Text(
-                      //   'Part Timer',
-                      //   style: TextStyle(
-                      //     color: Colors.white.withOpacity(0.9),
-                      //     fontSize: 12,
-                      //     fontWeight: FontWeight.w500,
-                      //   ),
-                      // ),
-                    ],
-                  ),
+                const Text('Day rate:',
+                    style: TextStyle(color: Colors.grey, fontSize: 13)),
+                Text('RM ${_currentStaff!.dayRate.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 13)),
+              ],
+            ),
+            const Divider(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Total to claim:',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w800, fontSize: 14)),
+                Text('RM ${draftAmount.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 15,
+                        color: Colors.orange)),
               ],
             ),
           ],
         ),
       ),
+      if (alreadyClaimed > 0) ...[
+        const SizedBox(height: 8),
+        Row(children: [
+          const Icon(Icons.info_outline_rounded,
+              size: 13, color: Colors.grey),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              '$alreadyClaimed day${alreadyClaimed > 1 ? 's' : ''} already claimed separately.',
+              style: const TextStyle(
+                  fontSize: 11, color: Colors.grey),
+            ),
+          ),
+        ]),
+      ],
+    ],
+  );
+}),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Submit'),
+          ),
+        ],
+      ),
+    );
 
+    if (confirm != true) return;
+
+    setState(() => _submitting = true);
+    try {
+      final claimProv = Provider.of<PaymentClaims>(context, listen: false);
+      final now       = DateTime.now();
+      final result    = await claimProv.submitClaim(
+        staffId: _currentStaff!.staffId,
+        month:   now.month,
+        year:    now.year,
+      );
+
+      if (!mounted) return;
+
+      if (result['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('Claim submitted! Awaiting admin approval.'),
+          backgroundColor: Colors.teal,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ));
+        await _load();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(result['message'] ?? 'Failed to submit claim'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  Future<void> _showFullHistory() async {
+  if (_currentStaff == null) return;
+
+  final payProv = Provider.of<Payments>(context, listen: false);
+  // Fetch current year + previous year for full history
+  await payProv.fetchPaymentsByYear(DateTime.now().year);
+
+  final allPayments = payProv.payments
+      .where((p) => p.staffId == _currentStaff!.staffId)
+      .toList()
+    ..sort((a, b) => b.workDate.compareTo(a.workDate));
+
+  if (!mounted) return;
+
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (ctx) => DraggableScrollableSheet(
+      initialChildSize: 0.75,
+      maxChildSize: 0.95,
+      minChildSize: 0.4,
+      builder: (_, controller) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(children: [
+          // Handle
+          Container(
+            margin: const EdgeInsets.only(top: 12),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          // Title
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: _primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.history_rounded,
+                    color: _primary, size: 20),
+              ),
+              const SizedBox(width: 12),
+              const Text('Full Payment History',
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1E293B))),
+              const Spacer(),
+              Text('${allPayments.length} records',
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade500,
+                      fontWeight: FontWeight.w500)),
+            ]),
+          ),
+          const Divider(height: 1),
+          // List
+          Expanded(
+            child: allPayments.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.receipt_long_rounded,
+                            size: 48, color: Colors.grey.shade300),
+                        const SizedBox(height: 12),
+                        Text('No payment records',
+                            style: TextStyle(
+                                color: Colors.grey.shade500,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500)),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    controller: controller,
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                    itemCount: allPayments.length,
+                    itemBuilder: (_, i) =>
+                        _buildPaymentCard({
+                          'date':     allPayments[i].workDate,
+                          'amount':   allPayments[i].totalSalary,
+                          'status':   allPayments[i].status,
+                          'claim_id': null,
+                        }),
+                  ),
+          ),
+        ]),
+      ),
+    ),
+  );
+}
+  // ── Build ──────────────────────────────────────────────────────────────────
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _bg,
+      appBar: AppBar(
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        backgroundColor: _primary,
+        toolbarHeight: 80,
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'PART TIMER PORTAL',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                letterSpacing: 1.5,
+              ),
+            ),
+            Row(children: [
+              // IconButton(
+              //   icon: const Icon(Icons.person_rounded,
+              //       color: Colors.white, size: 24),
+              //   tooltip: 'My Profile',
+              //   onPressed: () => Navigator.push(
+              //     context,
+              //     MaterialPageRoute(
+              //         builder: (_) => const StaffMySelfScreen()),
+              //   ),
+              // ),
+              IconButton(
+                icon: Stack(clipBehavior: Clip.none, children: [
+                  const Icon(Icons.notifications_rounded,
+                      color: Colors.white, size: 24),
+                  if (_unreadNotifications > 0)
+                    Positioned(
+                      right: -4,
+                      top: -4,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        constraints:
+                            const BoxConstraints(minWidth: 16, minHeight: 16),
+                        child: Text(
+                          _unreadNotifications > 99
+                              ? '99+'
+                              : '$_unreadNotifications',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
+                ]),
+                tooltip: 'Notifications',
+                onPressed: () async {
+                  if (_currentStaff == null) return;
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PartTimerNotificationScreen(
+                          staffId: _currentStaff!.staffId),
+                    ),
+                  );
+                  await _load();
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.logout_rounded,
+                    color: Colors.white, size: 24),
+                tooltip: 'Logout',
+                onPressed: _logout,
+              ),
+            ]),
+          ],
+        ),
+      ),
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: _primary))
+          ? const Center(child: CircularProgressIndicator(color: _primary))
           : RefreshIndicator(
               color: _primary,
               onRefresh: _load,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 child: Column(children: [
-
-                  // ── Header banner ───────────────────────────────────────
                   _buildHeader(),
-
                   const SizedBox(height: 16),
-
-                  // ── Stats row ───────────────────────────────────────────
                   _buildStatsRow(),
-
+                  const SizedBox(height: 12),
+                  _buildClaimBanner(),
                   const SizedBox(height: 20),
-
-                  // ── Upcoming schedules ──────────────────────────────────
                   _buildSectionTitle(
                       'Upcoming Shifts', Icons.calendar_today_rounded),
                   _schedules.isEmpty
                       ? _emptyState(
                           Icons.event_available_rounded,
                           'No upcoming shifts',
-                          'Admin will assign shifts soon')
+                          'Admin will assign shifts soon',
+                        )
                       : ListView.builder(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 16),
                           itemCount: _schedules.length,
                           itemBuilder: (_, i) =>
                               _buildScheduleCard(_schedules[i]),
                         ),
-
                   const SizedBox(height: 20),
-
-                  // ── Payment history ─────────────────────────────────────
-                  _buildSectionTitle(
-                      'Payment History', Icons.payments_rounded),
+                 Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    child: Row(children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: _primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(Icons.payments_rounded, color: _primary, size: 16),
+                      ),
+                      const SizedBox(width: 10),
+                      const Text('Payment History',
+                          style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF1E293B))),
+                      const Spacer(),
+                      // ✅ View All button
+                      GestureDetector(
+                        onTap: () => _showFullHistory(),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: _primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text('View All',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: _primary)),
+                        ),
+                      ),
+                    ]),
+                  ),
                   _payments.isEmpty
                       ? _emptyState(
                           Icons.receipt_long_rounded,
                           'No payments yet',
-                          'Payments appear after you clock out')
+                          'Payments appear after you clock out',
+                        )
                       : ListView.builder(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: _payments.length > 10
-                              ? 10
-                              : _payments.length,
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount:
+                              _payments.length > 10 ? 10 : _payments.length,
                           itemBuilder: (_, i) =>
                               _buildPaymentCard(_payments[i]),
                         ),
-
                   const SizedBox(height: 40),
                 ]),
               ),
@@ -311,22 +607,22 @@ class _PartTimerDashboardScreenState extends State<PartTimerDashboardScreen> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.only(
-          top: 20, bottom: 28, left: 24, right: 24),
+      padding:
+          const EdgeInsets.only(top: 20, bottom: 28, left: 24, right: 24),
       decoration: const BoxDecoration(
         color: _primary,
-        borderRadius:
-            BorderRadius.vertical(bottom: Radius.circular(30)),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           CircleAvatar(
             radius: 28,
-            backgroundColor: Colors.white.withOpacity(0.2),
+            backgroundColor: Colors.white24,
             backgroundImage: (_currentStaff?.filepath != null &&
                     _currentStaff!.filepath!.isNotEmpty)
                 ? NetworkImage(
-                    'https://devcms.com.my/charmsAPI/public/storage/${_currentStaff!.filepath}')
+                    'https://devcms.com.my/charmsAPI/public/storage/'
+                    '${_currentStaff!.filepath}')
                 : null,
             child: (_currentStaff?.filepath == null ||
                     _currentStaff!.filepath!.isEmpty)
@@ -344,26 +640,26 @@ class _PartTimerDashboardScreenState extends State<PartTimerDashboardScreen> {
                       color: Colors.white,
                       fontSize: 20,
                       fontWeight: FontWeight.bold)),
-              const SizedBox(height: 2),
+              const SizedBox(height: 4),
               Container(
                 padding: const EdgeInsets.symmetric(
                     horizontal: 10, vertical: 3),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white24,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.access_time_rounded,
-                          size: 12, color: Colors.white),
-                      SizedBox(width: 4),
-                      Text('Part Timer',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700)),
-                    ]),
+                  Icon(Icons.access_time_rounded,
+                      size: 12, color: Colors.white),
+                  SizedBox(width: 4),
+                  Text('Part Timer',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700)),
+                ]),
               ),
             ]),
           ),
@@ -389,9 +685,9 @@ class _PartTimerDashboardScreenState extends State<PartTimerDashboardScreen> {
             padding:
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white24,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withOpacity(0.3)),
+              border: Border.all(color: Colors.white38),
             ),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               const Icon(Icons.payments_rounded,
@@ -428,8 +724,8 @@ class _PartTimerDashboardScreenState extends State<PartTimerDashboardScreen> {
         Expanded(
           child: _statCard(
             icon: Icons.payments_rounded,
-            label: 'Earned This Month',
-            value: 'RM ${_earnedThisMonth.toStringAsFixed(2)}',
+            label: 'Running Total',
+            value: 'RM ${_runningTotal.toStringAsFixed(2)}',
             color: Colors.green,
           ),
         ),
@@ -489,6 +785,169 @@ class _PartTimerDashboardScreenState extends State<PartTimerDashboardScreen> {
     );
   }
 
+  // ── Claim banner ───────────────────────────────────────────────────────────
+  Widget _buildClaimBanner() {
+    final monthLabel = DateFormat('MMMM yyyy').format(DateTime.now());
+
+    Color    bgColor;
+    Color    borderColor;
+    Color    textColor;
+    IconData icon;
+    String   statusLabel;
+
+    switch (_claimStatus) {
+      case 'Pending':
+        bgColor     = Colors.orange.shade50;
+        borderColor = Colors.orange.shade200;
+        textColor   = Colors.orange.shade800;
+        icon        = Icons.pending_actions_rounded;
+        statusLabel = 'Pending Approval';
+        break;
+      case 'Approved':
+        bgColor     = Colors.teal.shade50;
+        borderColor = Colors.teal.shade200;
+        textColor   = Colors.teal.shade800;
+        icon        = Icons.check_circle_rounded;
+        statusLabel = 'Approved';
+        break;
+      case 'Rejected':
+        bgColor     = Colors.red.shade50;
+        borderColor = Colors.red.shade200;
+        textColor   = Colors.red.shade800;
+        icon        = Icons.cancel_rounded;
+        statusLabel = 'Rejected';
+        break;
+      default:
+        bgColor     = Colors.blue.shade50;
+        borderColor = Colors.blue.shade200;
+        textColor   = Colors.blue.shade800;
+        icon        = Icons.assignment_rounded;
+        statusLabel = 'Submitted';
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: borderColor),
+        ),
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Icon(icon, color: textColor, size: 18),
+            const SizedBox(width: 8),
+            Text('$monthLabel Claim',
+                style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                    color: textColor)),
+            const Spacer(),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: textColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(statusLabel,
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: textColor)),
+            ),
+          ]),
+          const SizedBox(height: 10),
+          Row(children: [
+            _claimStat('Days', '$_daysWorkedThisMonth', textColor),
+            const SizedBox(width: 16),
+            _claimStat(
+                'Total', 'RM ${_runningTotal.toStringAsFixed(2)}', textColor),
+          ]),
+          if (_claimStatus == 'Rejected' &&
+              _currentClaim?['rejection_reason'] != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.07),
+                borderRadius: BorderRadius.circular(10),
+                border:
+                    Border.all(color: Colors.redAccent.withOpacity(0.3)),
+              ),
+              child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                const Icon(Icons.info_outline_rounded,
+                    size: 14, color: Colors.redAccent),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    _currentClaim!['rejection_reason'].toString(),
+                    style: const TextStyle(
+                        fontSize: 12, color: Colors.redAccent),
+                  ),
+                ),
+              ]),
+            ),
+          ],
+          if (_canSubmitClaim) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: _submitting ? null : _submitClaim,
+                icon: _submitting
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.send_rounded, size: 16),
+                label:
+                    Text(_submitting ? 'Submitting...' : 'Submit Claim'),
+              ),
+            ),
+          ],
+          if (_claimStatus == 'Rejected') ...[
+            const SizedBox(height: 8),
+            Text(
+              'Your work days have been reset. You can submit a new claim next cycle.',
+              style: TextStyle(
+                  fontSize: 11, color: textColor.withOpacity(0.7)),
+            ),
+          ],
+        ]),
+      ),
+    );
+  }
+
+  Widget _claimStat(String label, String value, Color color) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label,
+          style: TextStyle(
+              fontSize: 11,
+              color: color.withOpacity(0.7),
+              fontWeight: FontWeight.w500)),
+      Text(value,
+          style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+              color: color)),
+    ]);
+  }
+
   // ── Section title ──────────────────────────────────────────────────────────
   Widget _buildSectionTitle(String title, IconData icon) {
     return Padding(
@@ -497,8 +956,9 @@ class _PartTimerDashboardScreenState extends State<PartTimerDashboardScreen> {
         Container(
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-              color: _primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8)),
+            color: _primary.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
           child: Icon(icon, color: _primary, size: 16),
         ),
         const SizedBox(width: 10),
@@ -516,8 +976,8 @@ class _PartTimerDashboardScreenState extends State<PartTimerDashboardScreen> {
     final locationName = _locationName(s.workLocation);
     final dateObj      = s.workDate;
 
-    Color statusColor   = Colors.orange;
-    String statusText   = '⏳ Pending';
+    Color  statusColor = Colors.orange;
+    String statusText  = '⏳ Pending';
     if (s.acceptanceStatus == 1) {
       statusColor = Colors.green;
       statusText  = '✅ Accepted';
@@ -544,43 +1004,44 @@ class _PartTimerDashboardScreenState extends State<PartTimerDashboardScreen> {
         onTap: () async {
           final attProv = Provider.of<Attendances>(context, listen: false);
           final isClockedIn = await attProv.checkAttendance(
-              staffId: _currentStaff?.staffId ?? 0,
-              scheduleId: s.schedId);
+            staffId:    _currentStaff?.staffId ?? 0,
+            scheduleId: s.schedId,
+          );
           if (!mounted) return;
-          final result = await Navigator.push(
+
+          final result = await Navigator.push<Map<String, dynamic>>(
             context,
             MaterialPageRoute(
-              builder: (_) => StaffScheduleDetailsScreen(
+              builder: (_) => PartTimerScheduleDetailsScreen(
                 location:         locationName,
                 workDate:         s.workDate,
-                assignedStaff:    [_currentStaff?.firstname ?? ''],
                 startTime:        s.workStartTime.toString(),
                 endTime:          s.workEndTime.toString(),
-                startBreak:       s.breakStartTime.toString(),
-                endBreak:         s.breakEndTime.toString(),
                 status:           isClockedIn ? 'Clocked In' : 'Not clocked in',
                 scheduleId:       s.schedId,
                 staffId:          _currentStaff?.staffId ?? 0,
                 acceptanceStatus: s.acceptanceStatus,
                 staffNote:        s.staffNote,
-                staffUsertype:    _currentStaff?.usertype ?? 7
               ),
             ),
           );
-          if (result != null && result['refreshDashboard'] == true) {
-            await _load();
-          }
+
+          debugPrint('=== Back from ScheduleDetails, result: $result ===');
+
+          // Always reload when returning from schedule details
+          // regardless of result value — ensures dashboard is fresh
+          await _load();
         },
         child: Row(children: [
-          // Date block
           Container(
             width: 72,
             padding: const EdgeInsets.symmetric(vertical: 18),
             decoration: const BoxDecoration(
               color: Color(0xFFFFF0E0),
               borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  bottomLeft: Radius.circular(16)),
+                topLeft:     Radius.circular(16),
+                bottomLeft:  Radius.circular(16),
+              ),
             ),
             child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -598,7 +1059,6 @@ class _PartTimerDashboardScreenState extends State<PartTimerDashboardScreen> {
             ]),
           ),
           Container(width: 1, height: 56, color: _cardBorder),
-          // Content
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(
@@ -653,8 +1113,30 @@ class _PartTimerDashboardScreenState extends State<PartTimerDashboardScreen> {
 
   // ── Payment card ───────────────────────────────────────────────────────────
   Widget _buildPaymentCard(Map<String, dynamic> payment) {
-    final date   = payment['date'] as DateTime;
+    final date   = payment['date']   as DateTime;
     final amount = payment['amount'] as double;
+    final status = payment['status'] as String? ?? 'draft';
+
+    Color  statusColor;
+    String statusLabel;
+    Color  statusBg;
+
+    switch (status) {
+      case 'published':
+        statusColor = Colors.teal;
+        statusBg    = Colors.teal.shade50;
+        statusLabel = 'Approved';
+        break;
+      case 'pending':
+        statusColor = Colors.orange;
+        statusBg    = Colors.orange.shade50;
+        statusLabel = 'Pending';
+        break;
+      default:
+        statusColor = Colors.grey;
+        statusBg    = Colors.grey.shade100;
+        statusLabel = 'Draft';
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -668,10 +1150,8 @@ class _PartTimerDashboardScreenState extends State<PartTimerDashboardScreen> {
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-              color: Colors.green.withOpacity(0.1),
-              shape: BoxShape.circle),
-          child: const Icon(Icons.payments_rounded,
-              color: Colors.green, size: 20),
+              color: statusColor.withOpacity(0.1), shape: BoxShape.circle),
+          child: Icon(Icons.payments_rounded, color: statusColor, size: 20),
         ),
         const SizedBox(width: 14),
         Expanded(
@@ -691,22 +1171,23 @@ class _PartTimerDashboardScreenState extends State<PartTimerDashboardScreen> {
         ),
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
           Text('RM ${amount.toStringAsFixed(2)}',
-              style: const TextStyle(
+              style: TextStyle(
                   fontWeight: FontWeight.w900,
                   fontSize: 15,
-                  color: Colors.green)),
+                  color: statusColor)),
+          const SizedBox(height: 4),
           Container(
             padding:
                 const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(
-              color: Colors.green.withOpacity(0.1),
+              color: statusBg,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Text('Paid',
+            child: Text(statusLabel,
                 style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
-                    color: Colors.green)),
+                    color: statusColor)),
           ),
         ]),
       ]),

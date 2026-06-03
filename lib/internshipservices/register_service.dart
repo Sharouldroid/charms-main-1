@@ -89,19 +89,20 @@ class RegisterService {
   }
 
   // Fetch interns
-  Future<List<Map<String, dynamic>>> fetchInterns() async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/api/internship/registers'),
-      headers: _headers(),
-    );
+Future<List<Map<String, dynamic>>> fetchInterns() async {
+  final response = await http.get(
+    Uri.parse('$baseUrl/api/internship/registers'),
+    headers: _headers(),
+  );
 
-    if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
-      return List<Map<String, dynamic>>.from(data);
-    }
-
-    throw Exception('Failed to load interns: ${response.statusCode} ${response.body}');
+  if (response.statusCode == 200) {
+    final body = jsonDecode(response.body);
+    final List<dynamic> data = body['data'] ?? []; // ✅ unwrap the 'data' key
+    return List<Map<String, dynamic>>.from(data);
   }
+
+  throw Exception('Failed to load interns: ${response.statusCode} ${response.body}');
+}
 
   // GET /api/internship/registers/{id}
   Future<Register> getInternDetails(int internId) async {

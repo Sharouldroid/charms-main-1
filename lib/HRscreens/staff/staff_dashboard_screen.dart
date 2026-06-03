@@ -20,6 +20,7 @@ import 'package:charms/HRproviders/auth.dart' as hr_auth;
 import 'package:charms/utils/logout_helper.dart';
 import 'package:charms/HRproviders/schedule_exchanges.dart';
 import 'package:charms/HRscreens/staff/staff_attendance_history_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // ✅ NEW
 
 class StaffDashboardScreen extends StatefulWidget {
   final String username;
@@ -92,7 +93,6 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
       final schedulesProvider = Provider.of<Schedules>(context, listen: false);
       final leavesProvider    = Provider.of<Leaves>(context, listen: false);
       final claimsProvider    = Provider.of<Claims>(context, listen: false);
-      final hrAuth            = Provider.of<hr_auth.Auth>(context, listen: false);
       final exchangesProvider = Provider.of<ScheduleExchanges>(context, listen: false);
 
       await Future.wait([
@@ -141,6 +141,27 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
       }
     } catch (error) {
       if (_mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // ✅ NEW — reads dismissed IDs from SharedPreferences
+  // Same keys as StaffNotificationScreen so they stay in sync
+  Future<Map<String, Set<String>>> _loadDismissedIds(int staffId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return {
+        'leaves':    (prefs.getStringList('dismissed_leaves_$staffId')    ?? []).toSet(),
+        'claims':    (prefs.getStringList('dismissed_claims_$staffId')    ?? []).toSet(),
+        'schedules': (prefs.getStringList('dismissed_schedules_$staffId') ?? []).toSet(),
+        'exchanges': (prefs.getStringList('dismissed_exchanges_$staffId') ?? []).toSet(),
+      };
+    } catch (_) {
+      return {
+        'leaves':    {},
+        'claims':    {},
+        'schedules': {},
+        'exchanges': {},
+      };
     }
   }
 
@@ -218,46 +239,92 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                         username: widget.username)),
               ),
             ),
+
+          // ✅ FIXED bell badge — reads dismissed IDs from SharedPreferences
           Consumer4<Leaves, Claims, Schedules, ScheduleExchanges>(
-            builder: (context, leaves, claims, schedules, exchanges, child) {
+            builder: (context, leaves, claims, schedules,
+                exchanges, child) {
               final staffId = _currentStaff?.staffId ?? 0;
               if (staffId == 0) {
                 return const Icon(Icons.notifications_none_rounded);
               }
 
-              final totalNotifications =
-                  leaves.leaves.where((l) => l.staffId == staffId && l.status != 'Pending').length +
-                  claims.claims.where((c) => c.staffId == staffId && c.status != 'Pending').length +
-                  schedules.schedules.where((s) => s.staffId == staffId).length +
-                  exchanges.exchanges.where((e) => e.targetId == staffId && e.status == 0).length +
-                  exchanges.exchanges.where((e) => e.requesterId == staffId && e.status != 0).length;
+              return FutureBuilder<Map<String, Set<String>>>(
+                future: _loadDismissedIds(staffId),
+                builder: (context, snapshot) {
+                  final dismissed = snapshot.data ?? {
+                    'leaves':    <String>{},
+                    'claims':    <String>{},
+                    'schedules': <String>{},
+                    'exchanges': <String>{},
+                  };
 
-              return IconButton(
-                icon: totalNotifications > 0
-                    ? Badge(
-                        label: Text(totalNotifications.toString()),
-                        backgroundColor: Colors.redAccent,
-                        child: const Icon(
-                            Icons.notifications_active_rounded))
-                    : const Icon(Icons.notifications_none_rounded),
-                onPressed: () async {
-                  final result = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => StaffNotificationScreen(
-                        staffId:     _currentStaff?.staffId ?? 0,
-                        isPartTimer: false, // ✅ regular staff
-                      ),
-                    ),
+                  final dismissedLeaves    = dismissed['leaves']!;
+                  final dismissedClaims    = dismissed['claims']!;
+                  final dismissedSchedules = dismissed['schedules']!;
+                  final dismissedExchanges = dismissed['exchanges']!;
+
+                  final totalNotifications =
+                      leaves.leaves.where((l) =>
+                          l.staffId == staffId &&
+                          l.status != 'Pending' &&
+                          !dismissedLeaves.contains(
+                              l.leaveId.toString())).length +
+                      claims.claims.where((c) =>
+                          c.staffId == staffId &&
+                          c.status != 'Pending' &&
+                          !dismissedClaims.contains(
+                              c.claimId.toString())).length +
+                      schedules.schedules.where((s) =>
+                          s.staffId == staffId &&
+                          !dismissedSchedules.contains(
+                              s.schedId.toString())).length +
+                      exchanges.exchanges.where((e) =>
+                          e.targetId == staffId &&
+                          e.status == 0 &&
+                          !dismissedExchanges.contains(
+                              e.exchangeId.toString())).length +
+                      exchanges.exchanges.where((e) =>
+                          e.requesterId == staffId &&
+                          e.status != 0 &&
+                          !dismissedExchanges.contains(
+                              e.exchangeId.toString())).length;
+
+                  return IconButton(
+                    icon: totalNotifications > 0
+                        ? Badge(
+                            label: Text(
+                                totalNotifications.toString()),
+                            backgroundColor: Colors.redAccent,
+                            child: const Icon(
+                                Icons.notifications_active_rounded))
+                        : const Icon(
+                            Icons.notifications_none_rounded),
+                    onPressed: () async {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              StaffNotificationScreen(
+                            staffId:     staffId,
+                            isPartTimer: false,
+                          ),
+                        ),
+                      );
+                      if (result != null &&
+                          result['refreshDashboard'] == true) {
+                        await _loadStaffData();
+                      }
+                      // ✅ Force FutureBuilder to re-read
+                      // SharedPreferences after returning
+                      if (_mounted) setState(() {});
+                    },
                   );
-                  if (result != null &&
-                      result['refreshDashboard'] == true) {
-                    await _loadStaffData();
-                  }
                 },
               );
             },
           ),
+
           IconButton(
               icon: const Icon(Icons.logout_rounded),
               tooltip: 'Logout',
@@ -278,7 +345,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Welcome header ────────────────────────────────────────────────
+        // ── Welcome header ─────────────────────────────────────────────
         Container(
           width: double.infinity,
           padding: const EdgeInsets.only(
@@ -315,7 +382,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
           ),
         ),
 
-        // ── Attendance history card ───────────────────────────────────────
+        // ── Attendance history card ─────────────────────────────────────
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
           child: GestureDetector(
@@ -416,7 +483,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                     final schedule      = _staffSchedules[index];
                     final currentBranch =
                         getBranchName(schedule.workLocation);
-                    final dateObj       = schedule.workDate;
+                    final dateObj = schedule.workDate;
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12.0),
@@ -431,8 +498,8 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                           final attendanceProvider =
                               Provider.of<Attendances>(context,
                                   listen: false);
-                          final isClockIn =
-                              await attendanceProvider.checkAttendance(
+                          final isClockIn = await attendanceProvider
+                              .checkAttendance(
                                   staffId:
                                       _currentStaff?.staffId ?? 0,
                                   scheduleId: schedule.schedId);
@@ -454,7 +521,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                                 staffId:          _currentStaff?.staffId ?? 0,
                                 acceptanceStatus: schedule.acceptanceStatus,
                                 staffNote:        schedule.staffNote,
-                                staffUsertype:    _currentStaff?.usertype ?? 7, // ✅
+                                staffUsertype:    _currentStaff?.usertype ?? 7,
                               ),
                             ),
                           );
@@ -464,7 +531,6 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                           }
                         },
                         child: Row(children: [
-                          // Date block
                           Container(
                             width: 80,
                             padding: const EdgeInsets.symmetric(
@@ -510,45 +576,64 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                                       style: const TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.bold,
-                                          color: Color(0xFF1E293B))),
+                                          color:
+                                              Color(0xFF1E293B))),
                                   const SizedBox(height: 6),
                                   Row(children: [
-                                    Icon(Icons.access_time_rounded,
+                                    Icon(
+                                        Icons.access_time_rounded,
                                         size: 14,
-                                        color: Colors.grey.shade500),
+                                        color:
+                                            Colors.grey.shade500),
                                     const SizedBox(width: 4),
                                     Text(
                                         '${schedule.workStartTime} - ${schedule.workEndTime}',
                                         style: TextStyle(
-                                            color: Colors.grey.shade600,
+                                            color:
+                                                Colors.grey.shade600,
                                             fontWeight:
                                                 FontWeight.w500)),
                                   ]),
                                   const SizedBox(height: 4),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 2),
+                                    padding:
+                                        const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: schedule.acceptanceStatus == 1
-                                          ? Colors.green.withOpacity(0.1)
-                                          : schedule.acceptanceStatus == 2
-                                              ? Colors.red.withOpacity(0.1)
-                                              : Colors.orange.withOpacity(0.1),
+                                      color: schedule
+                                                  .acceptanceStatus ==
+                                              1
+                                          ? Colors.green
+                                              .withOpacity(0.1)
+                                          : schedule
+                                                      .acceptanceStatus ==
+                                                  2
+                                              ? Colors.red
+                                                  .withOpacity(0.1)
+                                              : Colors.orange
+                                                  .withOpacity(0.1),
                                       borderRadius:
                                           BorderRadius.circular(6),
                                     ),
                                     child: Text(
                                       schedule.acceptanceStatus == 1
                                           ? '✅ Accepted'
-                                          : schedule.acceptanceStatus == 2
+                                          : schedule
+                                                      .acceptanceStatus ==
+                                                  2
                                               ? '❌ Not Accepted'
                                               : '⏳ Pending',
                                       style: TextStyle(
                                           fontSize: 10,
-                                          fontWeight: FontWeight.w700,
-                                          color: schedule.acceptanceStatus == 1
+                                          fontWeight:
+                                              FontWeight.w700,
+                                          color: schedule
+                                                      .acceptanceStatus ==
+                                                  1
                                               ? Colors.green
-                                              : schedule.acceptanceStatus == 2
+                                              : schedule.acceptanceStatus ==
+                                                      2
                                                   ? Colors.red
                                                   : Colors.orange),
                                     ),

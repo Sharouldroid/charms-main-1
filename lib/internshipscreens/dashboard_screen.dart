@@ -498,7 +498,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
             builder: (context) => ScheduleCalendar(isAdmin: true, userId: widget.userId),
           ));
         }),
-        _buildDashboardButton(context, 'Intern List', Icons.person_add, () {}),
+       _buildDashboardButton(context, 'Intern List', Icons.person_add, () {
+          Navigator.push(context, MaterialPageRoute(
+            builder: (context) => const InternListPage(),
+          ));
+        }),
         _buildDashboardButton(context, 'Monitor Performance', Icons.monitor, () {
           Navigator.push(context, MaterialPageRoute(
             builder: (context) => MonitorPerformancePage(role: widget.role, userId: widget.userId),
@@ -506,7 +510,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }),
         _buildDashboardButton(context, 'Assessment', Icons.assessment, () {
           Navigator.push(context, MaterialPageRoute(
-            builder: (context) => const InternListPage(),
+            builder: (context) => const AssessmentListPage(), // ← changed
           ));
         }),
         _buildDashboardButton(context, 'Intern Submissions', Icons.assignment, () {

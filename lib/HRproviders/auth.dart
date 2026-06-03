@@ -29,8 +29,6 @@ class Auth with ChangeNotifier {
   int get usertype => _usertype;
 
   // ── Login ─────────────────────────────────────────────────────────
-  // saveSession: false when called silently from auth_card.dart
-  // so it never writes hrUserData to prefs → tryAutoLogin stays clean
   Future<int> authenticate(String username, String passkey,
       {bool saveSession = true}) async {
     const url = '${_hostname}user/auth';
@@ -65,19 +63,18 @@ class Auth with ChangeNotifier {
 
       _profilePicture = data['staff_image_url']?.toString() ?? '';
 
-      // ── Only persist when explicitly requested ───────────────────
       if (saveSession) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(
           _prefsKey,
           json.encode({
-            'token':         _token,
-            'userId':        _userId,
-            'usertype':      _usertype,
-            'username':      _username,
+            'token':          _token,
+            'userId':         _userId,
+            'usertype':       _usertype,
+            'username':       _username,
             'profilePicture': _profilePicture,
-            'expiryDate':    _expiryDate.toIso8601String(),
-            'lastLoginTime': lastLoginTime?.toIso8601String(),
+            'expiryDate':     _expiryDate.toIso8601String(),
+            'lastLoginTime':  lastLoginTime?.toIso8601String(),
           }),
         );
       }
@@ -189,6 +186,14 @@ class Auth with ChangeNotifier {
         throw Exception('User creation failed: ${userRes.body}');
       }
 
+      // ✅ DEBUG — check exactly what is being sent to Step 3
+      debugPrint('=== STEP 3 PAYLOAD DEBUG ===');
+      debugPrint('user_id: $userdataId');
+      debugPrint('usertype: ${staffData['usertype']}');
+      debugPrint('day_rate: ${staffData['day_rate']}');
+      debugPrint('category: ${staffData['category']}');
+      debugPrint('full staffData map: $staffData');
+
       // STEP 3: create HR_staff profile
       final profileRes = await http.post(
         Uri.parse(staffProfileUrl),
@@ -212,6 +217,7 @@ class Auth with ChangeNotifier {
       );
 
       debugPrint('PROFILE CREATE STATUS: ${profileRes.statusCode}');
+      debugPrint('PROFILE RESPONSE BODY: ${profileRes.body}'); // ✅ see full response
       if (profileRes.statusCode != 200 && profileRes.statusCode != 201) {
         throw Exception('Staff profile creation failed: ${profileRes.body}');
       }
@@ -262,7 +268,7 @@ class Auth with ChangeNotifier {
     notifyListeners();
 
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_prefsKey); // only removes HR key
+    await prefs.remove(_prefsKey);
   }
 
   void _autoLogout() {

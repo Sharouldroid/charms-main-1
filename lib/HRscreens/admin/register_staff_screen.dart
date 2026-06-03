@@ -77,15 +77,15 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
     'emergency_gender':   '',
     'emergency_phone':    '',
     'department':         '',
-    'day_rate':           '0', // ✅ NEW
+    'day_rate':           '0',
   };
 
   bool _isLoading      = false;
-  bool _isPartTimer    = false; // ✅ track if part timer selected
+  bool _isPartTimer    = false;
   DateTime? _selectedDate;
   XFile? _profileImage;
   final ImagePicker _picker = ImagePicker();
-  final TextEditingController _dayRateController = TextEditingController(); // ✅
+  final TextEditingController _dayRateController = TextEditingController();
 
   late String _tempPassword;
 
@@ -124,16 +124,16 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
     setState(() => _isLoading = true);
 
     try {
-      _staffData['password']        = _tempPassword;
-      _staffData['passkey']         = _tempPassword;
-      _staffData['category']        = (_staffData['category'] ?? '').isEmpty ? '1' : _staffData['category']!;
-      _staffData['usertype']        = (_staffData['usertype'] ?? '').isEmpty ? '7' : _staffData['usertype']!;
-      _staffData['marital_status']  = (_staffData['marital_status'] ?? '').isEmpty ? '1' : _staffData['marital_status']!;
+      _staffData['password']         = _tempPassword;
+      _staffData['passkey']          = _tempPassword;
+      _staffData['category']         = (_staffData['category'] ?? '').isEmpty ? '1' : _staffData['category']!;
+      _staffData['usertype']         = (_staffData['usertype'] ?? '').isEmpty ? '7' : _staffData['usertype']!;
+      _staffData['marital_status']   = (_staffData['marital_status'] ?? '').isEmpty ? '1' : _staffData['marital_status']!;
       _staffData['emergency_gender'] = (_staffData['emergency_gender'] ?? '').isEmpty ? '1' : _staffData['emergency_gender']!;
-      _staffData['filename']        = _staffData['filename'] ?? '';
+      _staffData['filename']         = _staffData['filename'] ?? '';
 
-      // ✅ Only send day_rate if part timer
-      if (!_isPartTimer) _staffData['day_rate'] = '0';
+      // Only send day_rate if part timer
+      if (_staffData['usertype'] != '12') _staffData['day_rate'] = '0';
 
       final int staffId = await Provider.of<Auth>(context, listen: false)
           .registerStaff(_staffData);
@@ -179,8 +179,8 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
     );
     if (pickedDate != null) {
       setState(() {
-        _selectedDate       = pickedDate;
-        _staffData['dob']   = pickedDate.toIso8601String();
+        _selectedDate     = pickedDate;
+        _staffData['dob'] = pickedDate.toIso8601String();
       });
     }
   }
@@ -397,6 +397,7 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
                   ],
                   onChanged: (value) =>
                       setState(() => _staffData['gender'] = value!),
+                  onSaved: (value) => _staffData['gender'] = value ?? '1', // ✅ FIXED
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -426,6 +427,7 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
                   ],
                   onChanged: (value) =>
                       setState(() => _staffData['marital_status'] = value!),
+                  onSaved: (value) => _staffData['marital_status'] = value ?? '1', // ✅ FIXED
                 ),
 
                 // ── Contact Information ───────────────────────────────────────
@@ -512,7 +514,7 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
                 _buildSectionHeader(
                     'Employment Details', Icons.work_rounded),
 
-                // ✅ Role dropdown — includes Part Timer
+                // Role dropdown — includes Part Timer
                 DropdownButtonFormField<String>(
                   decoration: _buildRequiredInputDecoration(
                       'Role', Icons.admin_panel_settings_rounded),
@@ -540,20 +542,20 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
                   onChanged: (value) {
                     setState(() {
                       _staffData['usertype'] = value!;
-                      _isPartTimer           = value == '12'; // ✅
-                      // Reset day_rate when switching away from part timer
+                      _isPartTimer           = value == '12';
                       if (!_isPartTimer) {
                         _dayRateController.clear();
                         _staffData['day_rate'] = '0';
                       }
                     });
                   },
+                  onSaved: (value) => _staffData['usertype'] = value ?? '7', // ✅ FIX: ensures usertype is saved on form.save()
                   validator: (value) =>
                       value == null ? 'Please select a role' : null,
                 ),
                 const SizedBox(height: 16),
 
-                // ✅ Day Rate field — only shown for Part Timer
+                // Day Rate field — only shown for Part Timer
                 if (_isPartTimer) ...[
                   Container(
                     padding: const EdgeInsets.all(14),
@@ -729,6 +731,7 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
                   ],
                   onChanged: (value) =>
                       setState(() => _staffData['emergency_gender'] = value!),
+                  onSaved: (value) => _staffData['emergency_gender'] = value ?? '1', // ✅ FIXED
                 ),
                 const SizedBox(height: 16),
                 TextFormField(

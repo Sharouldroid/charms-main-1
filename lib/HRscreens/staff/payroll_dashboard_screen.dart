@@ -5,7 +5,6 @@ import 'package:charms/HRproviders/leaves.dart';
 import 'package:charms/HRproviders/payments.dart';
 import 'package:charms/HRproviders/schedules.dart';
 import 'package:charms/HRproviders/staffs.dart';
-//import 'package:charms/HRproviders/auth.dart' as hr_auth;
 import 'package:charms/HRscreens/staff/claim_dashboard.dart';
 import 'package:charms/HRscreens/staff/leave_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
@@ -17,6 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:charms/utils/logout_helper.dart';
 import 'package:charms/HRproviders/schedule_exchanges.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // ✅ NEW
 
 class PayrollDashboardScreen extends StatefulWidget {
   final String username;
@@ -52,7 +52,6 @@ class _PayrollDashboardScreenState extends State<PayrollDashboardScreen> {
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
   ];
 
-  // ── Profile completion check ───────────────────────────────────────────────
   bool get _isProfileIncomplete {
     if (_currentStaff == null) return false;
     return _currentStaff!.idNum.isEmpty ||
@@ -125,6 +124,21 @@ class _PayrollDashboardScreenState extends State<PayrollDashboardScreen> {
     }
   }
 
+  // ✅ Same helper as other staff screens
+  Future<Map<String, Set<String>>> _loadDismissedIds(int staffId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return {
+        'leaves':    (prefs.getStringList('dismissed_leaves_$staffId')    ?? []).toSet(),
+        'claims':    (prefs.getStringList('dismissed_claims_$staffId')    ?? []).toSet(),
+        'schedules': (prefs.getStringList('dismissed_schedules_$staffId') ?? []).toSet(),
+        'exchanges': (prefs.getStringList('dismissed_exchanges_$staffId') ?? []).toSet(),
+      };
+    } catch (_) {
+      return {'leaves': {}, 'claims': {}, 'schedules': {}, 'exchanges': {}};
+    }
+  }
+
   void _viewPayslip(String monthName) {
     try {
       final monthIndex = months.indexOf(monthName) + 1;
@@ -152,8 +166,7 @@ class _PayrollDashboardScreenState extends State<PayrollDashboardScreen> {
       );
     } catch (_) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Payslip data not available for $monthName')),
+        SnackBar(content: Text('Payslip data not available for $monthName')),
       );
     }
   }
@@ -211,31 +224,66 @@ class _PayrollDashboardScreenState extends State<PayrollDashboardScreen> {
         iconTheme: const IconThemeData(color: Colors.white),
         automaticallyImplyLeading: false,
         actions: [
-          // ── Notification badge ────────────────────────────────────────
+          // ✅ FIXED bell badge — reads dismissed IDs from SharedPreferences
           Consumer4<Leaves, Claims, Schedules, ScheduleExchanges>(
             builder: (context, leaves, claims, schedules, exchanges, child) {
               final staffId = _currentStaff?.staffId ?? 0;
 
-              final totalNotifications =
-                  leaves.leaves.where((l) => l.staffId == staffId && l.status != 'Pending').length +
-                  claims.claims.where((c) => c.staffId == staffId && c.status != 'Pending').length +
-                  schedules.schedules.where((s) => s.staffId == staffId).length +
-                  exchanges.exchanges.where((e) => e.targetId == staffId && e.status == 0).length +
-                  exchanges.exchanges.where((e) => e.requesterId == staffId && e.status != 0).length;
+              return FutureBuilder<Map<String, Set<String>>>(
+                future: _loadDismissedIds(staffId),
+                builder: (context, snapshot) {
+                  final dismissed = snapshot.data ?? {
+                    'leaves':    <String>{},
+                    'claims':    <String>{},
+                    'schedules': <String>{},
+                    'exchanges': <String>{},
+                  };
+                  final dl = dismissed['leaves']!;
+                  final dc = dismissed['claims']!;
+                  final ds = dismissed['schedules']!;
+                  final de = dismissed['exchanges']!;
 
-              return IconButton(
-                icon: totalNotifications > 0
-                    ? Badge(
-                        label: Text(totalNotifications.toString()),
-                        backgroundColor: Colors.redAccent,
-                        child: const Icon(Icons.notifications_active_rounded))
-                    : const Icon(Icons.notifications_none_rounded),
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) =>
-                          StaffNotificationScreen(staffId: staffId)),
-                ),
+                  final totalNotifications =
+                      leaves.leaves.where((l) =>
+                          l.staffId == staffId &&
+                          l.status != 'Pending' &&
+                          !dl.contains(l.leaveId.toString())).length +
+                      claims.claims.where((c) =>
+                          c.staffId == staffId &&
+                          c.status != 'Pending' &&
+                          !dc.contains(c.claimId.toString())).length +
+                      schedules.schedules.where((s) =>
+                          s.staffId == staffId &&
+                          !ds.contains(s.schedId.toString())).length +
+                      exchanges.exchanges.where((e) =>
+                          e.targetId == staffId &&
+                          e.status == 0 &&
+                          !de.contains(e.exchangeId.toString())).length +
+                      exchanges.exchanges.where((e) =>
+                          e.requesterId == staffId &&
+                          e.status != 0 &&
+                          !de.contains(e.exchangeId.toString())).length;
+
+                  return IconButton(
+                    icon: totalNotifications > 0
+                        ? Badge(
+                            label: Text(totalNotifications.toString()),
+                            backgroundColor: Colors.redAccent,
+                            child: const Icon(
+                                Icons.notifications_active_rounded))
+                        : const Icon(Icons.notifications_none_rounded),
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) =>
+                                StaffNotificationScreen(staffId: staffId)),
+                      );
+                      // ✅ Force FutureBuilder to re-read SharedPreferences
+                      if (mounted) setState(() {});
+                    },
+                  );
+                },
               );
             },
           ),
@@ -333,11 +381,11 @@ class _PayrollDashboardScreenState extends State<PayrollDashboardScreen> {
                             );
 
                             return _MonthCard(
-                              shortName:   shortName,
-                              fullName:    monthName,
-                              hasPayslip:  hasPayslip,
+                              shortName:    shortName,
+                              fullName:     monthName,
+                              hasPayslip:   hasPayslip,
                               staffPrimary: staffPrimary,
-                              cardBorder:  staffCardBorder,
+                              cardBorder:   staffCardBorder,
                               onTap: hasPayslip
                                   ? () => _viewPayslip(monthName)
                                   : null,
@@ -352,14 +400,14 @@ class _PayrollDashboardScreenState extends State<PayrollDashboardScreen> {
             ]),
       bottomNavigationBar: BottomNavStaff(
         selectedIndex: _selectedIndex,
-        onItemTapped: _onItemTapped,
-        showMyselfDot: _isProfileIncomplete, // ✅
+        onItemTapped:  _onItemTapped,
+        showMyselfDot: _isProfileIncomplete,
       ),
     );
   }
 }
 
-// ── Year picker pill ──────────────────────────────────────────────────────────
+// ── Year picker pill ───────────────────────────────────────────────────────────
 class _YearPicker extends StatelessWidget {
   final int selectedYear;
   final ValueChanged<int> onChanged;
@@ -380,9 +428,7 @@ class _YearPicker extends StatelessWidget {
           value: selectedYear,
           dropdownColor: const Color(0xFF4F46E5),
           style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w700),
+              color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
           icon: const Icon(Icons.expand_more_rounded,
               color: Colors.white, size: 18),
           items: List.generate(5, (i) => DateTime.now().year - i)
@@ -400,7 +446,7 @@ class _YearPicker extends StatelessWidget {
   }
 }
 
-// ── Month card ────────────────────────────────────────────────────────────────
+// ── Month card ─────────────────────────────────────────────────────────────────
 class _MonthCard extends StatelessWidget {
   final String shortName;
   final String fullName;
@@ -428,9 +474,7 @@ class _MonthCard extends StatelessWidget {
           color: hasPayslip ? staffPrimary.withOpacity(0.06) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: hasPayslip
-                ? staffPrimary.withOpacity(0.35)
-                : cardBorder,
+            color: hasPayslip ? staffPrimary.withOpacity(0.35) : cardBorder,
             width: hasPayslip ? 1.5 : 1.0,
           ),
         ),
@@ -438,8 +482,7 @@ class _MonthCard extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 10, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: hasPayslip
                     ? staffPrimary.withOpacity(0.12)
@@ -451,9 +494,7 @@ class _MonthCard extends StatelessWidget {
                 style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
-                    color: hasPayslip
-                        ? staffPrimary
-                        : Colors.grey.shade400,
+                    color: hasPayslip ? staffPrimary : Colors.grey.shade400,
                     letterSpacing: 0.5),
               ),
             ),
@@ -463,8 +504,7 @@ class _MonthCard extends StatelessWidget {
                   ? Icons.description_rounded
                   : Icons.remove_circle_outline_rounded,
               size: 26,
-              color:
-                  hasPayslip ? staffPrimary : Colors.grey.shade300,
+              color: hasPayslip ? staffPrimary : Colors.grey.shade300,
             ),
             const SizedBox(height: 6),
             Text(
@@ -472,9 +512,7 @@ class _MonthCard extends StatelessWidget {
               style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: hasPayslip
-                      ? staffPrimary
-                      : Colors.grey.shade400),
+                  color: hasPayslip ? staffPrimary : Colors.grey.shade400),
             ),
           ],
         ),

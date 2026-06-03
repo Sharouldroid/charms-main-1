@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:charms/internshipservices/assesstment_service.dart';
 
-
-
 class AssessmentProvider with ChangeNotifier {
   Map<String, int> _ratings = {
     'criterion_1': 1,
@@ -12,16 +10,53 @@ class AssessmentProvider with ChangeNotifier {
     'criterion_5': 1,
   };
 
+  List<Map<String, dynamic>> _interns = [];
+  List<Map<String, dynamic>> _filteredInterns = [];
+
   bool _isLoading = false;
   String? _errorMessage;
 
   Map<String, int> get ratings => _ratings;
+  List<Map<String, dynamic>> get interns => _interns;
+  List<Map<String, dynamic>> get filteredInterns => _filteredInterns;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
   void setRating(String criterion, int value) {
     if (_ratings.containsKey(criterion)) {
       _ratings[criterion] = value;
+      notifyListeners();
+    }
+  }
+
+  void searchInterns(String query) {
+    if (query.isEmpty) {
+      _filteredInterns = List.from(_interns);
+    } else {
+      final q = query.toLowerCase();
+      _filteredInterns = _interns.where((intern) {
+        final name = (intern['name'] ?? '').toString().toLowerCase();
+        final email = (intern['email'] ?? '').toString().toLowerCase();
+        final university = (intern['university'] ?? '').toString().toLowerCase();
+        return name.contains(q) || email.contains(q) || university.contains(q);
+      }).toList();
+    }
+    notifyListeners();
+  }
+
+  Future<void> fetchInterns() async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final data = await AssessmentService().getInterns();
+      _interns = data;
+      _filteredInterns = List.from(_interns);
+    } catch (e) {
+      _errorMessage = 'Failed to load interns: $e';
+    } finally {
+      _isLoading = false;
       notifyListeners();
     }
   }
@@ -40,10 +75,10 @@ class AssessmentProvider with ChangeNotifier {
       if (data != null) {
         _ratings = data;
       } else {
-        _errorMessage = "No assessment data found";
+        _errorMessage = 'No assessment data found';
       }
     } catch (e) {
-      _errorMessage = "Failed to load assessment data: $e";
+      _errorMessage = 'Failed to load assessment data: $e';
     } finally {
       _isLoading = false;
       notifyListeners();
