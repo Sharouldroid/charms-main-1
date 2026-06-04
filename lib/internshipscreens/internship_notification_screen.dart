@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import 'dart:convert';
 import 'package:charms/main.dart';
 import 'package:charms/internshipproviders/internship_notification_provider.dart';
+import 'package:charms/internshipscreens/admin_submissions.dart';
+import 'package:charms/internshipscreens/intern_list_assesstment.dart';
 
 class InternshipNotificationScreen extends StatefulWidget {
   final int userId;
@@ -24,9 +26,9 @@ class _InternshipNotificationScreenState
     extends State<InternshipNotificationScreen> {
   List<Map<String, dynamic>> _notifications = [];
   bool _isLoading = true;
-  String? _debugError; // ✅ Show error on screen for debugging
+  String? _debugError;
 
-  final Color bgColor = const Color(0xFFF4F7FA);
+  final Color bgColor     = const Color(0xFFF4F7FA);
   final Color primaryBlue = const Color(0xFF2563EB);
 
   @override
@@ -36,63 +38,30 @@ class _InternshipNotificationScreenState
   }
 
   Future<void> _loadNotifications() async {
-    setState(() {
-      _isLoading = true;
-      _debugError = null;
-    });
-
+    setState(() { _isLoading = true; _debugError = null; });
     try {
       final url = widget.isAdmin
           ? '${AppConfig.hostname}/api/internship/notifications/admin'
           : '${AppConfig.hostname}/api/internship/notifications/user/${widget.userId}';
 
-      print('📥 Fetching notifications from: $url');
-      print('📥 isAdmin: ${widget.isAdmin} | userId: ${widget.userId}');
-
       final response = await http.get(Uri.parse(url));
-
-      print('📥 Status: ${response.statusCode}');
-      print('📥 Body: ${response.body}');
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
-
-        print('📥 Decoded type: ${decoded.runtimeType}');
-
         List<dynamic> list = [];
-
-        if (decoded is Map) {
-          print('📥 Keys: ${decoded.keys.toList()}');
-          if (decoded['data'] != null) {
-            final inner = decoded['data'];
-            print('📥 data type: ${inner.runtimeType}');
-            if (inner is List) {
-              list = inner;
-            } else if (inner is Map) {
-              list = [inner];
-            }
-          } else {
-            // Maybe response is flat map with notifications at root
-            print('📥 No data key found — keys: ${decoded.keys}');
-            setState(() => _debugError = 'Response has no "data" key. Keys: ${decoded.keys.toList()}');
-          }
+        if (decoded is Map && decoded['data'] != null) {
+          final inner = decoded['data'];
+          list = inner is List ? inner : [inner];
         } else if (decoded is List) {
           list = decoded;
         }
-
-        print('📥 Total notifications parsed: ${list.length}');
-
         setState(() {
           _notifications = list.map((e) => Map<String, dynamic>.from(e)).toList();
         });
-
       } else {
-        print('❌ Non-200 status: ${response.statusCode}');
-        setState(() => _debugError = 'API returned ${response.statusCode}: ${response.body}');
+        setState(() => _debugError = 'API returned ${response.statusCode}');
       }
-    } catch (e, stack) {
-      print('❌ Exception: $e');
-      print('❌ Stack: $stack');
+    } catch (e) {
       setState(() => _debugError = 'Exception: $e');
     } finally {
       setState(() => _isLoading = false);
@@ -111,7 +80,7 @@ class _InternshipNotificationScreenState
       });
       if (mounted) context.read<InternshipNotificationProvider>().decrementCount();
     } catch (e) {
-      print('❌ Error marking as read: $e');
+      debugPrint('❌ Error marking as read: $e');
     }
   }
 
@@ -120,22 +89,161 @@ class _InternshipNotificationScreenState
       final url = widget.isAdmin
           ? '${AppConfig.hostname}/api/internship/notifications/admin/read-all'
           : '${AppConfig.hostname}/api/internship/notifications/user/${widget.userId}/read-all';
-
       await http.put(Uri.parse(url), headers: {'Content-Type': 'application/json'});
-
-      setState(() {
-        for (final n in _notifications) n['is_read'] = 1;
-      });
-
+      setState(() { for (final n in _notifications) n['is_read'] = 1; });
       if (mounted) {
         context.read<InternshipNotificationProvider>().clearCount();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('All notifications marked as read'), backgroundColor: Colors.green),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('All notifications marked as read'),
+          backgroundColor: Colors.green,
+        ));
       }
     } catch (e) {
-      print('❌ Error marking all as read: $e');
+      debugPrint('❌ Error marking all as read: $e');
     }
+  }
+
+  Future<void> _clearAllNotifications() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(children: [
+          Icon(Icons.delete_forever, color: Colors.red, size: 22),
+          SizedBox(width: 8),
+          Text('Clear All', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        ]),
+        content: const Text(
+          'This will permanently delete all notifications. This action cannot be undone.',
+          style: TextStyle(fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete All'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    try {
+      // Delete each notification individually
+      for (final n in _notifications) {
+        await http.delete(
+          Uri.parse('${AppConfig.hostname}/api/internship/notifications/${n['id']}'),
+          headers: {'Content-Type': 'application/json'},
+        );
+      }
+      setState(() => _notifications.clear());
+      if (mounted) {
+        context.read<InternshipNotificationProvider>().clearCount();
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('All notifications cleared'),
+          backgroundColor: Colors.red,
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed to clear: $e'),
+          backgroundColor: Colors.red,
+        ));
+      }
+    }
+  }
+
+  void _handleNotificationTap(Map<String, dynamic> notification) {
+    final id   = notification['id'] as int;
+    final type = notification['type'] ?? '';
+
+    // Mark as read first
+    if (notification['is_read'] == 0) _markAsRead(id);
+
+    if (!widget.isAdmin) return; // Intern taps do nothing extra
+
+    // Admin navigation based on type
+    if (['new_document', 'document_approved', 'document_rejected',
+         'document_resubmit', 'document_status_updated'].contains(type)) {
+      Navigator.push(context, MaterialPageRoute(
+        builder: (_) => AdminSubmissionsPage(adminId: widget.userId),
+      ));
+    } else if (type == 'new_registration') {
+      Navigator.push(context, MaterialPageRoute(
+        builder: (_) => const InternListPage(),
+      ));
+    }
+  }
+
+  void _showOptionsMenu() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.done_all, color: Colors.green),
+              ),
+              title: const Text('Mark All as Read',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: const Text('Keep notifications, mark as read'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _markAllAsRead();
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.delete_forever, color: Colors.red),
+              ),
+              title: const Text('Clear All Notifications',
+                  style: TextStyle(fontWeight: FontWeight.w600, color: Colors.red)),
+              subtitle: const Text('Permanently delete all notifications'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _clearAllNotifications();
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
   }
 
   int get _unreadCount => _notifications.where((n) => n['is_read'] == 0).length;
@@ -149,21 +257,24 @@ class _InternshipNotificationScreenState
         backgroundColor: primaryBlue,
         iconTheme: const IconThemeData(color: Colors.white),
         title: const Text('NOTIFICATIONS',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+            style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2)),
         centerTitle: true,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
         ),
         actions: [
-          if (_unreadCount > 0)
-            TextButton(
-              onPressed: _markAllAsRead,
-              child: const Text('Read All', style: TextStyle(color: Colors.white70, fontSize: 12)),
-            ),
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: _loadNotifications,
           ),
+          if (_notifications.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.more_vert, color: Colors.white),
+              onPressed: _showOptionsMenu,
+            ),
         ],
       ),
       body: _isLoading
@@ -176,7 +287,6 @@ class _InternshipNotificationScreenState
     );
   }
 
-  // ✅ Show error details on screen to help debug
   Widget _buildErrorState() {
     return Center(
       child: Padding(
@@ -196,10 +306,8 @@ class _InternshipNotificationScreenState
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: Colors.red.shade200),
               ),
-              child: Text(
-                _debugError!,
-                style: TextStyle(fontSize: 12, color: Colors.red.shade800),
-              ),
+              child: Text(_debugError!,
+                  style: TextStyle(fontSize: 12, color: Colors.red.shade800)),
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
@@ -218,16 +326,16 @@ class _InternshipNotificationScreenState
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.notifications_off_rounded, size: 64, color: Colors.grey.shade300),
+          Icon(Icons.notifications_off_rounded, size: 72, color: Colors.grey.shade300),
           const SizedBox(height: 16),
           Text('No notifications yet',
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 16, fontWeight: FontWeight.w600)),
+              style: TextStyle(
+                  color: Colors.grey.shade500,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
-          // ✅ Show debug info
-          Text(
-            'URL: ${widget.isAdmin ? "admin" : "user/${widget.userId}"}',
-            style: TextStyle(color: Colors.grey.shade400, fontSize: 11),
-          ),
+          Text('You\'re all caught up!',
+              style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
         ],
       ),
     );
@@ -241,6 +349,7 @@ class _InternshipNotificationScreenState
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       children: [
+        // Unread count banner
         if (_unreadCount > 0) ...[
           Container(
             margin: const EdgeInsets.only(bottom: 16),
@@ -253,16 +362,23 @@ class _InternshipNotificationScreenState
             child: Row(children: [
               Icon(Icons.circle_notifications_rounded, color: primaryBlue, size: 20),
               const SizedBox(width: 8),
-              Text('$_unreadCount unread notification${_unreadCount > 1 ? 's' : ''}',
-                  style: TextStyle(color: primaryBlue, fontWeight: FontWeight.bold, fontSize: 13)),
+              Text(
+                '$_unreadCount unread notification${_unreadCount > 1 ? 's' : ''}',
+                style: TextStyle(
+                    color: primaryBlue,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13),
+              ),
             ]),
           ),
         ],
+
         if (unread.isNotEmpty) ...[
           _buildSectionHeader('New', Icons.fiber_new_rounded, Colors.redAccent),
           ...unread.map((n) => _buildNotificationCard(n)),
           const SizedBox(height: 8),
         ],
+
         if (read.isNotEmpty) ...[
           _buildSectionHeader('Earlier', Icons.history_rounded, Colors.grey),
           ...read.map((n) => _buildNotificationCard(n)),
@@ -277,7 +393,11 @@ class _InternshipNotificationScreenState
       child: Row(children: [
         Icon(icon, color: color, size: 18),
         const SizedBox(width: 8),
-        Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+        Text(title,
+            style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1E293B))),
       ]),
     );
   }
@@ -285,43 +405,55 @@ class _InternshipNotificationScreenState
   Widget _buildNotificationCard(Map<String, dynamic> notification) {
     final type   = notification['type'] ?? '';
     final isRead = notification['is_read'] == 1;
-    final id     = notification['id'] as int;
 
+    // Determine icon, color, title, subtitle per type
     IconData icon;
     Color    iconColor;
     String   title;
     String   subtitle;
+    bool     isTappable = false;
 
     switch (type) {
-      case 'document_approved':
-        icon = Icons.check_circle_rounded; iconColor = Colors.green;
-        title = 'Document Approved ✅';
-        subtitle = notification['message'] ?? 'Your document has been approved';
-        break;
-      case 'document_rejected':
-        icon = Icons.cancel_rounded; iconColor = Colors.redAccent;
-        title = notification['title'] ?? 'Document Rejected ❌';
-        subtitle = notification['message'] ?? 'Your document was rejected. Please resubmit';
-        break;
-      case 'registration_confirmed':
-        icon = Icons.how_to_reg_rounded; iconColor = Colors.blueAccent;
-        title = 'Registration Confirmed ✅';
-        subtitle = notification['message'] ?? 'Your internship registration is confirmed';
-        break;
       case 'new_document':
         icon = Icons.upload_file_rounded; iconColor = Colors.orange;
         title = notification['title'] ?? 'New Document Submitted';
         subtitle = notification['message'] ?? 'A new document has been uploaded';
+        isTappable = widget.isAdmin;
         break;
-      case 'new_registration':
-        icon = Icons.person_add_rounded; iconColor = Colors.purple;
-        title = 'New Intern Registered';
-        subtitle = notification['message'] ?? 'A new intern has registered';
+      case 'document_approved':
+        icon = Icons.check_circle_rounded; iconColor = Colors.green;
+        title = notification['title'] ?? 'Document Approved ✅';
+        subtitle = notification['message'] ?? 'Your document has been approved';
+        isTappable = widget.isAdmin;
+        break;
+      case 'document_rejected':
+        icon = Icons.cancel_rounded; iconColor = Colors.redAccent;
+        title = notification['title'] ?? 'Document Rejected ❌';
+        subtitle = notification['message'] ?? 'Your document was rejected';
+        isTappable = widget.isAdmin;
         break;
       case 'document_resubmit':
         icon = Icons.refresh_rounded; iconColor = Colors.blue;
         title = notification['title'] ?? 'Resubmission Requested 🔄';
         subtitle = notification['message'] ?? 'Please resubmit your document';
+        isTappable = widget.isAdmin;
+        break;
+      case 'document_status_updated':
+        icon = Icons.update_rounded; iconColor = Colors.teal;
+        title = notification['title'] ?? 'Submission Status Updated';
+        subtitle = notification['message'] ?? 'A submission status has changed';
+        isTappable = widget.isAdmin;
+        break;
+      case 'registration_confirmed':
+        icon = Icons.how_to_reg_rounded; iconColor = Colors.blueAccent;
+        title = notification['title'] ?? 'Registration Confirmed ✅';
+        subtitle = notification['message'] ?? 'Your internship registration is confirmed';
+        break;
+      case 'new_registration':
+        icon = Icons.person_add_rounded; iconColor = Colors.purple;
+        title = notification['title'] ?? 'New Intern Registered';
+        subtitle = notification['message'] ?? 'A new intern has registered';
+        isTappable = widget.isAdmin;
         break;
       default:
         icon = Icons.notifications_rounded; iconColor = Colors.blueAccent;
@@ -329,6 +461,7 @@ class _InternshipNotificationScreenState
         subtitle = notification['message'] ?? '';
     }
 
+    // Time ago
     String timeAgo = '';
     if (notification['created_at'] != null) {
       try {
@@ -348,47 +481,78 @@ class _InternshipNotificationScreenState
         border: isRead ? null : Border.all(color: iconColor.withOpacity(0.3), width: 1.5),
         boxShadow: [BoxShadow(
           color: Colors.black.withOpacity(isRead ? 0.03 : 0.06),
-          blurRadius: 10, offset: const Offset(0, 4),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
         )],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () { if (!isRead) _markAsRead(id); },
+          onTap: () => _handleNotificationTap(notification),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: iconColor.withOpacity(0.1), shape: BoxShape.circle),
+                decoration: BoxDecoration(
+                    color: iconColor.withOpacity(0.1),
+                    shape: BoxShape.circle),
                 child: Icon(icon, color: iconColor, size: 24),
               ),
               const SizedBox(width: 16),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  Expanded(child: Text(title, style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: isRead ? FontWeight.w500 : FontWeight.bold,
-                    color: const Color(0xFF1E293B),
-                  ))),
-                  if (!isRead) Container(
-                    width: 8, height: 8,
-                    decoration: BoxDecoration(color: iconColor, shape: BoxShape.circle),
-                  ),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    Expanded(
+                      child: Text(title,
+                          style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: isRead ? FontWeight.w500 : FontWeight.bold,
+                              color: const Color(0xFF1E293B))),
+                    ),
+                    if (!isRead)
+                      Container(
+                          width: 8, height: 8,
+                          decoration: BoxDecoration(
+                              color: iconColor, shape: BoxShape.circle)),
+                  ]),
+                  const SizedBox(height: 4),
+                  Text(subtitle,
+                      style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w500)),
+                  if (timeAgo.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Row(children: [
+                      Icon(Icons.access_time, size: 11, color: Colors.grey.shade400),
+                      const SizedBox(width: 4),
+                      Text(timeAgo,
+                          style: TextStyle(fontSize: 11, color: Colors.grey.shade400)),
+                      if (isTappable) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: iconColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text('Tap to view',
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  color: iconColor,
+                                  fontWeight: FontWeight.w600)),
+                        ),
+                      ],
+                    ]),
+                  ],
                 ]),
-                const SizedBox(height: 4),
-                Text(subtitle, style: TextStyle(fontSize: 13, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
-                if (timeAgo.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(timeAgo, style: TextStyle(fontSize: 11, color: Colors.grey.shade400)),
-                ],
-              ])),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(10)),
-                child: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
               ),
+              const SizedBox(width: 8),
+              Icon(Icons.arrow_forward_ios_rounded,
+                  size: 14,
+                  color: isTappable ? iconColor : Colors.grey.shade300),
             ]),
           ),
         ),

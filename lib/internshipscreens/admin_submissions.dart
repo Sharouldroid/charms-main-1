@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:charms/main.dart';
+import 'dart:html' as html;
 
 class AdminSubmissionsPage extends StatefulWidget {
   final int adminId;
@@ -54,34 +55,40 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
   }
 
   Future<void> _downloadFile(int submissionId, String fileName) async {
-    try {
-      _showLoadingDialog('Downloading file...');
+  try {
+    _showLoadingDialog('Downloading file...');
 
-      final response = await http.get(
-        Uri.parse('${AppConfig.hostname}/api/internship/documents/download/$submissionId')
-      );
-      
+    final response = await http.get(
+      Uri.parse('${AppConfig.hostname}/api/internship/documents/download/$submissionId'),
+    );
+
+    if (mounted) Navigator.of(context).pop();
+
+    if (response.statusCode == 200) {
+      final bytes = response.bodyBytes;
+      final blob = html.Blob([bytes]);
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      final anchor = html.AnchorElement(href: url)
+        ..setAttribute('download', fileName)
+        ..click();
+      html.Url.revokeObjectUrl(url);
+
       if (mounted) {
-        Navigator.of(context).pop(); // Close loading dialog
-      }
-
-      if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('File download initiated. Check your downloads folder.'),
+            content: Text('File downloaded successfully!'),
             backgroundColor: Colors.green,
           ),
         );
-      } else {
-        _showErrorMessage('Failed to download file');
       }
-    } catch (e) {
-      if (mounted) {
-        Navigator.of(context).pop(); // Close loading dialog if open
-      }
-      _showErrorMessage('Error downloading file: $e');
+    } else {
+      _showErrorMessage('Failed to download file: ${response.statusCode}');
     }
+  } catch (e) {
+    if (mounted) Navigator.of(context).pop();
+    _showErrorMessage('Error downloading file: $e');
   }
+}
 
   Future<void> _updateSubmissionStatus(
       int submissionId, String status, String comments) async {

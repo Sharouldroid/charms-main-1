@@ -1,8 +1,46 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:charms/main.dart';
 import 'package:charms/internshipproviders/register_provider.dart';
-import 'assesstment_screen.dart';
+import 'package:charms/internshipscreens/assessment_intern.dart';
 import 'package:charms/internshipscreens/intern_detail_submissions.dart';
+
+// ── Shared helper to build photo URL ──────────────────────────────────────────
+String? buildPhotoUrl(String? filepath) {
+  if (filepath == null || filepath.isEmpty) return null;
+  return 'https://devcms.com.my/charmsAPI/public/storage/$filepath';
+}
+
+// ── Shared avatar widget ───────────────────────────────────────────────────────
+Widget internAvatar(String firstName, String? photoUrl) {
+  return CircleAvatar(
+    radius: 25,
+    backgroundColor: Colors.blueAccent,
+    backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
+    child: photoUrl == null
+        ? Text(
+            firstName.isNotEmpty ? firstName[0].toUpperCase() : '?',
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          )
+        : null,
+  );
+}
+
+// ── Shared function to fetch all photos (user_id => filepath map) ──────────────
+Future<Map<String, String>> fetchAllPhotos() async {
+  try {
+    final response = await http.get(
+      Uri.parse('${AppConfig.hostname}/api/internship/registers/photos'),
+    );
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      return data.map((k, v) => MapEntry(k, v.toString()));
+    }
+  } catch (_) {}
+  return {};
+}
 
 // ─────────────────────────────────────────
 // INTERN LIST — view only (admin sees details)
@@ -16,6 +54,7 @@ class InternListPage extends StatefulWidget {
 
 class _InternListPageState extends State<InternListPage> {
   List<dynamic> _filteredInterns = [];
+  Map<String, String> _photoMap = {}; // user_id => filepath
 
   @override
   void initState() {
@@ -27,8 +66,12 @@ class _InternListPageState extends State<InternListPage> {
     await Provider.of<RegisterProvider>(context, listen: false).loadInterns();
     final interns =
         Provider.of<RegisterProvider>(context, listen: false).internList;
+
+    final photos = await fetchAllPhotos();
+
     setState(() {
       _filteredInterns = interns;
+      _photoMap = photos;
     });
   }
 
@@ -83,24 +126,22 @@ class _InternListPageState extends State<InternListPage> {
                       itemCount: _filteredInterns.length,
                       itemBuilder: (context, index) {
                         final intern = _filteredInterns[index];
+                        final userId = intern['user_id'].toString();
+                        final photoUrl = buildPhotoUrl(_photoMap[userId]);
+
                         return Card(
                           elevation: 3,
                           margin: const EdgeInsets.symmetric(vertical: 8.0),
                           child: ListTile(
-                            leading: CircleAvatar(
-                              radius: 25,
-                              backgroundColor: Colors.blueAccent,
-                              child: Text(
-                                intern['first_name'][0].toUpperCase(),
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                            ),
+                            leading: internAvatar(intern['first_name'], photoUrl),
                             title: Text(intern['first_name']),
                             subtitle: Text(
                               "Age: ${intern['age']} - Gender: ${intern['gender']}",
                             ),
                             trailing: const Icon(Icons.chevron_right),
                             onTap: () {
+                              final userId = intern['user_id']?.toString() ?? '';
+                              final photoUrl = buildPhotoUrl(_photoMap[userId]);
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -133,6 +174,7 @@ class AssessmentListPage extends StatefulWidget {
 
 class _AssessmentListPageState extends State<AssessmentListPage> {
   List<dynamic> _filteredInterns = [];
+  Map<String, String> _photoMap = {};
 
   @override
   void initState() {
@@ -144,24 +186,40 @@ class _AssessmentListPageState extends State<AssessmentListPage> {
     await Provider.of<RegisterProvider>(context, listen: false).loadInterns();
     final interns =
         Provider.of<RegisterProvider>(context, listen: false).internList;
+    for (var intern in interns) {
+    print('DEBUG intern: $intern');
+  }
+    final photos = await fetchAllPhotos();
+
+    print('DEBUG photoMap keys: ${photos.keys.toList()}');
+    print('DEBUG intern user_ids: ${interns.map((i) => i['user_id']).toList()}');
+
     setState(() {
-      _filteredInterns = interns;
+      //Filter out any interns with missing required fields
+      _filteredInterns = interns.where((intern) =>
+        intern != null &&
+        intern['first_name'] != null &&
+        intern['id'] != null
+      ).toList();
+      _photoMap = photos;
     });
   }
 
   void _filterInterns(String query) {
-    final interns =
-        Provider.of<RegisterProvider>(context, listen: false).internList;
-    setState(() {
-      _filteredInterns = query.isEmpty
-          ? interns
-          : interns
-              .where((intern) => intern['first_name']
-                  .toLowerCase()
-                  .contains(query.toLowerCase()))
-              .toList();
-    });
-  }
+  final interns =
+      Provider.of<RegisterProvider>(context, listen: false).internList;
+  final safe = interns.where((i) =>
+    i != null && i['first_name'] != null).toList();
+
+  setState(() {
+    _filteredInterns = query.isEmpty
+        ? safe
+        : safe.where((intern) => intern['first_name']
+            .toLowerCase()
+            .contains(query.toLowerCase()))
+            .toList();
+  });
+}
 
   @override
   Widget build(BuildContext context) {
@@ -200,19 +258,16 @@ class _AssessmentListPageState extends State<AssessmentListPage> {
                       itemCount: _filteredInterns.length,
                       itemBuilder: (context, index) {
                         final intern = _filteredInterns[index];
+                        final userId = intern['user_id']?.toString() ?? '';
+                        final firstName = intern['first_name'] ?? '?';
+                        final photoUrl = userId.isNotEmpty ? buildPhotoUrl(_photoMap[userId]) : null;
+
                         return Card(
                           elevation: 3,
                           margin: const EdgeInsets.symmetric(vertical: 8.0),
                           child: ListTile(
-                            leading: CircleAvatar(
-                              radius: 25,
-                              backgroundColor: Colors.blueAccent,
-                              child: Text(
-                                intern['first_name'][0].toUpperCase(),
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                            ),
-                            title: Text(intern['first_name']),
+                            leading: internAvatar(firstName, photoUrl),
+                            title: Text(firstName),
                             subtitle: Text(
                               "Age: ${intern['age']} - Gender: ${intern['gender']}",
                             ),
@@ -221,8 +276,14 @@ class _AssessmentListPageState extends State<AssessmentListPage> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) =>
-                                        NextPage(internId: intern['id']),
+                                    builder: (context) {
+                                      final userId = intern['user_id']?.toString() ?? '';
+                                      final photoUrl = buildPhotoUrl(_photoMap[userId]);
+                                      return AssessmentInternPage(
+                                        internId: intern['id'],
+                                        photoUrl: photoUrl,
+                                      );
+                                    },
                                   ),
                                 );
                               },

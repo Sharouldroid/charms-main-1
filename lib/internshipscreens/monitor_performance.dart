@@ -6,10 +6,10 @@ import 'package:charms/internshipproviders/register_provider.dart';
 import 'package:intl/intl.dart';
 
 class MonitorPerformancePage extends StatefulWidget {
-  final String role; // 'Admin' or 'Intern'
+  final String role;
   final int userId;
-  final String? internName; // For admin view
-  final String? internId; // For admin view
+  final String? internName;
+  final String? internId;
 
   const MonitorPerformancePage({
     super.key,
@@ -29,7 +29,6 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
   final TextEditingController _activityController = TextEditingController();
   final ActivityService _activityService = ActivityService();
 
-  // For admin view
   List<dynamic> _interns = [];
   int? _selectedInternId;
   String _selectedInternName = '';
@@ -51,71 +50,56 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
   }
 
   Future<void> _loadInterns() async {
-    setState(() {
-      _isLoading = true;
-    });
-
+    setState(() => _isLoading = true);
     try {
       await Provider.of<RegisterProvider>(context, listen: false).loadInterns();
-      final allInterns = Provider.of<RegisterProvider>(context, listen: false).internList;
-      
+      final allInterns =
+          Provider.of<RegisterProvider>(context, listen: false).internList;
       setState(() {
-        // All entries in internregister table are interns, no filtering needed
         _interns = allInterns;
         _isLoading = false;
       });
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      _showErrorDialog('Failed to load interns: $e');
+      setState(() => _isLoading = false);
+      _showErrorSnackbar('Failed to load interns: $e');
     }
   }
 
   Future<void> _loadActivities() async {
-    setState(() {
-      _isLoading = true;
-    });
-
+    setState(() => _isLoading = true);
     try {
       List<Activity> activities;
-      
       if (widget.role == 'Admin' && _selectedInternId != null) {
-        activities = await _activityService.getActivitiesByIntern(_selectedInternId!);
+        activities =
+            await _activityService.getActivitiesByIntern(_selectedInternId!);
       } else if (widget.role == 'Intern') {
-        activities = await _activityService.getActivitiesByIntern(widget.userId);
+        activities =
+            await _activityService.getActivitiesByIntern(widget.userId);
       } else {
         activities = [];
       }
-
       setState(() {
         _activities = activities;
         _isLoading = false;
       });
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      
-      // Only show error if it's not just an empty list
+      setState(() => _isLoading = false);
       if (!e.toString().contains('Not Found')) {
-        _showErrorDialog('Failed to load activities: $e');
+        _showErrorSnackbar('Failed to load activities: $e');
       }
     }
   }
 
   void _onInternSelected(int? internId) {
     if (internId != null) {
-      final selectedIntern = _interns.firstWhere((intern) => intern['id'] == internId);
+      final selected =
+          _interns.firstWhere((intern) => intern['id'] == internId);
       setState(() {
         _selectedInternId = internId;
-        // Combine first_name and last_name from internregister table
-        String firstName = selectedIntern['first_name'] ?? '';
-        String lastName = selectedIntern['last_name'] ?? '';
-        _selectedInternName = '$firstName $lastName'.trim();
-        if (_selectedInternName.isEmpty) {
-          _selectedInternName = 'Unknown';
-        }
+        final first = selected['first_name'] ?? '';
+        final last = selected['last_name'] ?? '';
+        _selectedInternName = '$first $last'.trim();
+        if (_selectedInternName.isEmpty) _selectedInternName = 'Unknown';
       });
       _loadActivities();
     }
@@ -123,190 +107,263 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
 
   void _showAddActivityDialog() {
     _activityController.clear();
-
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Log Activity'),
-          content: TextField(
-            controller: _activityController,
-            decoration: const InputDecoration(
-              labelText: 'What did you do?',
-              border: OutlineInputBorder(),
-              hintText: 'Describe your activity...',
-            ),
-            maxLines: 3,
-            autofocus: true,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blueAccent.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.edit_note,
+                        color: Colors.blueAccent, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Log Activity',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _activityController,
+                maxLines: 4,
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: 'What did you work on today?',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide:
+                        const BorderSide(color: Colors.blueAccent, width: 2),
+                  ),
+                  contentPadding: const EdgeInsets.all(12),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        _addActivity();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blueAccent,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: const Text('Submit'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                _addActivity();
-                Navigator.of(context).pop();
-              },
-              child: const Text('Add'),
-            ),
-          ],
-        );
-      },
+        ),
+      ),
     );
   }
 
   Future<void> _addActivity() async {
     if (_activityController.text.trim().isEmpty) {
-      _showErrorDialog('Please enter an activity description');
+      _showErrorSnackbar('Please enter an activity description');
       return;
     }
-
-    setState(() {
-      _isLoading = true;
-    });
-
+    setState(() => _isLoading = true);
     try {
       await _activityService.addActivity(
         widget.userId,
         _activityController.text.trim(),
       );
-      
       _activityController.clear();
       await _loadActivities();
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Activity logged successfully!'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Activity logged successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      _showErrorDialog('Failed to log activity: $e');
+      setState(() => _isLoading = false);
+      _showErrorSnackbar('Failed to log activity: $e');
     }
   }
 
-  void _showErrorDialog(String message) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Error'),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
-            ),
-          ],
-        );
-      },
+  void _showErrorSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
 
-  String _formatDateTime(DateTime dateTime) {
-    return DateFormat('yyyy-MM-dd HH:mm').format(dateTime);
-  }
+  String _formatDate(DateTime dt) => DateFormat('dd MMM yyyy').format(dt);
+  String _formatTime(DateTime dt) => DateFormat('hh:mm a').format(dt);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: Text(
             widget.role == 'Admin' ? 'Monitor Performance' : 'My Activities'),
-        backgroundColor: Colors.blue[600],
+        backgroundColor: Colors.blueAccent,
         foregroundColor: Colors.white,
+        elevation: 0,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                if (widget.role == 'Admin') ...[
+                // Header banner
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.blueAccent,
+                        Color.fromARGB(255, 123, 64, 251)
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: widget.role == 'Admin'
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Select Intern to Monitor',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: DropdownButtonFormField<int>(
+                                decoration: const InputDecoration(
+                                  border: InputBorder.none,
+                                  contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 12),
+                                ),
+                                hint: const Text('Choose an intern'),
+                                value: _selectedInternId,
+                                items: _interns.map((intern) {
+                                  final first = intern['first_name'] ?? '';
+                                  final last = intern['last_name'] ?? '';
+                                  final name = '$first $last'.trim();
+                                  return DropdownMenuItem<int>(
+                                    value: intern['id'],
+                                    child: Text(
+                                        name.isEmpty ? 'Unknown' : name),
+                                  );
+                                }).toList(),
+                                onChanged: _onInternSelected,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            const CircleAvatar(
+                              backgroundColor: Colors.white24,
+                              radius: 24,
+                              child: Icon(Icons.person,
+                                  color: Colors.white, size: 28),
+                            ),
+                            const SizedBox(width: 14),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'My Activity Log',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text(
+                                  '${_activities.length} activit${_activities.length == 1 ? 'y' : 'ies'} logged',
+                                  style: const TextStyle(
+                                      color: Colors.white70, fontSize: 13),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                ),
+
+                // Admin selected intern info bar
+                if (widget.role == 'Admin' && _selectedInternId != null)
                   Container(
                     width: double.infinity,
-                    margin: const EdgeInsets.all(16),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.blue[50],
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.blue[200]!),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    color: Colors.green[50],
+                    child: Row(
                       children: [
+                        Icon(Icons.person_pin,
+                            color: Colors.green[700], size: 18),
+                        const SizedBox(width: 8),
                         Text(
-                          'Select Intern',
+                          '$_selectedInternName — ${_activities.length} activit${_activities.length == 1 ? 'y' : 'ies'}',
                           style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue[800],
+                            color: Colors.green[800],
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<int>(
-                          decoration: InputDecoration(
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                          ),
-                          hint: const Text('Choose an intern'),
-                          initialValue: _selectedInternId,
-                          items: _interns.map((intern) {
-                            // Combine first_name and last_name for display
-                            String firstName = intern['first_name'] ?? '';
-                            String lastName = intern['last_name'] ?? '';
-                            String fullName = '$firstName $lastName'.trim();
-                            if (fullName.isEmpty) fullName = 'Unknown';
-                            
-                            return DropdownMenuItem<int>(
-                              value: intern['id'],
-                              child: Text(fullName),
-                            );
-                          }).toList(),
-                          onChanged: _onInternSelected,
                         ),
                       ],
                     ),
                   ),
-                  if (_selectedInternId != null)
-                    Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.symmetric(horizontal: 16),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.green[50],
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.green[200]!),
-                      ),
-                      child: Text(
-                        '$_selectedInternName - Activities (${_activities.length})',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green[800],
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 8),
-                ],
+
+                // Activity list
                 Expanded(
                   child: _activities.isEmpty
                       ? Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.assignment,
-                                  size: 64, color: Colors.grey),
+                              Icon(Icons.assignment_outlined,
+                                  size: 72, color: Colors.grey[300]),
                               const SizedBox(height: 16),
                               Text(
                                 widget.role == 'Admin'
@@ -314,18 +371,16 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
                                         ? 'Select an intern to view activities'
                                         : 'No activities logged yet')
                                     : 'No activities logged yet',
-                                style:
-                                    const TextStyle(fontSize: 18, color: Colors.grey),
+                                style: TextStyle(
+                                    fontSize: 16, color: Colors.grey[500]),
                                 textAlign: TextAlign.center,
                               ),
                               if (widget.role == 'Intern') ...[
                                 const SizedBox(height: 8),
                                 Text(
-                                  'Tap the + button to log your first activity',
+                                  'Tap + to log your first activity',
                                   style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey[600],
-                                  ),
+                                      fontSize: 13, color: Colors.grey[400]),
                                 ),
                               ],
                             ],
@@ -334,39 +389,108 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
                       : RefreshIndicator(
                           onRefresh: _loadActivities,
                           child: ListView.builder(
-                            padding: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
                             itemCount: _activities.length,
                             itemBuilder: (context, index) {
                               final activity = _activities[index];
-                              return Card(
-                                margin: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                elevation: 2,
-                                child: ListTile(
-                                  leading: CircleAvatar(
-                                    backgroundColor: Colors.blue[600],
-                                    child: const Icon(
-                                      Icons.check_circle,
-                                      color: Colors.white,
+                              final isFirst = index == 0;
+                              return Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Timeline column
+                                  Column(
+                                    children: [
+                                      Container(
+                                        width: 36,
+                                        height: 36,
+                                        decoration: BoxDecoration(
+                                          color: isFirst
+                                              ? Colors.blueAccent
+                                              : Colors.blueAccent
+                                                  .withOpacity(0.15),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(
+                                          Icons.check,
+                                          color: isFirst
+                                              ? Colors.white
+                                              : Colors.blueAccent,
+                                          size: 18,
+                                        ),
+                                      ),
+                                      if (index < _activities.length - 1)
+                                        Container(
+                                          width: 2,
+                                          height: 60,
+                                          color: Colors.blueAccent
+                                              .withOpacity(0.15),
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(width: 12),
+                                  // Activity card
+                                  Expanded(
+                                    child: Container(
+                                      margin:
+                                          const EdgeInsets.only(bottom: 12),
+                                      padding: const EdgeInsets.all(14),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius:
+                                            BorderRadius.circular(12),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color:
+                                                Colors.black.withOpacity(0.05),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            activity.activityDescription,
+                                            style: const TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Row(
+                                            children: [
+                                              Icon(Icons.calendar_today,
+                                                  size: 12,
+                                                  color: Colors.grey[400]),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                _formatDate(
+                                                    activity.createdAt),
+                                                style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.grey[500]),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Icon(Icons.access_time,
+                                                  size: 12,
+                                                  color: Colors.grey[400]),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                _formatTime(
+                                                    activity.createdAt),
+                                                style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.grey[500]),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
-                                  title: Text(
-                                    activity.activityDescription,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  subtitle: Text(
-                                    _formatDateTime(activity.createdAt),
-                                    style: TextStyle(
-                                      color: Colors.grey[600],
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ),
+                                ],
                               );
                             },
                           ),
@@ -375,11 +499,12 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
               ],
             ),
       floatingActionButton: widget.role == 'Intern'
-          ? FloatingActionButton(
+          ? FloatingActionButton.extended(
               onPressed: _showAddActivityDialog,
-              backgroundColor: Colors.blue[600],
-              tooltip: 'Log Activity',
-              child: Icon(Icons.add),
+              backgroundColor: Colors.blueAccent,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.add),
+              label: const Text('Log Activity'),
             )
           : null,
     );

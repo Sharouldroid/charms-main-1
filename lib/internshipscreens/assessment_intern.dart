@@ -1,220 +1,390 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:charms/internshipproviders/assessment_provider.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:charms/main.dart';
 
 extension StringExtension on String {
-  String capitalize() {
-    return "${this[0].toUpperCase()}${substring(1).toLowerCase()}";
-  }
+  String capitalize() => "${this[0].toUpperCase()}${substring(1).toLowerCase()}";
 }
 
 class AssessmentInternPage extends StatefulWidget {
   final int internId;
-
-  const AssessmentInternPage({super.key, required this.internId});
+  final String? photoUrl;
+  const AssessmentInternPage({super.key, required this.internId, this.photoUrl});
 
   @override
   _AssessmentInternPageState createState() => _AssessmentInternPageState();
 }
 
-class _AssessmentInternPageState extends State<AssessmentInternPage> {
+class _AssessmentInternPageState extends State<AssessmentInternPage>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animController;
+  String? _resolvedPhotoUrl;
+
+  final Map<String, String> _criterionLabels = {
+    'criterion_1': 'Communication Skills',
+    'criterion_2': 'Problem Solving',
+    'criterion_3': 'Teamwork',
+    'criterion_4': 'Punctuality',
+    'criterion_5': 'Adaptability',
+  };
+
+  final Map<String, IconData> _criterionIcons = {
+    'criterion_1': Icons.chat_bubble_outline_rounded,
+    'criterion_2': Icons.lightbulb_outline_rounded,
+    'criterion_3': Icons.group_outlined,
+    'criterion_4': Icons.access_time_rounded,
+    'criterion_5': Icons.shuffle_rounded,
+  };
+
   @override
   void initState() {
     super.initState();
-    // Load assessment data when the screen is initialized
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<AssessmentProvider>(context, listen: false)
-          .loadAssessmentData(widget.internId);
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await Future.wait([
+        Provider.of<AssessmentProvider>(context, listen: false)
+            .loadAssessmentData(widget.internId),
+        _loadPhoto(), // ✅ ADD
+      ]);
+      _animController.forward();
     });
   }
 
+  Future<void> _loadPhoto() async {
+    if (widget.photoUrl != null) {
+      setState(() => _resolvedPhotoUrl = widget.photoUrl);
+      return;
+    }
+    try {
+      final response = await http.get(Uri.parse(
+        '${AppConfig.hostname}/api/internship/registers/${widget.internId}/with-photo',
+      ));
+      print('DEBUG photo status: ${response.statusCode}');
+      print('DEBUG photo body: ${response.body}');
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final filepath = data['filepath'];
+        print('DEBUG filepath: $filepath');
+        if (filepath != null && filepath.toString().isNotEmpty) {
+          setState(() {
+            _resolvedPhotoUrl =
+                'https://devcms.com.my/charmsAPI/public/storage/$filepath';
+          });
+          print('DEBUG resolved URL: $_resolvedPhotoUrl');
+        }
+      }
+    } catch (e) {
+      print('DEBUG photo error: $e');
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
-    final assessmentProvider = Provider.of<AssessmentProvider>(context);
-    final ratings = assessmentProvider.ratings;
-    final isLoading = assessmentProvider.isLoading;
-    final errorMessage = assessmentProvider.errorMessage;
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
 
-    // Map for custom labels for each criterion
-    final Map<String, String> criterionLabels = {
-      'criterion_1': 'Communication Skills',
-      'criterion_2': 'Problem Solving',
-      'criterion_3': 'Teamwork',
-      'criterion_4': 'Punctuality',
-      'criterion_5': 'Adaptability',
-    };
+  Color _barColor(int score) {
+    if (score >= 4) return const Color(0xFF1D9E75);
+    if (score == 3) return const Color(0xFFEF9F27);
+    return const Color(0xFFD85A30);
+  }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('View Your Marks'),
-        backgroundColor: Colors.blueAccent,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Heading
-                    const Text(
-                      "Your Performance Overview",
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
+  Color _badgeBg(int score) {
+    if (score >= 4) return const Color(0xFFE1F5EE);
+    if (score == 3) return const Color(0xFFFAEEDA);
+    return const Color(0xFFFAECE7);
+  }
 
-                    // Show error message if any
-                    if (errorMessage != null)
-                      Container(
-                        padding: const EdgeInsets.all(12.0),
-                        margin: const EdgeInsets.only(bottom: 20),
-                        decoration: BoxDecoration(
-                          color: Colors.orange[50],
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.orange),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.info_outline,
-                                color: Colors.orange),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                errorMessage,
-                                style: const TextStyle(color: Colors.orange),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+  Color _badgeText(int score) {
+    if (score >= 4) return const Color(0xFF0F6E56);
+    if (score == 3) return const Color(0xFF854F0B);
+    return const Color(0xFF993C1D);
+  }
 
-                    // Check if ratings are available
-                    if (ratings.isNotEmpty && errorMessage == null)
-                      ...ratings.keys.map((criterion) {
-                        String label = criterionLabels[criterion] ??
-                            criterion.replaceAll('_', ' ').capitalize();
-
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              label,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.star,
-                                  color: Colors.orange,
-                                ),
-                                const SizedBox(width: 5),
-                                Text(
-                                  '${ratings[criterion]} / 5',
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 20),
-                          ],
-                        );
-                      }),
-
-                    // Overall Performance Section
-                    if (ratings.isNotEmpty && errorMessage == null) ...[
-                      const SizedBox(height: 20),
-                      const Text(
-                        "Overall Performance",
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      // Display average rating
-                      Container(
-                        padding: const EdgeInsets.all(16.0),
-                        decoration: BoxDecoration(
-                          color: Colors.blue[50],
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.blue),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.star_rate,
-                              color: Colors.orange,
-                              size: 30,
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              _calculateAverage(ratings).toStringAsFixed(1),
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const Text(
-                              ' / 5.0',
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                    ],
-
-                    // Reload button
-                    Center(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          Provider.of<AssessmentProvider>(context,
-                                  listen: false)
-                              .loadAssessmentData(widget.internId);
-                        },
-                        icon: const Icon(Icons.refresh, color: Colors.white),
-                        label: const Text(
-                          'Reload Assessment',
-                          style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blueAccent,
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 16.0, horizontal: 32.0),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-      ),
-    );
+  String _badgeLabel(int score) {
+    if (score == 5) return 'Excellent';
+    if (score == 4) return 'Good';
+    if (score == 3) return 'Average';
+    return 'Needs work';
   }
 
   double _calculateAverage(Map<String, int> ratings) {
     if (ratings.isEmpty) return 0.0;
-    int sum = ratings.values.reduce((a, b) => a + b);
-    return sum / ratings.length;
+    return ratings.values.reduce((a, b) => a + b) / ratings.length;
+  }
+
+  Widget _starRow(int score, {double size = 16}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(5, (i) => Icon(
+        i < score ? Icons.star_rounded : Icons.star_outline_rounded,
+        size: size,
+        color: i < score ? const Color(0xFFEF9F27) : Colors.grey[300],
+      )),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = Provider.of<AssessmentProvider>(context);
+    final ratings = provider.ratings;
+    final isLoading = provider.isLoading;
+    final errorMessage = provider.errorMessage;
+    final avg = _calculateAverage(ratings);
+
+    return Scaffold(
+      backgroundColor: Colors.grey[50],
+      appBar: AppBar(
+        title: const Text('Performance Overview'),
+        backgroundColor: Colors.blueAccent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator(color: Colors.blueAccent))
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  // ── Header card ──────────────────────────────────────
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            CircleAvatar(
+                                radius: 24,
+                                backgroundColor: Colors.blue[50],
+                                backgroundImage: _resolvedPhotoUrl != null
+                                    ? NetworkImage(_resolvedPhotoUrl!)
+                                    : null,
+                                child: _resolvedPhotoUrl == null
+                                    ? Text('A',
+                                        style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w500,
+                                            color: Colors.blue[700]))
+                                    : null,
+                              ),
+                            const SizedBox(width: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('My Assessment',
+                                    style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w500)),
+                                Text('Internship performance',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey[500])),
+                              ],
+                            ),
+                          ],
+                        ),
+                        Divider(color: Colors.grey[100], height: 28),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Overall score',
+                                    style: TextStyle(
+                                        fontSize: 12, color: Colors.grey[500])),
+                                const SizedBox(height: 2),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                                  textBaseline: TextBaseline.alphabetic,
+                                  children: [
+                                    Text(avg.toStringAsFixed(1),
+                                        style: const TextStyle(
+                                            fontSize: 40,
+                                            fontWeight: FontWeight.w500)),
+                                    const SizedBox(width: 4),
+                                    Text('/ 5.0',
+                                        style: TextStyle(
+                                            fontSize: 16,
+                                            color: Colors.grey[400])),
+                                  ],
+                                ),
+                                _starRow(avg.round()),
+                              ],
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: _badgeBg(avg.round()),
+                                borderRadius: BorderRadius.circular(99),
+                              ),
+                              child: Text(
+                                _badgeLabel(avg.round()),
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: _badgeText(avg.round())),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // ── Error banner ─────────────────────────────────────
+                  if (errorMessage != null)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange[50],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.orange.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline, color: Colors.orange),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(errorMessage,
+                                style: const TextStyle(color: Colors.orange)),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  // ── Criterion cards ──────────────────────────────────
+                  if (ratings.isNotEmpty && errorMessage == null)
+                    ...ratings.keys.map((key) {
+                      final score = ratings[key]!;
+                      final label = _criterionLabels[key] ??
+                          key.replaceAll('_', ' ').capitalize();
+                      final icon = _criterionIcons[key] ?? Icons.star_outline;
+
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(icon,
+                                          size: 18, color: Colors.grey[400]),
+                                      const SizedBox(width: 8),
+                                      Text(label,
+                                          style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w500)),
+                                    ],
+                                  ),
+                                  Row(
+                                    children: [
+                                      _starRow(score, size: 14),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: _badgeBg(score),
+                                          borderRadius:
+                                              BorderRadius.circular(99),
+                                        ),
+                                        child: Text(_badgeLabel(score),
+                                            style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w500,
+                                                color: _badgeText(score))),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              AnimatedBuilder(
+                                animation: _animController,
+                                builder: (_, __) => ClipRRect(
+                                  borderRadius: BorderRadius.circular(99),
+                                  child: LinearProgressIndicator(
+                                    value: (score / 5) * _animController.value,
+                                    minHeight: 6,
+                                    backgroundColor: Colors.grey[100],
+                                    valueColor: AlwaysStoppedAnimation(
+                                        _barColor(score)),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: Text('$score / 5',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey[500])),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+
+                  const SizedBox(height: 8),
+
+                  // ── Reload button ────────────────────────────────────
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        _animController.reset();
+                        await Provider.of<AssessmentProvider>(context,
+                                listen: false)
+                            .loadAssessmentData(widget.internId);
+                        _animController.forward();
+                      },
+                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      label: const Text('Reload assessment'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.blueAccent,
+                        side: BorderSide(color: Colors.grey.shade300),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+                ],
+              ),
+            ),
+    );
   }
 }
