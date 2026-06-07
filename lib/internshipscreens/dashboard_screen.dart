@@ -14,6 +14,8 @@ import 'registration_status.dart';
 import 'intern_myself_screen.dart';
 import 'package:charms/internshipproviders/internship_notification_provider.dart';
 import 'package:charms/internshipscreens/internship_notification_screen.dart';
+import 'intern_timeline_screen.dart';
+import 'package:charms/internshipscreens/slot_details_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String username;
@@ -461,10 +463,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: const Icon(Icons.chat, color: Colors.white),
       ),
       bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.schedule), label: 'Schedule'),
-          BottomNavigationBarItem(icon: Icon(Icons.feedback), label: 'Feedback'),
+        items: <BottomNavigationBarItem>[
+          const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          const BottomNavigationBarItem(icon: Icon(Icons.schedule), label: 'Schedule'),
+          if (widget.role == 'Intern')
+            const BottomNavigationBarItem(icon: Icon(Icons.timeline), label: 'Timeline')
+          else
+            const BottomNavigationBarItem(icon: Icon(Icons.feedback), label: 'Slot Details'),
         ],
         selectedItemColor: Colors.blueAccent,
         onTap: (index) {
@@ -481,12 +486,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ));
               break;
             case 2:
+              if (widget.role == 'Intern') {
+                Navigator.push(context, MaterialPageRoute(
+                  builder: (context) => InternTimelineScreen(userId: widget.userId),
+                ));
+              }else{
+                Navigator.push(context, MaterialPageRoute(
+                    builder: (context) => const SlotDetailsScreen(),
+                  ));
+              }
               break;
           }
         },
       ),
-    );
-  }
+          );
+        }
 
   List<Widget> _buildDashboardButtons(BuildContext context) {
     final buttons = <Widget>[];
