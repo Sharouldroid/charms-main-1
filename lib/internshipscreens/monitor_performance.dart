@@ -92,8 +92,9 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
 
   void _onInternSelected(int? internId) {
     if (internId != null) {
-      final selected =
-          _interns.firstWhere((intern) => intern['id'] == internId);
+     final selected = _interns.firstWhere(
+    (intern) => (intern['user_id'] as num).toInt() == internId
+  );
       setState(() {
         _selectedInternId = internId;
         final first = selected['first_name'] ?? '';
@@ -290,7 +291,7 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
                                   final last = intern['last_name'] ?? '';
                                   final name = '$first $last'.trim();
                                   return DropdownMenuItem<int>(
-                                    value: intern['id'],
+                                    value: (intern['user_id'] as num).toInt(),
                                     child: Text(
                                         name.isEmpty ? 'Unknown' : name),
                                   );

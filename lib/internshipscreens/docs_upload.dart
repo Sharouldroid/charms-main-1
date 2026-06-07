@@ -418,28 +418,98 @@ class _DocsUploadState extends State<DocsUpload> {
                           itemBuilder: (context, index) {
                             final submission = _submissions[index];
                             final status = submission['status'] ?? 'pending';
-                            
+                            final adminComment = submission['admin_comments']; // get comment
+
                             return Card(
                               margin: const EdgeInsets.only(bottom: 10),
-                              child: ListTile(
-                                leading: Icon(
-                                  _getStatusIcon(status),
-                                  color: _getStatusColor(status),
-                                ),
-                                title: Text(submission['file_name'] ?? submission['details'] ?? 'Document'),
-                                subtitle: Text(
-                                  'Submitted: ${submission['submitted_at'] ?? 'Unknown'}',
-                                  style: const TextStyle(fontSize: 12),
-                                ),
-                                trailing: Chip(
-                                  label: Text(
-                                    status.toUpperCase(),
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(_getStatusIcon(status), color: _getStatusColor(status)),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            submission['file_name'] ?? submission['details'] ?? 'Document',
+                                            style: const TextStyle(fontWeight: FontWeight.w600),
+                                          ),
+                                        ),
+                                        Chip(
+                                          label: Text(
+                                            status.toUpperCase(),
+                                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                                          ),
+                                          backgroundColor: _getStatusColor(status).withOpacity(0.2),
+                                        ),
+                                      ],
                                     ),
-                                  ),
-                                  backgroundColor: _getStatusColor(status).withOpacity(0.2),
+                                    Text(
+                                      'Submitted: ${submission['submitted_at'] ?? 'Unknown'}',
+                                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                    ),
+
+                                    // Show admin comment if rejected or resubmit
+                                    if (adminComment != null && adminComment.toString().isNotEmpty &&
+                                        (status == 'rejected' || status == 'resubmit')) ...[
+                                      const SizedBox(height: 8),
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: status == 'rejected'
+                                              ? Colors.red.shade50
+                                              : Colors.blue.shade50,
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(
+                                            color: status == 'rejected'
+                                                ? Colors.red.shade200
+                                                : Colors.blue.shade200,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Icon(
+                                              Icons.comment_rounded,
+                                              size: 16,
+                                              color: status == 'rejected' ? Colors.red : Colors.blue,
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    'Admin Comment:',
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: status == 'rejected'
+                                                          ? Colors.red.shade700
+                                                          : Colors.blue.shade700,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    adminComment.toString(),
+                                                    style: TextStyle(
+                                                      fontSize: 13,
+                                                      color: status == 'rejected'
+                                                          ? Colors.red.shade800
+                                                          : Colors.blue.shade800,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               ),
                             );
@@ -455,7 +525,7 @@ class _DocsUploadState extends State<DocsUpload> {
             backgroundColor: Colors.blueAccent,
             tooltip: 'Back to Dashboard',
             child: const Icon(Icons.home, color: Colors.white),
-          ),
+      ),
     );
   }
 }

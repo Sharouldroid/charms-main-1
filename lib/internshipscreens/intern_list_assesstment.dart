@@ -135,8 +135,29 @@ class _InternListPageState extends State<InternListPage> {
                           child: ListTile(
                             leading: internAvatar(intern['first_name'], photoUrl),
                             title: Text(intern['first_name']),
-                            subtitle: Text(
-                              "Age: ${intern['age']} - Gender: ${intern['gender']}",
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text("Age: ${intern['age']} - Gender: ${intern['gender']}"),
+                                if ((intern['slot_count'] ?? 1) > 1)
+                                  Container(
+                                    margin: const EdgeInsets.only(top: 4),
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue[50],
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: Colors.blueAccent),
+                                    ),
+                                    child: Text(
+                                      '${intern['slot_count']} slots registered',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.blueAccent,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                             trailing: const Icon(Icons.chevron_right),
                             onTap: () {
@@ -146,7 +167,7 @@ class _InternListPageState extends State<InternListPage> {
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) =>
-                                      InternDetailScreen(internId: intern['id']),
+                                      InternDetailScreen(internId: (intern['user_id'] as num).toInt())
                                 ),
                               );
                             },
@@ -199,7 +220,7 @@ class _AssessmentListPageState extends State<AssessmentListPage> {
       _filteredInterns = interns.where((intern) =>
         intern != null &&
         intern['first_name'] != null &&
-        intern['id'] != null
+        intern['user_id'] != null
       ).toList();
       _photoMap = photos;
     });
@@ -280,8 +301,9 @@ class _AssessmentListPageState extends State<AssessmentListPage> {
                                       final userId = intern['user_id']?.toString() ?? '';
                                       final photoUrl = buildPhotoUrl(_photoMap[userId]);
                                       return AssessmentInternPage(
-                                        internId: intern['id'],
+                                        internId: (intern['user_id'] as num).toInt(), 
                                         photoUrl: photoUrl,
+                                        isAdmin: true,
                                       );
                                     },
                                   ),

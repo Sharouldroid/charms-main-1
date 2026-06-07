@@ -184,7 +184,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         if (internId != null) {
           if (mounted) {
             Navigator.push(context, MaterialPageRoute(
-              builder: (context) => MonitorPerformancePage(role: widget.role, userId: internId),
+              builder: (context) => MonitorPerformancePage(role: widget.role, userId: widget.userId),
             ));
           }
         } else {
@@ -230,7 +230,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         if (internId != null) {
           if (mounted) {
             Navigator.push(context, MaterialPageRoute(
-              builder: (context) => AssessmentInternPage(internId: internId),
+              builder: (context) => AssessmentInternPage(internId: widget.userId, isAdmin: false),
             ));
           }
         } else {
@@ -256,7 +256,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     } else {
       Navigator.push(context, MaterialPageRoute(
-        builder: (context) => AssessmentInternPage(internId: widget.userId),
+        builder: (context) => AssessmentInternPage(internId: widget.userId, isAdmin: true),
       ));
     }
   }
@@ -526,7 +526,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             builder: (context) => ScheduleCalendar(isAdmin: false, userId: widget.userId),
           ));
         }),
-        _buildDashboardButton(context, 'Monitor Performance', Icons.monitor, () {
+        _buildDashboardButton(context, 'Activity Logs', Icons.monitor, () {
           _navigateToMonitorPerformance();
         }),
         _buildDashboardButton(context, 'Assessment', Icons.assessment, () {

@@ -1,18 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:charms/internshipproviders/assessment_provider.dart';
+import 'package:charms/internshipscreens/assesstment_screen.dart'; // ← your NextPage file
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:charms/main.dart';
 
-extension StringExtension on String {
-  String capitalize() => "${this[0].toUpperCase()}${substring(1).toLowerCase()}";
-}
-
 class AssessmentInternPage extends StatefulWidget {
   final int internId;
   final String? photoUrl;
-  const AssessmentInternPage({super.key, required this.internId, this.photoUrl});
+  final bool isAdmin; // ← NEW: controls whether FAB shows
+
+  const AssessmentInternPage({
+    super.key,
+    required this.internId,
+    this.photoUrl,
+    this.isAdmin = false, // default: intern view (no FAB)
+  });
 
   @override
   _AssessmentInternPageState createState() => _AssessmentInternPageState();
@@ -50,7 +54,7 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
       await Future.wait([
         Provider.of<AssessmentProvider>(context, listen: false)
             .loadAssessmentData(widget.internId),
-        _loadPhoto(), // ✅ ADD
+        _loadPhoto(),
       ]);
       _animController.forward();
     });
@@ -65,22 +69,18 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
       final response = await http.get(Uri.parse(
         '${AppConfig.hostname}/api/internship/registers/${widget.internId}/with-photo',
       ));
-      print('DEBUG photo status: ${response.statusCode}');
-      print('DEBUG photo body: ${response.body}');
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final filepath = data['filepath'];
-        print('DEBUG filepath: $filepath');
         if (filepath != null && filepath.toString().isNotEmpty) {
           setState(() {
             _resolvedPhotoUrl =
                 'https://devcms.com.my/charmsAPI/public/storage/$filepath';
           });
-          print('DEBUG resolved URL: $_resolvedPhotoUrl');
         }
       }
     } catch (e) {
-      print('DEBUG photo error: $e');
+      // fail silently
     }
   }
 
@@ -123,11 +123,17 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
   Widget _starRow(int score, {double size = 16}) {
     return Row(
       mainAxisSize: MainAxisSize.min,
-      children: List.generate(5, (i) => Icon(
-        i < score ? Icons.star_rounded : Icons.star_outline_rounded,
-        size: size,
-        color: i < score ? const Color(0xFFEF9F27) : Colors.grey[300],
-      )),
+      children: List.generate(
+          5,
+          (i) => Icon(
+                i < score
+                    ? Icons.star_rounded
+                    : Icons.star_outline_rounded,
+                size: size,
+                color: i < score
+                    ? const Color(0xFFEF9F27)
+                    : Colors.grey[300],
+              )),
     );
   }
 
@@ -138,6 +144,7 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
     final isLoading = provider.isLoading;
     final errorMessage = provider.errorMessage;
     final avg = _calculateAverage(ratings);
+    final hasData = ratings.isNotEmpty && errorMessage == null;
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -147,13 +154,42 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
         foregroundColor: Colors.white,
         elevation: 0,
       ),
+
+      // ── FAB: only shown to admin ─────────────────────────────────────────
+      floatingActionButton: widget.isAdmin
+          ? FloatingActionButton.extended(
+              onPressed: () {
+                // Reset sliders to default before opening assess screen
+                Provider.of<AssessmentProvider>(context, listen: false)
+                    .resetRatings();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => NextPage(internId: widget.internId),
+                  ),
+                ).then((_) {
+                  // Reload assessment data when returning from NextPage
+                  _animController.reset();
+                  Provider.of<AssessmentProvider>(context, listen: false)
+                      .loadAssessmentData(widget.internId)
+                      .then((_) => _animController.forward());
+                });
+              },
+              backgroundColor: Colors.blueAccent,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.rate_review),
+              label: Text(hasData ? 'Re-assess Intern' : 'Assess Intern'),
+            )
+          : null,
+
       body: isLoading
-          ? const Center(child: CircularProgressIndicator(color: Colors.blueAccent))
+          ? const Center(
+              child: CircularProgressIndicator(color: Colors.blueAccent))
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
               child: Column(
                 children: [
-                  // ── Header card ──────────────────────────────────────
+                  // ── Header card ────────────────────────────────────────
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
@@ -165,22 +201,25 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Avatar + title row
                         Row(
                           children: [
                             CircleAvatar(
-                                radius: 24,
-                                backgroundColor: Colors.blue[50],
-                                backgroundImage: _resolvedPhotoUrl != null
-                                    ? NetworkImage(_resolvedPhotoUrl!)
-                                    : null,
-                                child: _resolvedPhotoUrl == null
-                                    ? Text('A',
-                                        style: TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.w500,
-                                            color: Colors.blue[700]))
-                                    : null,
-                              ),
+                              radius: 24,
+                              backgroundColor: Colors.blue[50],
+                              backgroundImage: _resolvedPhotoUrl != null
+                                  ? NetworkImage(_resolvedPhotoUrl!)
+                                  : null,
+                              child: _resolvedPhotoUrl == null
+                                  ? Text(
+                                      'A',
+                                      style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.blue[700]),
+                                    )
+                                  : null,
+                            ),
                             const SizedBox(width: 12),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -197,61 +236,90 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
                             ),
                           ],
                         ),
+
                         Divider(color: Colors.grey[100], height: 28),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Overall score',
-                                    style: TextStyle(
-                                        fontSize: 12, color: Colors.grey[500])),
-                                const SizedBox(height: 2),
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                                  textBaseline: TextBaseline.alphabetic,
-                                  children: [
-                                    Text(avg.toStringAsFixed(1),
-                                        style: const TextStyle(
-                                            fontSize: 40,
-                                            fontWeight: FontWeight.w500)),
-                                    const SizedBox(width: 4),
-                                    Text('/ 5.0',
-                                        style: TextStyle(
-                                            fontSize: 16,
-                                            color: Colors.grey[400])),
-                                  ],
+
+                        // ── Score section: only show when data exists ──
+                        if (hasData) ...[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Overall score',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[500])),
+                                  const SizedBox(height: 2),
+                                  Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.baseline,
+                                    textBaseline: TextBaseline.alphabetic,
+                                    children: [
+                                      Text(avg.toStringAsFixed(1),
+                                          style: const TextStyle(
+                                              fontSize: 40,
+                                              fontWeight: FontWeight.w500)),
+                                      const SizedBox(width: 4),
+                                      Text('/ 5.0',
+                                          style: TextStyle(
+                                              fontSize: 16,
+                                              color: Colors.grey[400])),
+                                    ],
+                                  ),
+                                  _starRow(avg.round()),
+                                ],
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: _badgeBg(avg.round()),
+                                  borderRadius: BorderRadius.circular(99),
                                 ),
-                                _starRow(avg.round()),
-                              ],
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: _badgeBg(avg.round()),
-                                borderRadius: BorderRadius.circular(99),
+                                child: Text(
+                                  _badgeLabel(avg.round()),
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: _badgeText(avg.round())),
+                                ),
                               ),
-                              child: Text(
-                                _badgeLabel(avg.round()),
+                            ],
+                          ),
+                        ] else ...[
+                          // ── No data yet ──────────────────────────────
+                          Row(
+                            children: [
+                              Icon(Icons.pending_outlined,
+                                  color: Colors.grey[400], size: 20),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Not yet assessed',
                                 style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                    color: _badgeText(avg.round())),
+                                    fontSize: 14, color: Colors.grey[500]),
                               ),
+                            ],
+                          ),
+                          if (widget.isAdmin) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              'Tap "Assess Intern" below to submit an evaluation.',
+                              style: TextStyle(
+                                  fontSize: 12, color: Colors.grey[400]),
                             ),
                           ],
-                        ),
+                        ],
                       ],
                     ),
                   ),
 
                   const SizedBox(height: 12),
 
-                  // ── Error banner ─────────────────────────────────────
-                  if (errorMessage != null)
+                  // ── Error banner (non-blocking) ────────────────────────
+                  if (errorMessage != null && errorMessage != 'No assessment data found')
                     Container(
                       padding: const EdgeInsets.all(12),
                       margin: const EdgeInsets.only(bottom: 12),
@@ -262,23 +330,54 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.info_outline, color: Colors.orange),
+                          const Icon(Icons.info_outline,
+                              color: Colors.orange),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(errorMessage,
-                                style: const TextStyle(color: Colors.orange)),
+                                style: const TextStyle(
+                                    color: Colors.orange)),
                           ),
                         ],
                       ),
                     ),
 
-                  // ── Criterion cards ──────────────────────────────────
-                  if (ratings.isNotEmpty && errorMessage == null)
+                  // ── "No assessment" info banner ────────────────────────
+                  if (errorMessage == 'No assessment data found')
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange[50],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.orange.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline,
+                              color: Colors.orange),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              widget.isAdmin
+                                  ? 'No assessment submitted yet. Use the button below to assess this intern.'
+                                  : 'No assessment data found.',
+                              style:
+                                  const TextStyle(color: Colors.orange),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  // ── Criterion cards (only when data exists) ────────────
+                  if (hasData)
                     ...ratings.keys.map((key) {
                       final score = ratings[key]!;
                       final label = _criterionLabels[key] ??
                           key.replaceAll('_', ' ').capitalize();
-                      final icon = _criterionIcons[key] ?? Icons.star_outline;
+                      final icon =
+                          _criterionIcons[key] ?? Icons.star_outline;
 
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 10),
@@ -298,12 +397,14 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
                                   Row(
                                     children: [
                                       Icon(icon,
-                                          size: 18, color: Colors.grey[400]),
+                                          size: 18,
+                                          color: Colors.grey[400]),
                                       const SizedBox(width: 8),
                                       Text(label,
                                           style: const TextStyle(
                                               fontSize: 14,
-                                              fontWeight: FontWeight.w500)),
+                                              fontWeight:
+                                                  FontWeight.w500)),
                                     ],
                                   ),
                                   Row(
@@ -318,11 +419,13 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
                                           borderRadius:
                                               BorderRadius.circular(99),
                                         ),
-                                        child: Text(_badgeLabel(score),
+                                        child: Text(
+                                            _badgeLabel(score),
                                             style: TextStyle(
                                                 fontSize: 11,
                                                 fontWeight: FontWeight.w500,
-                                                color: _badgeText(score))),
+                                                color:
+                                                    _badgeText(score))),
                                       ),
                                     ],
                                   ),
@@ -332,13 +435,16 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
                               AnimatedBuilder(
                                 animation: _animController,
                                 builder: (_, __) => ClipRRect(
-                                  borderRadius: BorderRadius.circular(99),
+                                  borderRadius:
+                                      BorderRadius.circular(99),
                                   child: LinearProgressIndicator(
-                                    value: (score / 5) * _animController.value,
+                                    value: (score / 5) *
+                                        _animController.value,
                                     minHeight: 6,
                                     backgroundColor: Colors.grey[100],
-                                    valueColor: AlwaysStoppedAnimation(
-                                        _barColor(score)),
+                                    valueColor:
+                                        AlwaysStoppedAnimation(
+                                            _barColor(score)),
                                   ),
                                 ),
                               ),
@@ -358,7 +464,7 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
 
                   const SizedBox(height: 8),
 
-                  // ── Reload button ────────────────────────────────────
+                  // ── Reload button ──────────────────────────────────────
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
@@ -374,7 +480,8 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.blueAccent,
                         side: BorderSide(color: Colors.grey.shade300),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        padding:
+                            const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
                       ),

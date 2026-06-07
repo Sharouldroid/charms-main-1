@@ -2,13 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:charms/internshipservices/assesstment_service.dart';
 
 class AssessmentProvider with ChangeNotifier {
-  Map<String, int> _ratings = {
-    'criterion_1': 1,
-    'criterion_2': 1,
-    'criterion_3': 1,
-    'criterion_4': 1,
-    'criterion_5': 1,
-  };
+  Map<String, int> _ratings = {};
 
   List<Map<String, dynamic>> _interns = [];
   List<Map<String, dynamic>> _filteredInterns = [];
@@ -21,6 +15,19 @@ class AssessmentProvider with ChangeNotifier {
   List<Map<String, dynamic>> get filteredInterns => _filteredInterns;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+
+  // ── Reset ratings to default (used before opening the assess slider screen)
+  void resetRatings() {
+    _ratings = {
+      'criterion_1': 1,
+      'criterion_2': 1,
+      'criterion_3': 1,
+      'criterion_4': 1,
+      'criterion_5': 1,
+    };
+    _errorMessage = null;
+    notifyListeners();
+  }
 
   void setRating(String criterion, int value) {
     if (_ratings.containsKey(criterion)) {
@@ -37,8 +44,11 @@ class AssessmentProvider with ChangeNotifier {
       _filteredInterns = _interns.where((intern) {
         final name = (intern['name'] ?? '').toString().toLowerCase();
         final email = (intern['email'] ?? '').toString().toLowerCase();
-        final university = (intern['university'] ?? '').toString().toLowerCase();
-        return name.contains(q) || email.contains(q) || university.contains(q);
+        final university =
+            (intern['university'] ?? '').toString().toLowerCase();
+        return name.contains(q) ||
+            email.contains(q) ||
+            university.contains(q);
       }).toList();
     }
     notifyListeners();
@@ -74,11 +84,14 @@ class AssessmentProvider with ChangeNotifier {
       final data = await AssessmentService().getAssessmentData(internId);
       if (data != null) {
         _ratings = data;
+        _errorMessage = null;
       } else {
         _errorMessage = 'No assessment data found';
+        _ratings = {}; // ← clear so 0.0 score card is hidden
       }
     } catch (e) {
       _errorMessage = 'Failed to load assessment data: $e';
+      _ratings = {}; // ← clear on error too
     } finally {
       _isLoading = false;
       notifyListeners();
