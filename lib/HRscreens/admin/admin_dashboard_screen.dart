@@ -66,8 +66,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   void _setLastLoginTime() {
-    lastLoginTime =
-        DateFormat('dd MMM yyyy, hh:mm a').format(DateTime.now());
+    lastLoginTime = DateFormat('dd MMM yyyy, hh:mm a').format(DateTime.now());
   }
 
   Future<void> _loadDashboardData() async {
@@ -79,7 +78,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final schedulesProvider     = Provider.of<Schedules>(context, listen: false);
       final claimsProvider        = Provider.of<Claims>(context, listen: false);
       final exchangesProvider     = Provider.of<ScheduleExchanges>(context, listen: false);
-      final paymentClaimsProvider = Provider.of<PaymentClaims>(context, listen: false); // ✅ NEW
+      final paymentClaimsProvider = Provider.of<PaymentClaims>(context, listen: false);
 
       await Future.wait([
         staffsProvider.fetchStaff(),
@@ -87,7 +86,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         schedulesProvider.fetchSchedules(),
         claimsProvider.fetchClaims(),
         exchangesProvider.fetchPendingForHR(),
-        paymentClaimsProvider.fetchAllClaims(status: 'Pending'), // ✅ NEW
+        paymentClaimsProvider.fetchAllClaims(status: 'Pending'),
       ]);
 
       final currentDate   = DateTime.now();
@@ -115,7 +114,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             .map((s) => s.staffId)
             .toSet();
 
-        final fullTimeStaff = fullTimeStaffIds.length; // ← ADD THIS
+        final fullTimeStaff = fullTimeStaffIds.length;
 
         final staffWithPaymentThisMonth = paymentsProvider.payments
             .where((p) =>
@@ -138,20 +137,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           'Chagar Hutang': schedules
               .where((s) =>
                   s.workLocation == 1 &&
-                  DateFormat('yyyy-MM-dd').format(s.workDate) ==
-                      formattedDate)
+                  DateFormat('yyyy-MM-dd').format(s.workDate) == formattedDate)
               .length,
           'Turtle Lab': schedules
               .where((s) =>
                   s.workLocation == 2 &&
-                  DateFormat('yyyy-MM-dd').format(s.workDate) ==
-                      formattedDate)
+                  DateFormat('yyyy-MM-dd').format(s.workDate) == formattedDate)
               .length,
           'UMT': schedules
               .where((s) =>
                   s.workLocation == 3 &&
-                  DateFormat('yyyy-MM-dd').format(s.workDate) ==
-                      formattedDate)
+                  DateFormat('yyyy-MM-dd').format(s.workDate) == formattedDate)
               .length,
         };
 
@@ -175,18 +171,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-                builder: (_) =>
-                    ManageStaffScreen(username: widget.username)));
+                builder: (_) => ManageStaffScreen(username: widget.username)));
         break;
       case 2:
         Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-                builder: (_) =>
-                    AdminListScreen(username: widget.username)));
+                builder: (_) => AdminListScreen(username: widget.username)));
         break;
       case 3:
-        Navigator.pushReplacement(context,
+        Navigator.pushReplacement(
+            context,
             MaterialPageRoute(builder: (_) => const MySelfScreen()));
         break;
     }
@@ -202,8 +197,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       ),
       builder: (ctx) => SafeArea(
         child: Padding(
-          padding:
-              const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -219,11 +213,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   ),
                 ),
               ),
-              const Text('Switch View',
-                  style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E293B))),
+              const Text(
+                'Switch View',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E293B)),
+              ),
               const SizedBox(height: 12),
               ListTile(
                 shape: RoundedRectangleBorder(
@@ -232,8 +228,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                      color: Colors.green.shade100,
-                      shape: BoxShape.circle),
+                      color: Colors.green.shade100, shape: BoxShape.circle),
                   child: const Icon(Icons.badge_outlined,
                       color: Colors.green, size: 22),
                 ),
@@ -242,14 +237,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         fontWeight: FontWeight.w600,
                         color: Color(0xFF1E293B))),
                 subtitle: const Text('View as a staff member'),
-                trailing: const Icon(Icons.chevron_right,
-                    color: Colors.green),
+                trailing:
+                    const Icon(Icons.chevron_right, color: Colors.green),
                 onTap: () {
                   Navigator.pop(ctx);
                   Navigator.of(context).pushAndRemoveUntil(
                     MaterialPageRoute(
-                        builder: (_) => StaffDashboardScreen(
-                            username: widget.username)),
+                        builder: (_) =>
+                            StaffDashboardScreen(username: widget.username)),
                     (route) => false,
                   );
                 },
@@ -262,8 +257,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                      color: Colors.blue.shade100,
-                      shape: BoxShape.circle),
+                      color: Colors.blue.shade100, shape: BoxShape.circle),
                   child: const Icon(Icons.dashboard_outlined,
                       color: Colors.blue, size: 22),
                 ),
@@ -271,10 +265,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     style: TextStyle(
                         fontWeight: FontWeight.w600,
                         color: Color(0xFF1E293B))),
-                subtitle:
-                    const Text('Back to main app dashboard'),
-                trailing: const Icon(Icons.chevron_right,
-                    color: Colors.blue),
+                subtitle: const Text('Back to main app dashboard'),
+                trailing:
+                    const Icon(Icons.chevron_right, color: Colors.blue),
                 onTap: () {
                   Navigator.pop(ctx);
                   Navigator.of(context).pushAndRemoveUntil(
@@ -317,8 +310,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         centerTitle: true,
         backgroundColor: primaryBlue,
         shape: const RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.vertical(bottom: Radius.circular(20)),
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
         ),
         actions: [
           IconButton(
@@ -327,13 +319,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             onPressed: _showSwitchMenu,
           ),
 
-          // ── Bell badge — includes part timer payment claims ────────
+          // ── Bell badge ─────────────────────────────────────────────
           Consumer<PaymentClaims>(
             builder: (context, paymentClaims, _) {
-              return Consumer6<Leaves, Payments, Claims,
-                  ScheduleExchanges, Schedules, Staffs>(
-                builder: (context, leaves, payments, claims,
-                    exchanges, schedules, staffs, child) {
+              return Consumer6<Leaves, Payments, Claims, ScheduleExchanges,
+                  Schedules, Staffs>(
+                builder: (context, leaves, payments, claims, exchanges,
+                    schedules, staffs, child) {
                   final pendingLeaves = leaves.leaves
                       .where((l) => l.status == 'Pending')
                       .length;
@@ -350,7 +342,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       .where((s) =>
                           s.acceptanceStatus == 2 && !s.hrDismissed)
                       .length;
-                  // ✅ Part timer payment claims
                   final pendingPaymentClaims =
                       paymentClaims.pendingClaims.length;
 
@@ -359,7 +350,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       pendingClaims +
                       pendingExchanges +
                       rejectedSchedules +
-                      pendingPaymentClaims; // ✅
+                      pendingPaymentClaims;
 
                   return IconButton(
                     icon: totalPending > 0
@@ -370,15 +361,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                 Icons.notifications_none_rounded,
                                 size: 26),
                           )
-                        : const Icon(
-                            Icons.notifications_none_rounded,
+                        : const Icon(Icons.notifications_none_rounded,
                             size: 26),
                     onPressed: () async {
                       await Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (_) =>
-                                  const NotificationScreen()));
+                              builder: (_) => const NotificationScreen()));
                       _loadDashboardData();
                     },
                   );
@@ -412,8 +401,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-              horizontal: 16.0, vertical: 20.0),
+          padding:
+              const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -450,7 +439,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ),
               const SizedBox(height: 24),
 
-              // ── Row 1 ───────────────────────────────────────────────
+              // ── Row 1 ─────────────────────────────────────────────────
               Row(children: [
                 Expanded(
                   child: SummaryCard(
@@ -472,7 +461,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ]),
               const SizedBox(height: 12),
 
-              // ── Row 2 ───────────────────────────────────────────────
+              // ── Row 2 ─────────────────────────────────────────────────
               Row(children: [
                 Expanded(
                   child: SummaryCard(
@@ -494,7 +483,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ]),
               const SizedBox(height: 12),
 
-              // ── Row 3 ───────────────────────────────────────────────
+              // ── Row 3 ─────────────────────────────────────────────────
               Row(children: [
                 Expanded(
                   child: SummaryCard(
@@ -513,8 +502,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           .length;
                       final rejectedSchedules = schedules.schedules
                           .where((s) =>
-                              s.acceptanceStatus == 2 &&
-                              !s.hrDismissed)
+                              s.acceptanceStatus == 2 && !s.hrDismissed)
                           .length;
                       final alertCount =
                           pendingExchanges + rejectedSchedules;
@@ -523,8 +511,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (_) =>
-                                  const NotificationScreen()),
+                              builder: (_) => const NotificationScreen()),
                         ),
                         child: SummaryCard(
                           title:     'Schedule Alerts',
@@ -537,26 +524,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   ),
                 ),
               ]),
-              const SizedBox(height: 12),
-
-              // ── Row 4 — Part Timer Claims ────────────────────────────
-              // Consumer<PaymentClaims>(
-              //   builder: (context, paymentClaims, _) {
-              //     return GestureDetector(
-              //       onTap: () => Navigator.push(
-              //         context,
-              //         MaterialPageRoute(
-              //             builder: (_) => const NotificationScreen()),
-              //       ),
-              //       child: SummaryCard(
-              //         title:     'Part Timer Claims',
-              //         count:     paymentClaims.pendingClaims.length,
-              //         icon:      Icons.payments_rounded,
-              //         iconColor: Colors.orange,
-              //       ),
-              //     );
-              //   },
-              // ),
 
               const SizedBox(height: 32),
               _buildMovementCards(),
@@ -577,16 +544,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text("Today's Schedule",
-                style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E293B))),
-            Text(today,
-                style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.blue)),
+            const Text(
+              "Today's Schedule",
+              style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1E293B)),
+            ),
+            Text(
+              today,
+              style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.blue),
+            ),
           ],
         ),
         const SizedBox(height: 16),
@@ -604,8 +575,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ],
             ),
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 20, vertical: 8),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               leading: Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
@@ -614,18 +585,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 child: const Icon(Icons.location_on_rounded,
                     size: 24, color: Colors.blue),
               ),
-              title: Text(entry.key,
-                  style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF334155))),
+              title: Text(
+                entry.key,
+                style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF334155)),
+              ),
               subtitle: Padding(
                 padding: const EdgeInsets.only(top: 4.0),
                 child: Text(
-                    'Staff scheduled: ${entry.value}',
-                    style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontWeight: FontWeight.w500)),
+                  'Staff scheduled: ${entry.value}',
+                  style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w500),
+                ),
               ),
               trailing: Container(
                 padding: const EdgeInsets.all(8),
@@ -642,8 +616,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   context,
                   MaterialPageRoute(
                     builder: (_) => ScheduleListScreen(
-                        location: entry.key,
-                        date:     DateTime.now()),
+                        location: entry.key, date: DateTime.now()),
                   ),
                 );
               },
@@ -672,49 +645,50 @@ class SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 1.4,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 15,
-                offset: const Offset(0, 5)),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                    color: iconColor.withOpacity(0.12),
-                    shape: BoxShape.circle),
-                child: Icon(icon, size: 28, color: iconColor),
-              ),
-              const SizedBox(height: 12),
-              Text(count.toString(),
-                  style: const TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w900,
-                      color: Color(0xFF1E293B))),
-              const SizedBox(height: 4),
-              Text(title,
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey.shade600)),
-            ],
+    // FIX: removed AspectRatio — replaced with intrinsic sizing via padding
+    // AspectRatio(1.4) was too short for the content, causing bottom overflow
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 15,
+              offset: const Offset(0, 5)),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+                color: iconColor.withOpacity(0.12), shape: BoxShape.circle),
+            child: Icon(icon, size: 28, color: iconColor),
           ),
-        ),
+          const SizedBox(height: 12),
+          Text(
+            count.toString(),
+            style: const TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFF1E293B)),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            maxLines: 2,                        // ← allow 2 lines for longer titles
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade600),
+          ),
+        ],
       ),
     );
   }
