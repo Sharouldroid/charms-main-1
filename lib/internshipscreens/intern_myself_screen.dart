@@ -65,7 +65,7 @@ class _InternMySelfScreenState extends State<InternMySelfScreen> {
 
   Future<void> _loadStaffData() async {
     setState(() => _isLoading = true);
-    
+
     try {
       debugPrint('🔍 Loading intern profile...');
       final staffsProvider = context.read<Staffs>();
@@ -112,7 +112,7 @@ class _InternMySelfScreenState extends State<InternMySelfScreen> {
     try {
       final picked = await ImagePicker()
           .pickImage(source: ImageSource.gallery, imageQuality: 70);
-      
+
       if (picked == null) return;
 
       setState(() {
@@ -156,35 +156,34 @@ class _InternMySelfScreenState extends State<InternMySelfScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // ✅ Create updated staff object (only editable fields changed)
       final updatedStaff = Staff(
         staffId: _currentStaff!.staffId,
         userId: _currentStaff!.userId,
         username: _currentStaff!.username,
-        email: _emailController.text, // ✅ Editable
+        email: _emailController.text,
         usertype: _currentStaff!.usertype,
-        firstname: _currentStaff!.firstname, // ❌ Not editable
-        lastname: _currentStaff!.lastname, // ❌ Not editable
+        firstname: _currentStaff!.firstname,
+        lastname: _currentStaff!.lastname,
         occupation: _currentStaff!.occupation,
-        phone: _phoneController.text, // ✅ Editable
+        phone: _phoneController.text,
         category: _currentStaff!.category,
         nationality: _currentStaff!.nationality,
         religion: _currentStaff!.religion,
         maritalStatus: _currentStaff!.maritalStatus,
-        gender: _currentStaff!.gender, // ✅ Editable
+        gender: _currentStaff!.gender,
         officePhone: _currentStaff!.officePhone,
         emergencyName: _currentStaff!.emergencyName,
         emergencyIc: _currentStaff!.emergencyIc,
         emergencyRelation: _currentStaff!.emergencyRelation,
         emergencyGender: _currentStaff!.emergencyGender,
         emergencyPhone: _currentStaff!.emergencyPhone,
-        idNum: _currentStaff!.idNum, // ❌ Not editable
-        dob: _currentStaff!.dob, // ❌ Not editable
-        address1: _addressController.text, // ✅ Editable
-        address2: _address2Controller.text, // ✅ Editable
-        city: _cityController.text, // ✅ Editable
-        postcode: int.tryParse(_postcodeController.text) ?? 0, // ✅ Editable
-        state: _stateController.text, // ✅ Editable
+        idNum: _currentStaff!.idNum,
+        dob: _currentStaff!.dob,
+        address1: _addressController.text,
+        address2: _address2Controller.text,
+        city: _cityController.text,
+        postcode: int.tryParse(_postcodeController.text) ?? 0,
+        state: _stateController.text,
         country: _currentStaff!.country,
         filepath: _currentStaff!.filepath,
         filename: _currentStaff!.filename,
@@ -258,7 +257,6 @@ class _InternMySelfScreenState extends State<InternMySelfScreen> {
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
         ),
         actions: [
-          // ✅ Edit/Save toggle button
           IconButton(
             icon: Icon(
               _isEditing ? Icons.check_circle : Icons.edit,
@@ -279,7 +277,7 @@ class _InternMySelfScreenState extends State<InternMySelfScreen> {
               tooltip: 'Cancel',
               onPressed: () {
                 setState(() => _isEditing = false);
-                _updateControllers(); // Reset changes
+                _updateControllers();
               },
             ),
           if (!_isEditing)
@@ -320,20 +318,24 @@ class _InternMySelfScreenState extends State<InternMySelfScreen> {
                                   ),
                                   child: CircleAvatar(
                                     radius: 60,
-                                    backgroundColor: _primaryBlue.withOpacity(0.12),
+                                    backgroundColor:
+                                        _primaryBlue.withOpacity(0.12),
                                     backgroundImage: _profileImage != null
                                         ? (kIsWeb
                                             ? NetworkImage(_profileImage!.path)
                                                 as ImageProvider
-                                            : FileImage(File(_profileImage!.path)))
+                                            : FileImage(
+                                                File(_profileImage!.path)))
                                         : (_currentStaff?.filepath != null &&
-                                                _currentStaff!.filepath!.isNotEmpty)
+                                                _currentStaff!
+                                                    .filepath!.isNotEmpty)
                                             ? NetworkImage(
                                                 'https://devcms.com.my/charmsAPI/public/storage/${_currentStaff!.filepath}')
                                             : null,
                                     child: (_profileImage == null &&
                                             (_currentStaff?.filepath == null ||
-                                                _currentStaff!.filepath!.isEmpty))
+                                                _currentStaff!
+                                                    .filepath!.isEmpty))
                                         ? Icon(Icons.person_rounded,
                                             size: 60, color: _primaryBlue)
                                         : _isUploadingImage
@@ -362,7 +364,6 @@ class _InternMySelfScreenState extends State<InternMySelfScreen> {
                             ),
                           ),
                           const SizedBox(height: 20),
-                          // ❌ Name is NOT editable (display only)
                           Text(
                             '${_currentStaff?.firstname ?? ''} ${_currentStaff?.lastname ?? ''}'
                                 .trim(),
@@ -386,8 +387,8 @@ class _InternMySelfScreenState extends State<InternMySelfScreen> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
-                              color: _isEditing 
-                                  ? Colors.orange.withOpacity(0.1) 
+                              color: _isEditing
+                                  ? Colors.orange.withOpacity(0.1)
                                   : Colors.green.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(20),
                             ),
@@ -395,9 +396,13 @@ class _InternMySelfScreenState extends State<InternMySelfScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
-                                  _isEditing ? Icons.edit : Icons.verified_user,
+                                  _isEditing
+                                      ? Icons.edit
+                                      : Icons.verified_user,
                                   size: 16,
-                                  color: _isEditing ? Colors.orange : Colors.green,
+                                  color: _isEditing
+                                      ? Colors.orange
+                                      : Colors.green,
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
@@ -405,7 +410,9 @@ class _InternMySelfScreenState extends State<InternMySelfScreen> {
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.bold,
-                                    color: _isEditing ? Colors.orange : Colors.green,
+                                    color: _isEditing
+                                        ? Colors.orange
+                                        : Colors.green,
                                   ),
                                 ),
                               ],
@@ -428,16 +435,20 @@ class _InternMySelfScreenState extends State<InternMySelfScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // FIX: wrap Text in Flexible to prevent overflow
                             Row(
                               children: [
                                 Icon(Icons.lock_outline,
                                     color: Colors.grey.shade600, size: 24),
                                 const SizedBox(width: 12),
-                                const Text(
-                                  'Official Information (Read-Only)',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
+                                Flexible(
+                                  child: Text(
+                                    'Official Information (Read-Only)',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                               ],
@@ -452,17 +463,20 @@ class _InternMySelfScreenState extends State<InternMySelfScreen> {
                             ),
                             const SizedBox(height: 20),
                             _buildReadOnlyRow(
-                                'Full Name',
-                                '${_currentStaff?.firstname ?? ''} ${_currentStaff?.lastname ?? ''}',
-                                Icons.badge),
+                              'Full Name',
+                              '${_currentStaff?.firstname ?? ''} ${_currentStaff?.lastname ?? ''}',
+                              Icons.badge,
+                            ),
                             _buildReadOnlyRow(
-                                'Date of Birth',
-                                _currentStaff?.dob ?? 'N/A',
-                                Icons.cake),
+                              'Date of Birth',
+                              _currentStaff?.dob ?? 'N/A',
+                              Icons.cake,
+                            ),
                             _buildReadOnlyRow(
-                                'Occupation',
-                                _currentStaff?.occupation ?? 'Intern',
-                                Icons.work),
+                              'Occupation',
+                              _currentStaff?.occupation ?? 'Intern',
+                              Icons.work,
+                            ),
                           ],
                         ),
                       ),
@@ -481,16 +495,20 @@ class _InternMySelfScreenState extends State<InternMySelfScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // FIX: wrap Text in Flexible to prevent overflow
                             Row(
                               children: [
                                 Icon(Icons.edit_note,
                                     color: _primaryBlue, size: 24),
                                 const SizedBox(width: 12),
-                                const Text(
-                                  'Contact Information (Editable)',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
+                                Flexible(
+                                  child: Text(
+                                    'Contact Information (Editable)',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                               ],
@@ -526,16 +544,20 @@ class _InternMySelfScreenState extends State<InternMySelfScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // Address card header — icon + short title, no overflow risk
                             Row(
                               children: [
                                 Icon(Icons.location_on,
                                     color: _primaryBlue, size: 24),
                                 const SizedBox(width: 12),
-                                const Text(
-                                  'Address (Editable)',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
+                                Flexible(
+                                  child: Text(
+                                    'Address (Editable)',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                               ],

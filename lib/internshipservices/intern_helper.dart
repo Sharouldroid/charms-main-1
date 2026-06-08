@@ -48,7 +48,7 @@ class InternHelper {
         }
 
         // ✅ Return the ID of the FIRST registration
-        final internId = registrations.first['id'] as int;
+        final internId = (registrations.first['user_id'] as num).toInt();
         print('✅ Found registration! Intern ID: $internId');
         print('   Total registrations: ${registrations.length}');
         return internId;

@@ -520,7 +520,7 @@ class _DocsUploadState extends State<DocsUpload> {
             ),
             floatingActionButton: FloatingActionButton(
             onPressed: () {
-              Navigator.of(context).popUntil((route) => route.isFirst);
+              Navigator.of(context).pop();
             },
             backgroundColor: Colors.blueAccent,
             tooltip: 'Back to Dashboard',
