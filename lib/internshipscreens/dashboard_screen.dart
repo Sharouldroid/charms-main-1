@@ -754,10 +754,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ));
         }),
         _buildDashboardButton(context, 'Activity Logs', Icons.monitor, () {
-          _navigateToMonitorPerformance();
+          Navigator.push(context, MaterialPageRoute(
+            builder: (context) => MonitorPerformancePage(
+              role: widget.role,
+              userId: widget.userId, 
+            ),
+          ));
         }),
         _buildDashboardButton(context, 'Assessment', Icons.assessment, () {
-          _navigateToAssessment();
+          Navigator.push(context, MaterialPageRoute(
+            builder: (context) => AssessmentInternPage(
+              internId: widget.userId,
+            ),
+          ));
         }),
         _buildDashboardButton(context, 'Check Status', Icons.check_circle,
             () {
@@ -765,9 +774,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
             builder: (_) => RegistrationStatusPage(userId: widget.userId),
           ));
         }),
-        _buildDashboardButton(context, 'Upload Documents', Icons.upload_file,
-            () {
-          _navigateToDocumentUpload();
+        _buildDashboardButton(context, 'Upload Documents', Icons.upload_file, () {
+            Navigator.push(context, MaterialPageRoute(
+                builder: (context) => DocsUpload(
+                    userId: widget.userId,
+                    scheduleId: null,
+                ),
+            ));
         }),
         _buildDashboardButton(context, 'My Profile', Icons.account_circle,
             () {

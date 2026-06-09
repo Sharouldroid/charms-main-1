@@ -228,8 +228,8 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
     );
   }
 
-  String _formatDate(DateTime dt) => DateFormat('dd MMM yyyy').format(dt);
-  String _formatTime(DateTime dt) => DateFormat('hh:mm a').format(dt);
+  String _formatDate(DateTime dt) => DateFormat('dd MMM yyyy').format(dt.toLocal());
+  String _formatTime(DateTime dt) => DateFormat('hh:mm a').format(dt.toLocal());
 
   @override
   Widget build(BuildContext context) {
