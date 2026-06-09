@@ -56,16 +56,13 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
     };
 
     try {
-      final schedulesProvider  = Provider.of<Schedules>(context, listen: false);
-      final exchangesProvider  = Provider.of<ScheduleExchanges>(context, listen: false);
+      final schedulesProvider = Provider.of<Schedules>(context, listen: false);
+      final exchangesProvider = Provider.of<ScheduleExchanges>(context, listen: false);
 
       final schedules = await schedulesProvider.fetchSchedulesByStaffId(_staffId);
       await exchangesProvider.fetchAllForHR();
 
       setState(() {
-        // ✅ CHANGED: filter out hrDismissed schedules so they don't show
-        // in the staff's active/assigned schedule list.
-        // They still exist in the DB and appear in Schedule History.
         _schedules = schedules.where((s) => !s.hrDismissed).toList();
         _isLoading = false;
       });
@@ -107,7 +104,7 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => EditScheduleScreen(
-          schedule: schedule,
+          schedule:  schedule,
           staffType: _staffType,
         ),
       ),
@@ -177,18 +174,22 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
           const SizedBox(width: 8),
           SizedBox(
             width: 70,
-            child: Text(label,
-                style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600)),
+            child: Text(
+              label,
+              style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600),
+            ),
           ),
           Expanded(
-            child: Text(value,
-                style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: valueColor ?? const Color(0xFF334155))),
+            child: Text(
+              value,
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: valueColor ?? const Color(0xFF334155)),
+            ),
           ),
         ],
       ),
@@ -202,9 +203,13 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
       appBar: AppBar(
         elevation: 0,
         leading: const BackButton(color: Colors.white),
-        title: const Text('STAFF SCHEDULE',
-            style: TextStyle(color: Colors.white,
-                fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+        title: const Text(
+          'STAFF SCHEDULE',
+          style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2),
+        ),
         backgroundColor: primaryBlue,
         centerTitle: true,
         shape: const RoundedRectangleBorder(
@@ -220,19 +225,25 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
                   children: [
                     const SizedBox(height: 16),
 
-                    // ── Staff header card ─────────────────────────────────
+                    // ── Staff header card ───────────────────────────────────
                     GestureDetector(
-                      onTap: () => Navigator.push(context, MaterialPageRoute(
-                          builder: (_) => const StaffListScreen())),
+                      onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const StaffListScreen())),
                       child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 16.0),
+                        margin:
+                            const EdgeInsets.symmetric(horizontal: 16.0),
                         padding: const EdgeInsets.all(20.0),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(20),
-                          boxShadow: [BoxShadow(
-                              color: Colors.black.withOpacity(0.04),
-                              blurRadius: 15, offset: const Offset(0, 5))],
+                          boxShadow: [
+                            BoxShadow(
+                                color: Colors.black.withOpacity(0.04),
+                                blurRadius: 15,
+                                offset: const Offset(0, 5))
+                          ],
                         ),
                         child: Row(children: [
                           Container(
@@ -244,20 +255,28 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
                                 size: 28, color: primaryBlue),
                           ),
                           const SizedBox(width: 16),
-                          Expanded(child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(_userDetails!['fullName'] ?? 'Unknown',
-                                  style: const TextStyle(fontSize: 18,
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _userDetails!['fullName'] ?? 'Unknown',
+                                  style: const TextStyle(
+                                      fontSize: 18,
                                       fontWeight: FontWeight.bold,
-                                      color: Color(0xFF1E293B))),
-                              const SizedBox(height: 4),
-                              Text(_userDetails!['staffId'] ?? 'Unknown ID',
-                                  style: TextStyle(fontSize: 14,
+                                      color: Color(0xFF1E293B)),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  _userDetails!['staffId'] ?? 'Unknown ID',
+                                  style: TextStyle(
+                                      fontSize: 14,
                                       color: Colors.grey.shade600,
-                                      fontWeight: FontWeight.w500)),
-                            ],
-                          )),
+                                      fontWeight: FontWeight.w500),
+                                ),
+                              ],
+                            ),
+                          ),
                           Icon(Icons.chevron_right_rounded,
                               color: Colors.grey.shade400),
                         ]),
@@ -266,30 +285,38 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
 
                     const SizedBox(height: 24),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                      child: Text('Assigned Schedules',
-                          style: TextStyle(fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey.shade800)),
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 20.0),
+                      child: Text(
+                        'Assigned Schedules',
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey.shade800),
+                      ),
                     ),
                     const SizedBox(height: 12),
 
-                    // ── Schedule list ─────────────────────────────────────
+                    // ── Schedule list ───────────────────────────────────────
                     Expanded(
                       child: _schedules.isEmpty
-                          ? Center(child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.event_available_rounded,
-                                    size: 64, color: Colors.grey.shade300),
-                                const SizedBox(height: 16),
-                                Text('No schedules assigned',
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.event_available_rounded,
+                                      size: 64, color: Colors.grey.shade300),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'No schedules assigned',
                                     style: TextStyle(
                                         color: Colors.grey.shade500,
                                         fontSize: 16,
-                                        fontWeight: FontWeight.w500)),
-                              ],
-                            ))
+                                        fontWeight: FontWeight.w500),
+                                  ),
+                                ],
+                              ),
+                            )
                           : ListView.builder(
                               physics: const AlwaysScrollableScrollPhysics(),
                               padding: const EdgeInsets.only(bottom: 80),
@@ -297,23 +324,23 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
                               itemBuilder: (context, index) {
                                 final schedule = _schedules[index];
 
-                                String branch      = '';
-                                Color branchColor  = Colors.blue;
+                                String branch     = '';
+                                Color branchColor = Colors.blue;
                                 switch (schedule.workLocation) {
                                   case 1:
-                                    branch = 'Chagar Hutang';
+                                    branch      = 'Chagar Hutang';
                                     branchColor = Colors.teal;
                                     break;
                                   case 2:
-                                    branch = 'Turtle Lab';
+                                    branch      = 'Turtle Lab';
                                     branchColor = Colors.orange;
                                     break;
                                   case 3:
-                                    branch = 'UMT';
+                                    branch      = 'UMT';
                                     branchColor = Colors.purple;
                                     break;
                                   default:
-                                    branch = 'N/A';
+                                    branch      = 'N/A';
                                     branchColor = Colors.grey;
                                 }
 
@@ -325,14 +352,18 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
                                   decoration: BoxDecoration(
                                     color: Colors.white,
                                     borderRadius: BorderRadius.circular(16),
-                                    boxShadow: [BoxShadow(
-                                        color: Colors.black.withOpacity(0.03),
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 4))],
+                                    boxShadow: [
+                                      BoxShadow(
+                                          color:
+                                              Colors.black.withOpacity(0.03),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 4))
+                                    ],
                                   ),
                                   child: ListTile(
-                                    contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 20, vertical: 12),
+                                    contentPadding:
+                                        const EdgeInsets.symmetric(
+                                            horizontal: 20, vertical: 12),
                                     leading: Container(
                                       padding: const EdgeInsets.all(10),
                                       decoration: BoxDecoration(
@@ -343,30 +374,42 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
                                           Icons.calendar_month_rounded,
                                           color: Colors.blue),
                                     ),
-                                    title: Text(_formatDate(schedule.workDate),
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                            color: Color(0xFF334155))),
+                                    title: Text(
+                                      _formatDate(schedule.workDate),
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                          color: Color(0xFF334155)),
+                                    ),
+                                    // FIX: replaced Row with Wrap so badges
+                                    // wrap to next line instead of overflowing
                                     subtitle: Padding(
-                                      padding: const EdgeInsets.only(top: 8.0),
-                                      child: Row(children: [
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 8, vertical: 4),
-                                          decoration: BoxDecoration(
-                                              color: branchColor.withOpacity(0.1),
-                                              borderRadius:
-                                                  BorderRadius.circular(8)),
-                                          child: Text(branch,
+                                      padding:
+                                          const EdgeInsets.only(top: 8.0),
+                                      child: Wrap(
+                                        spacing: 8,
+                                        runSpacing: 6,
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                                color: branchColor
+                                                    .withOpacity(0.1),
+                                                borderRadius:
+                                                    BorderRadius.circular(8)),
+                                            child: Text(
+                                              branch,
                                               style: TextStyle(
                                                   color: branchColor,
                                                   fontSize: 12,
-                                                  fontWeight: FontWeight.bold)),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        _buildStatusBadge(badge),
-                                      ]),
+                                                  fontWeight:
+                                                      FontWeight.bold),
+                                            ),
+                                          ),
+                                          _buildStatusBadge(badge),
+                                        ],
+                                      ),
                                     ),
                                     trailing: Container(
                                       padding: const EdgeInsets.all(8),
@@ -383,9 +426,11 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
                                           shape: RoundedRectangleBorder(
                                               borderRadius:
                                                   BorderRadius.circular(20)),
-                                          title: const Text('Schedule Details',
-                                              style: TextStyle(
-                                                  fontWeight: FontWeight.bold)),
+                                          title: const Text(
+                                            'Schedule Details',
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.bold),
+                                          ),
                                           content: Column(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
@@ -393,16 +438,19 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
                                               _detailRow(
                                                   Icons.calendar_today_rounded,
                                                   'Date',
-                                                  _formatDate(schedule.workDate)),
+                                                  _formatDate(
+                                                      schedule.workDate)),
                                               _detailRow(
                                                   Icons.location_on_rounded,
-                                                  'Location', branch,
+                                                  'Location',
+                                                  branch,
                                                   valueColor: branchColor),
                                               _detailRow(
                                                   Icons.access_time_rounded,
                                                   'Work',
                                                   '${schedule.workStartTime} - ${schedule.workEndTime}'),
-                                              _detailRow(Icons.coffee_rounded,
+                                              _detailRow(
+                                                  Icons.coffee_rounded,
                                                   'Break',
                                                   '${schedule.breakStartTime ?? 'N/A'} - ${schedule.breakEndTime ?? 'N/A'}'),
                                               _detailRow(
@@ -421,22 +469,24 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
                                             ),
                                             if (_isScheduleEditingEnabled)
                                               TextButton(
-                                                onPressed: () =>
-                                                    handleEdit(schedule, context),
+                                                onPressed: () => handleEdit(
+                                                    schedule, context),
                                                 child: const Text('Edit',
                                                     style: TextStyle(
                                                         color: Colors.blue)),
                                               ),
                                             ElevatedButton(
                                               style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.redAccent,
+                                                backgroundColor:
+                                                    Colors.redAccent,
                                                 elevation: 0,
                                                 shape: RoundedRectangleBorder(
                                                     borderRadius:
-                                                        BorderRadius.circular(10)),
+                                                        BorderRadius.circular(
+                                                            10)),
                                               ),
-                                              onPressed: () =>
-                                                  _handleDelete(schedule, context),
+                                              onPressed: () => _handleDelete(
+                                                  schedule, context),
                                               child: const Text('Delete',
                                                   style: TextStyle(
                                                       color: Colors.white)),
@@ -456,8 +506,11 @@ class _StaffScheduleScreenState extends State<StaffScheduleScreen> {
         backgroundColor: primaryBlue,
         elevation: 4,
         icon: const Icon(Icons.add_rounded, color: Colors.white),
-        label: const Text('Assign Shift',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        label: const Text(
+          'Assign Shift',
+          style:
+              TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
         onPressed: () async {
           final result = await Navigator.push(
             context,
