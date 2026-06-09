@@ -41,6 +41,7 @@ class AdminAttendanceRecord {
   final DateTime? clockInTime;
   final DateTime? clockOutTime;
   final String? clockInLocation;
+  final String? photoUrl;
 
   AdminAttendanceRecord({
     required this.id,
@@ -53,6 +54,7 @@ class AdminAttendanceRecord {
     this.clockInTime,
     this.clockOutTime,
     this.clockInLocation,
+    this.photoUrl,
   });
 
   factory AdminAttendanceRecord.fromJson(Map<String, dynamic> json) {
@@ -71,6 +73,7 @@ class AdminAttendanceRecord {
           ? DateTime.tryParse(json['clock_out_time'].toString())
           : null,
       clockInLocation: json['clock_in_location']?.toString(),
+      photoUrl: json['photo_url']?.toString(),
     );
   }
 
@@ -558,13 +561,18 @@ class _AttendanceAdminCard extends StatelessWidget {
               CircleAvatar(
                 radius: 20,
                 backgroundColor: _primaryBlue.withOpacity(0.1),
-                child: Text(
-                  record.internName.isNotEmpty
-                      ? record.internName[0].toUpperCase()
-                      : '?',
-                  style: const TextStyle(
-                      color: _primaryBlue, fontWeight: FontWeight.bold),
-                ),
+                backgroundImage: record.photoUrl != null
+                    ? NetworkImage(record.photoUrl!)
+                    : null,
+                child: record.photoUrl == null
+                    ? Text(
+                        record.internName.isNotEmpty
+                            ? record.internName[0].toUpperCase()
+                            : '?',
+                        style: const TextStyle(
+                            color: _primaryBlue, fontWeight: FontWeight.bold),
+                      )
+                    : null,
               ),
               const SizedBox(width: 10),
               Expanded(

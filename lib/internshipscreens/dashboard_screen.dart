@@ -64,7 +64,43 @@ class _DashboardScreenState extends State<DashboardScreen> {
         widget.userId,
         widget.role == 'Admin',
       );
+      // ✅ Restore clock-in/out state from backend on dashboard load
+      if (widget.role == 'Intern') {
+        _checkAttendanceState();
+      }
     });
+  }
+ 
+  // ── Check existing attendance state from backend ───────────────────────
+  Future<void> _checkAttendanceState() async {
+    try {
+      final reg = await InternHelper.getActiveRegistration(widget.userId);
+      if (reg == null || reg.scheduleId == null) return;
+ 
+      final provider = context.read<InternAttendanceProvider>();
+      final result = await provider.checkAttendance(
+        userId: widget.userId,
+        scheduleId: reg.scheduleId!,
+      );
+ 
+      if (mounted) {
+        setState(() {
+          _isClockIn  = result['has_clocked_in']  == true;
+          _isClockOut = result['has_clocked_out'] == true;
+          _clockInLocationStr = result['clock_in_location']?.toString();
+          _activeScheduleId   = reg.scheduleId;
+ 
+          if (_isClockOut && result['clock_out_time'] != null) {
+            final t = DateTime.tryParse(result['clock_out_time'].toString());
+            if (t != null) {
+              _clockOutTimeStr = DateFormat('hh:mm a').format(t.toLocal());
+            }
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error checking attendance state: $e');
+    }
   }
  
   // ── Load staff / profile picture ───────────────────────────────────────
