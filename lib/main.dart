@@ -37,6 +37,7 @@ import 'package:charms/internshipproviders/schedule_provider.dart';
 import 'package:charms/internshipproviders/assessment_provider.dart';
 import 'package:charms/internshipscreens/dashboard_screen.dart' as internship_screens;
 import 'package:charms/internshipproviders/internship_notification_provider.dart';
+import 'package:charms/internshipproviders/InternAttendanceProvider.dart';
 // ------------------------
 // 🌟 HR MODULE IMPORTS (ADDED)
 // ------------------------
@@ -143,13 +144,13 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (context) => ScheduleProvider()),
         ChangeNotifierProvider(create: (context) => AssessmentProvider()),
         ChangeNotifierProvider(create: (_) => InternshipNotificationProvider()),
+        ChangeNotifierProvider(create: (_) => InternAttendanceProvider()),
 
         // --------------------------------
         // 🌟 HR MODULE PROVIDERS (ADDED)
         // --------------------------------
         ChangeNotifierProvider(create: (ctx) => Staffs()),
-        ChangeNotifierProvider(
-            create: (ctx) => hr_schedules.Schedules()), // Uses alias
+        ChangeNotifierProvider(create: (ctx) => hr_schedules.Schedules()), // Uses alias
         ChangeNotifierProvider(create: (ctx) => Payments()),
         ChangeNotifierProvider(create: (ctx) => Attendances()),
         ChangeNotifierProvider(create: (ctx) => Leaves()),
