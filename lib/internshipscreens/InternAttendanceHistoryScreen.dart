@@ -97,8 +97,9 @@ class _AttendanceCard extends StatelessWidget {
     final dateFormat = DateFormat('dd MMM yyyy');
     final timeFormat = DateFormat('hh:mm a');
  
-    final scheduleDate = record.scheduleStartDate != null
-        ? dateFormat.format(record.scheduleStartDate!.toLocal())
+    // Show the actual work date, fallback to schedule start date
+    final scheduleDate = (record.workDate ?? record.scheduleStartDate) != null
+        ? dateFormat.format((record.workDate ?? record.scheduleStartDate)!)
         : 'Unknown date';
  
     final clockIn = record.clockInTime != null
@@ -310,4 +311,3 @@ class _TimeChip extends StatelessWidget {
     );
   }
 }
- 

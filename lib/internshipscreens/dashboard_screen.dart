@@ -7,7 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:charms/HRproviders/staffs.dart';
 import 'package:charms/HRmodels/staff.dart';
 import 'package:charms/internshipscreens/assessment_intern.dart';
-import 'package:charms/internshipservices/intern_helper.dart'; // InternHelper + InternRegistration
+import 'package:charms/internshipservices/intern_helper.dart';
 import 'package:charms/utils/logout_helper.dart';
 import 'schedule_calendar.dart';
 import 'monitor_performance.dart';

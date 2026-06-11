@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:charms/main.dart';
-//import 'package:charms/internshipmodels/schedule.dart';
 import 'package:charms/internshipservices/schedule_service.dart';
 import 'package:charms/internshipservices/milestone_service.dart';
 
@@ -51,7 +50,6 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
     });
 
     try {
-      // Step 1: Registration
       final regResponse = await http.get(
         Uri.parse('${AppConfig.hostname}/api/internship/registers/by-user/${widget.userId}'),
       );
@@ -93,7 +91,6 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
         return;
       }
 
-      // Step 2: Schedule
       final scheduleService = ScheduleService(baseUrl: AppConfig.hostname);
       final allSchedules = await scheduleService.fetchSchedules();
       final matching = allSchedules.where((s) => s.id == _scheduleId).toList();
@@ -108,7 +105,6 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
       _endDate             = schedule.endDate;
       _scheduleDescription = schedule.description;
 
-      // Step 3: Load manual milestones from backend
       await _loadMilestones();
 
       setState(() => _isLoading = false);
@@ -172,7 +168,6 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
-  // Auto milestones (fixed, not editable)
   List<Map<String, dynamic>> get _autoMilestones {
     if (_startDate == null || _endDate == null) return [];
     final week1 = _startDate!.add(Duration(days: (_totalDays * 0.10).round()));
@@ -188,7 +183,6 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
     ];
   }
 
-  // Internship End (auto, fixed)
   Map<String, dynamic> get _endMilestone => {
     'label': 'Internship End',
     'date': _endDate,
@@ -198,7 +192,6 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
     'id': null,
   };
 
-  // Combined sorted milestone list for display
   List<Map<String, dynamic>> get _allMilestones {
     final List<Map<String, dynamic>> combined = [
       ..._autoMilestones,
@@ -581,13 +574,23 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // FIX: wrap title Text in Flexible so status badge never gets pushed off
           Row(
             children: [
               const Icon(Icons.timeline, color: Colors.white, size: 22),
               const SizedBox(width: 8),
-              const Text('Internship Timeline',
-                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-              const Spacer(),
+              const Flexible(
+                child: Text(
+                  'Internship Timeline',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
@@ -598,21 +601,30 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      _internshipStatus == 'Active' ? Icons.circle
-                          : _internshipStatus == 'Upcoming' ? Icons.schedule
-                          : Icons.check_circle,
-                      color: Colors.white, size: 10,
+                      _internshipStatus == 'Active'
+                          ? Icons.circle
+                          : _internshipStatus == 'Upcoming'
+                              ? Icons.schedule
+                              : Icons.check_circle,
+                      color: Colors.white,
+                      size: 10,
                     ),
                     const SizedBox(width: 5),
-                    Text(_internshipStatus,
-                        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                    Text(
+                      _internshipStatus,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600),
+                    ),
                   ],
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          Text(_scheduleDescription, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+          Text(_scheduleDescription,
+              style: const TextStyle(color: Colors.white70, fontSize: 13)),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -638,7 +650,9 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
         children: [
           Icon(icon, color: Colors.white70, size: 18),
           const SizedBox(height: 4),
-          Text(value, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+          Text(value,
+              style: const TextStyle(
+                  color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
           Text(label, style: const TextStyle(color: Colors.white60, fontSize: 11)),
         ],
       ),
@@ -646,7 +660,9 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
   }
 
   Widget _headerDivider() => Container(
-        height: 40, width: 0.5, color: Colors.white30,
+        height: 40,
+        width: 0.5,
+        color: Colors.white30,
         margin: const EdgeInsets.symmetric(horizontal: 4),
       );
 
@@ -662,10 +678,14 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
             children: [
               const Icon(Icons.trending_up, color: Colors.blueAccent, size: 18),
               const SizedBox(width: 8),
-              const Text('Overall Progress', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              const Text('Overall Progress',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
               const Spacer(),
               Text('$percent%',
-                  style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 18)),
+                  style: const TextStyle(
+                      color: Colors.blueAccent,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18)),
             ],
           ),
           const SizedBox(height: 14),
@@ -684,14 +704,21 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(_formatDate(_startDate), style: const TextStyle(fontSize: 11, color: Colors.grey)),
+              Text(_formatDate(_startDate),
+                  style: const TextStyle(fontSize: 11, color: Colors.grey)),
               Text(
-                _internshipStatus == 'Completed' ? '🎉 Internship completed!'
-                    : _internshipStatus == 'Upcoming' ? 'Starting in $_daysRemaining days'
-                    : '$_daysRemaining days remaining',
-                style: TextStyle(fontSize: 12, color: _statusColor, fontWeight: FontWeight.w600),
+                _internshipStatus == 'Completed'
+                    ? '🎉 Internship completed!'
+                    : _internshipStatus == 'Upcoming'
+                        ? 'Starting in $_daysRemaining days'
+                        : '$_daysRemaining days remaining',
+                style: TextStyle(
+                    fontSize: 12,
+                    color: _statusColor,
+                    fontWeight: FontWeight.w600),
               ),
-              Text(_formatDate(_endDate), style: const TextStyle(fontSize: 11, color: Colors.grey)),
+              Text(_formatDate(_endDate),
+                  style: const TextStyle(fontSize: 11, color: Colors.grey)),
             ],
           ),
         ],
@@ -710,17 +737,26 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
             children: [
               Icon(Icons.date_range, color: Colors.blueAccent, size: 18),
               SizedBox(width: 8),
-              Text('Internship Period', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              Text('Internship Period',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             ],
           ),
           const SizedBox(height: 14),
           Row(
             children: [
-              Expanded(child: _dateTile(label: 'Start Date', date: _formatDate(_startDate),
-                  icon: Icons.play_circle_outline, color: Colors.green)),
+              Expanded(
+                  child: _dateTile(
+                      label: 'Start Date',
+                      date: _formatDate(_startDate),
+                      icon: Icons.play_circle_outline,
+                      color: Colors.green)),
               const SizedBox(width: 12),
-              Expanded(child: _dateTile(label: 'End Date', date: _formatDate(_endDate),
-                  icon: Icons.stop_circle_outlined, color: Colors.redAccent)),
+              Expanded(
+                  child: _dateTile(
+                      label: 'End Date',
+                      date: _formatDate(_endDate),
+                      icon: Icons.stop_circle_outlined,
+                      color: Colors.redAccent)),
             ],
           ),
           const SizedBox(height: 12),
@@ -736,8 +772,13 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
               children: [
                 const Icon(Icons.timelapse, color: Colors.blueAccent, size: 16),
                 const SizedBox(width: 8),
-                Text('Total duration: $_totalDays days',
-                    style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.w600, fontSize: 13)),
+                Text(
+                  'Total duration: $_totalDays days',
+                  style: const TextStyle(
+                      color: Colors.blueAccent,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13),
+                ),
               ],
             ),
           ),
@@ -746,7 +787,11 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
     );
   }
 
-  Widget _dateTile({required String label, required String date, required IconData icon, required Color color}) {
+  Widget _dateTile(
+      {required String label,
+      required String date,
+      required IconData icon,
+      required Color color}) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -760,10 +805,13 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
           Row(children: [
             Icon(icon, color: color, size: 14),
             const SizedBox(width: 5),
-            Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+            Text(label,
+                style: TextStyle(
+                    color: color, fontSize: 11, fontWeight: FontWeight.w600)),
           ]),
           const SizedBox(height: 6),
-          Text(date, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+          Text(date,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
         ],
       ),
     );
@@ -781,9 +829,9 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
             children: [
               const Icon(Icons.flag, color: Colors.blueAccent, size: 18),
               const SizedBox(width: 8),
-              const Text('Key Milestones', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              const Text('Key Milestones',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
               const Spacer(),
-              // Add milestone button
               GestureDetector(
                 onTap: _showAddMilestoneDialog,
                 child: Container(
@@ -797,7 +845,11 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
                     children: [
                       Icon(Icons.add, color: Colors.blueAccent, size: 14),
                       SizedBox(width: 4),
-                      Text('Add', style: TextStyle(color: Colors.blueAccent, fontSize: 12, fontWeight: FontWeight.w600)),
+                      Text('Add',
+                          style: TextStyle(
+                              color: Colors.blueAccent,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600)),
                     ],
                   ),
                 ),
@@ -806,7 +858,9 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
           ),
           if (_milestonesLoading) ...[
             const SizedBox(height: 12),
-            const Center(child: CircularProgressIndicator(color: Colors.blueAccent, strokeWidth: 2)),
+            const Center(
+                child: CircularProgressIndicator(
+                    color: Colors.blueAccent, strokeWidth: 2)),
           ],
           const SizedBox(height: 14),
           ...milestones.asMap().entries.map((entry) {
@@ -816,11 +870,13 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
             final isPast = m['isPast'] as bool;
             final isAuto = m['isAuto'] as bool;
             final milestoneId = m['id'] as int?;
-            final isNext = !isPast && (i == 0 || milestones[i - 1]['isPast'] == true);
+            final isNext =
+                !isPast && (i == 0 || milestones[i - 1]['isPast'] == true);
 
-            // Find matching InternMilestone for edit/delete
             final internMilestone = milestoneId != null
-                ? _manualMilestones.where((ml) => ml.id == milestoneId).firstOrNull
+                ? _manualMilestones
+                    .where((ml) => ml.id == milestoneId)
+                    .firstOrNull
                 : null;
 
             return IntrinsicHeight(
@@ -836,15 +892,22 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
                           width: 26,
                           height: 26,
                           decoration: BoxDecoration(
-                            color: isPast ? Colors.green
-                                : isNext ? Colors.blueAccent
-                                : Colors.grey[200],
+                            color: isPast
+                                ? Colors.green
+                                : isNext
+                                    ? Colors.blueAccent
+                                    : Colors.grey[200],
                             shape: BoxShape.circle,
-                            border: isNext ? Border.all(color: Colors.blueAccent, width: 2) : null,
+                            border: isNext
+                                ? Border.all(
+                                    color: Colors.blueAccent, width: 2)
+                                : null,
                           ),
                           child: Icon(
                             isPast ? Icons.check : (m['icon'] as IconData),
-                            color: isPast || isNext ? Colors.white : Colors.grey[400],
+                            color: isPast || isNext
+                                ? Colors.white
+                                : Colors.grey[400],
                             size: 13,
                           ),
                         ),
@@ -852,8 +915,11 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
                           Expanded(
                             child: Container(
                               width: 2,
-                              color: isPast ? Colors.green.withOpacity(0.4) : Colors.grey[200],
-                              margin: const EdgeInsets.symmetric(vertical: 3),
+                              color: isPast
+                                  ? Colors.green.withOpacity(0.4)
+                                  : Colors.grey[200],
+                              margin:
+                                  const EdgeInsets.symmetric(vertical: 3),
                             ),
                           ),
                       ],
@@ -878,48 +944,61 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
                                         style: TextStyle(
                                           fontSize: 13,
                                           fontWeight: FontWeight.w600,
-                                          color: isPast ? Colors.grey
-                                              : isNext ? Colors.blueAccent
-                                              : Colors.black87,
+                                          color: isPast
+                                              ? Colors.grey
+                                              : isNext
+                                                  ? Colors.blueAccent
+                                                  : Colors.black87,
                                         ),
                                       ),
                                     ),
-                                    // Auto badge
                                     if (isAuto)
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
                                         decoration: BoxDecoration(
-                                          color: Colors.grey.withOpacity(0.12),
-                                          borderRadius: BorderRadius.circular(10),
+                                          color:
+                                              Colors.grey.withOpacity(0.12),
+                                          borderRadius:
+                                              BorderRadius.circular(10),
                                         ),
                                         child: const Text('Auto',
-                                            style: TextStyle(fontSize: 9, color: Colors.grey, fontWeight: FontWeight.w600)),
+                                            style: TextStyle(
+                                                fontSize: 9,
+                                                color: Colors.grey,
+                                                fontWeight:
+                                                    FontWeight.w600)),
                                       ),
                                   ],
                                 ),
                                 const SizedBox(height: 2),
-                                Text(_formatDate(m['date'] as DateTime),
-                                    style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                                Text(
+                                  _formatDate(m['date'] as DateTime),
+                                  style: const TextStyle(
+                                      fontSize: 11, color: Colors.grey),
+                                ),
                               ],
                             ),
                           ),
                           const SizedBox(width: 6),
-                          // Status badge + actions
                           if (isPast)
                             _statusBadge('Done', Colors.green)
                           else if (isNext)
                             _statusBadge('Up next', Colors.blueAccent),
-                          // Edit/Delete for manual milestones
                           if (!isAuto && internMilestone != null) ...[
                             const SizedBox(width: 4),
                             GestureDetector(
-                              onTap: () => _showEditMilestoneDialog(internMilestone),
-                              child: const Icon(Icons.edit_outlined, size: 16, color: Colors.blueAccent),
+                              onTap: () =>
+                                  _showEditMilestoneDialog(internMilestone),
+                              child: const Icon(Icons.edit_outlined,
+                                  size: 16, color: Colors.blueAccent),
                             ),
                             const SizedBox(width: 6),
                             GestureDetector(
-                              onTap: () => _deleteMilestone(internMilestone.id),
-                              child: const Icon(Icons.delete_outline, size: 16, color: Colors.redAccent),
+                              onTap: () =>
+                                  _deleteMilestone(internMilestone.id),
+                              child: const Icon(Icons.delete_outline,
+                                  size: 16, color: Colors.redAccent),
                             ),
                           ],
                         ],
@@ -943,7 +1022,8 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(label,
-          style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
+          style: TextStyle(
+              color: color, fontSize: 10, fontWeight: FontWeight.bold)),
     );
   }
 
@@ -958,7 +1038,8 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
             children: [
               Icon(Icons.person_outline, color: Colors.blueAccent, size: 18),
               SizedBox(width: 8),
-              Text('Registration Info', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              Text('Registration Info',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             ],
           ),
           const SizedBox(height: 12),
@@ -995,7 +1076,11 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
   Widget _buildNotRegisteredState() {
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      appBar: AppBar(title: const Text('My Timeline'), backgroundColor: Colors.blueAccent, foregroundColor: Colors.white),
+      appBar: AppBar(
+        title: const Text('My Timeline'),
+        backgroundColor: Colors.blueAccent,
+        foregroundColor: Colors.white,
+      ),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
@@ -1007,18 +1092,23 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
               const Text('No internship registered yet',
                   style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              Text('Register for an internship slot first to see your timeline here.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+              Text(
+                'Register for an internship slot first to see your timeline here.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+              ),
               const SizedBox(height: 24),
               ElevatedButton.icon(
                 onPressed: () => Navigator.pop(context),
                 icon: const Icon(Icons.arrow_back),
                 label: const Text('Back to Dashboard'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blueAccent, foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  backgroundColor: Colors.blueAccent,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
                 ),
               ),
             ],
@@ -1033,7 +1123,11 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
   Widget _buildErrorState() {
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      appBar: AppBar(title: const Text('My Timeline'), backgroundColor: Colors.blueAccent, foregroundColor: Colors.white),
+      appBar: AppBar(
+        title: const Text('My Timeline'),
+        backgroundColor: Colors.blueAccent,
+        foregroundColor: Colors.white,
+      ),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
@@ -1042,18 +1136,23 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
             children: [
               Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
               const SizedBox(height: 16),
-              Text(_errorMessage ?? 'Something went wrong.',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 14, color: Colors.grey)),
+              Text(
+                _errorMessage ?? 'Something went wrong.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 14, color: Colors.grey),
+              ),
               const SizedBox(height: 24),
               ElevatedButton.icon(
                 onPressed: _loadTimelineData,
                 icon: const Icon(Icons.refresh),
                 label: const Text('Try Again'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blueAccent, foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  backgroundColor: Colors.blueAccent,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
                 ),
               ),
             ],
@@ -1074,7 +1173,10 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey.shade100),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2)),
+          BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2)),
         ],
       ),
       child: child,

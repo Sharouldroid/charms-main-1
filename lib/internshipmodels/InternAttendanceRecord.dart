@@ -2,6 +2,7 @@ class InternAttendanceRecord {
   final int id;
   final int scheduleId;
   final String scheduleDescription;
+  final DateTime? workDate;          
   final DateTime? scheduleStartDate;
   final DateTime? scheduleEndDate;
   final DateTime? clockInTime;
@@ -12,6 +13,7 @@ class InternAttendanceRecord {
     required this.id,
     required this.scheduleId,
     required this.scheduleDescription,
+    this.workDate,
     this.scheduleStartDate,
     this.scheduleEndDate,
     this.clockInTime,
@@ -24,6 +26,9 @@ class InternAttendanceRecord {
       id: (json['id'] as num).toInt(),
       scheduleId: (json['schedule_id'] as num).toInt(),
       scheduleDescription: json['schedule_description']?.toString() ?? '-',
+      workDate: json['work_date'] != null
+          ? DateTime.tryParse(json['work_date'].toString())
+          : null,
       scheduleStartDate: json['schedule_start_date'] != null
           ? DateTime.tryParse(json['schedule_start_date'].toString())
           : null,
@@ -42,7 +47,6 @@ class InternAttendanceRecord {
 
   bool get hasClockOut => clockOutTime != null;
 
-  /// Duration of the shift, null if not yet clocked out
   Duration? get shiftDuration {
     if (clockInTime == null || clockOutTime == null) return null;
     return clockOutTime!.difference(clockInTime!);

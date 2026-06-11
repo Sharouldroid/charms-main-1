@@ -5,751 +5,1033 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:charms/main.dart';
 
-// ── Models ─────────────────────────────────────────────────────────────────
-
-class AdminAttendanceSummary {
-  final int totalRecords;
-  final int completed;
-  final int inProgress;
-  final int uniqueInterns;
-
-  AdminAttendanceSummary({
-    required this.totalRecords,
-    required this.completed,
-    required this.inProgress,
-    required this.uniqueInterns,
+// ── Models ──────────────────────────────────────────────────────────────────
+ 
+class InternSummaryRow {
+  final int internId;
+  final int? userId;
+  final String internName;
+  final String institution;
+  final String email;
+  final String? photoUrl;
+  final int? scheduleId;
+  final int totalDays;
+  final int completedDays;
+  final String todayStatus; // 'completed' | 'in_progress' | 'absent'
+  final DateTime? todayClockIn;
+  final DateTime? todayClockOut;
+  final String? lastSeenDate;
+  final String? lastSeenLocation;
+ 
+  InternSummaryRow({
+    required this.internId,
+    this.userId,
+    required this.internName,
+    required this.institution,
+    required this.email,
+    this.photoUrl,
+    this.scheduleId,
+    required this.totalDays,
+    required this.completedDays,
+    required this.todayStatus,
+    this.todayClockIn,
+    this.todayClockOut,
+    this.lastSeenDate,
+    this.lastSeenLocation,
   });
-
-  factory AdminAttendanceSummary.fromJson(Map<String, dynamic> json) {
-    return AdminAttendanceSummary(
-      totalRecords: (json['total_records'] as num?)?.toInt() ?? 0,
-      completed: (json['completed'] as num?)?.toInt() ?? 0,
-      inProgress: (json['in_progress'] as num?)?.toInt() ?? 0,
-      uniqueInterns: (json['unique_interns'] as num?)?.toInt() ?? 0,
-    );
+ 
+  factory InternSummaryRow.fromJson(Map<String, dynamic> j) => InternSummaryRow(
+        internId: (j['intern_id'] as num).toInt(),
+        userId: j['user_id'] != null ? (j['user_id'] as num).toInt() : null,
+        internName: j['intern_name']?.toString() ?? 'Unknown',
+        institution: j['institution']?.toString() ?? '-',
+        email: j['email']?.toString() ?? '-',
+        photoUrl: j['photo_url']?.toString(),
+        scheduleId: j['schedule_id'] != null ? (j['schedule_id'] as num).toInt() : null,
+        totalDays: (j['total_days'] as num?)?.toInt() ?? 0,
+        completedDays: (j['completed_days'] as num?)?.toInt() ?? 0,
+        todayStatus: j['today_status']?.toString() ?? 'absent',
+        todayClockIn: j['today_clock_in'] != null
+            ? DateTime.tryParse(j['today_clock_in'].toString())
+            : null,
+        todayClockOut: j['today_clock_out'] != null
+            ? DateTime.tryParse(j['today_clock_out'].toString())
+            : null,
+        lastSeenDate: j['last_seen_date']?.toString(),
+        lastSeenLocation: j['last_seen_location']?.toString(),
+      );
+ 
+  Color get statusColor {
+    switch (todayStatus) {
+      case 'completed':  return Colors.green;
+      case 'in_progress': return Colors.orange;
+      default:           return Colors.red;
+    }
+  }
+ 
+  String get statusLabel {
+    switch (todayStatus) {
+      case 'completed':  return 'Done';
+      case 'in_progress': return 'Active';
+      default:           return 'Absent';
+    }
+  }
+ 
+  IconData get statusIcon {
+    switch (todayStatus) {
+      case 'completed':  return Icons.check_circle_rounded;
+      case 'in_progress': return Icons.radio_button_checked_rounded;
+      default:           return Icons.cancel_rounded;
+    }
   }
 }
-
-class AdminAttendanceRecord {
+ 
+class DailyRecord {
   final int id;
-  final int internId;
-  final int scheduleId;
+  final String workDate;
   final String scheduleDescription;
-  final String internName;
-  final String internEmail;
-  final String institution;
   final DateTime? clockInTime;
   final DateTime? clockOutTime;
   final String? clockInLocation;
-  final String? photoUrl;
-
-  AdminAttendanceRecord({
+ 
+  DailyRecord({
     required this.id,
-    required this.internId,
-    required this.scheduleId,
+    required this.workDate,
     required this.scheduleDescription,
-    required this.internName,
-    required this.internEmail,
-    required this.institution,
     this.clockInTime,
     this.clockOutTime,
     this.clockInLocation,
-    this.photoUrl,
   });
-
-  factory AdminAttendanceRecord.fromJson(Map<String, dynamic> json) {
-    return AdminAttendanceRecord(
-      id: (json['id'] as num).toInt(),
-      internId: (json['intern_id'] as num).toInt(),
-      scheduleId: (json['schedule_id'] as num).toInt(),
-      scheduleDescription: json['schedule_description']?.toString() ?? '-',
-      internName: json['intern_name']?.toString() ?? 'Unknown',
-      internEmail: json['intern_email']?.toString() ?? '-',
-      institution: json['institution']?.toString() ?? '-',
-      clockInTime: json['clock_in_time'] != null
-          ? DateTime.tryParse(json['clock_in_time'].toString())
-          : null,
-      clockOutTime: json['clock_out_time'] != null
-          ? DateTime.tryParse(json['clock_out_time'].toString())
-          : null,
-      clockInLocation: json['clock_in_location']?.toString(),
-      photoUrl: json['photo_url']?.toString(),
-    );
-  }
-
+ 
+  factory DailyRecord.fromJson(Map<String, dynamic> j) => DailyRecord(
+        id: (j['id'] as num).toInt(),
+        workDate: j['work_date']?.toString() ?? '',
+        scheduleDescription: j['schedule_description']?.toString() ?? '-',
+        clockInTime: j['clock_in_time'] != null
+            ? DateTime.tryParse(j['clock_in_time'].toString())
+            : null,
+        clockOutTime: j['clock_out_time'] != null
+            ? DateTime.tryParse(j['clock_out_time'].toString())
+            : null,
+        clockInLocation: j['clock_in_location']?.toString(),
+      );
+ 
   bool get hasClockOut => clockOutTime != null;
-
-  String get shiftDuration {
+ 
+  String get duration {
     if (clockInTime == null || clockOutTime == null) return '-';
     final d = clockOutTime!.difference(clockInTime!);
     return '${d.inHours}h ${d.inMinutes.remainder(60)}m';
   }
-
-  /// Extract raw GPS coordinates from location string
-  /// Location format: "Place name\n(lat, lng)"
-  String? get gpsCoordinates {
+ 
+  String? get gpsCoords {
     if (clockInLocation == null) return null;
-    final match = RegExp(r'\((-?\d+\.\d+),\s*(-?\d+\.\d+)\)')
-        .firstMatch(clockInLocation!);
-    if (match != null) return '${match.group(1)},${match.group(2)}';
-    return null;
+    final m = RegExp(r'\((-?\d+\.\d+),\s*(-?\d+\.\d+)\)').firstMatch(clockInLocation!);
+    return m != null ? '${m.group(1)},${m.group(2)}' : null;
   }
 }
-
-class ScheduleOption {
+ 
+class AdminByDateRecord {
   final int id;
-  final String description;
-  final String? startDate;
-
-  ScheduleOption({required this.id, required this.description, this.startDate});
-
-  factory ScheduleOption.fromJson(Map<String, dynamic> json) {
-    return ScheduleOption(
-      id: (json['id'] as num).toInt(),
-      description: json['description']?.toString() ?? '-',
-      startDate: json['start_date']?.toString(),
-    );
-  }
-
-  String get label {
-    if (startDate != null) {
-      final d = DateTime.tryParse(startDate!);
-      if (d != null) {
-        return '${DateFormat('dd MMM yyyy').format(d)} — $description';
-      }
-    }
-    return description;
+  final int internId;
+  final String internName;
+  final String institution;
+  final String? photoUrl;
+  final String workDate;
+  final String scheduleDescription;
+  final DateTime? clockInTime;
+  final DateTime? clockOutTime;
+  final String? clockInLocation;
+ 
+  AdminByDateRecord({
+    required this.id,
+    required this.internId,
+    required this.internName,
+    required this.institution,
+    this.photoUrl,
+    required this.workDate,
+    required this.scheduleDescription,
+    this.clockInTime,
+    this.clockOutTime,
+    this.clockInLocation,
+  });
+ 
+  factory AdminByDateRecord.fromJson(Map<String, dynamic> j) => AdminByDateRecord(
+        id: (j['id'] as num).toInt(),
+        internId: (j['intern_id'] as num).toInt(),
+        internName: j['intern_name']?.toString() ?? 'Unknown',
+        institution: j['institution']?.toString() ?? '-',
+        photoUrl: j['photo_url']?.toString(),
+        workDate: j['work_date']?.toString() ?? '',
+        scheduleDescription: j['schedule_description']?.toString() ?? '-',
+        clockInTime: j['clock_in_time'] != null
+            ? DateTime.tryParse(j['clock_in_time'].toString())
+            : null,
+        clockOutTime: j['clock_out_time'] != null
+            ? DateTime.tryParse(j['clock_out_time'].toString())
+            : null,
+        clockInLocation: j['clock_in_location']?.toString(),
+      );
+ 
+  bool get hasClockOut => clockOutTime != null;
+  Color get statusColor => hasClockOut ? Colors.green : Colors.orange;
+  String get statusLabel => hasClockOut ? 'Done' : 'Active';
+ 
+  String? get gpsCoords {
+    if (clockInLocation == null) return null;
+    final m = RegExp(r'\((-?\d+\.\d+),\s*(-?\d+\.\d+)\)').firstMatch(clockInLocation!);
+    return m != null ? '${m.group(1)},${m.group(2)}' : null;
   }
 }
-
-// ── Screen ──────────────────────────────────────────────────────────────────
-
+ 
+// ── Main Screen ──────────────────────────────────────────────────────────────
+ 
 class AdminInternAttendanceScreen extends StatefulWidget {
   const AdminInternAttendanceScreen({super.key});
-
+ 
   @override
   State<AdminInternAttendanceScreen> createState() =>
       _AdminInternAttendanceScreenState();
 }
-
+ 
 class _AdminInternAttendanceScreenState
-    extends State<AdminInternAttendanceScreen> {
+    extends State<AdminInternAttendanceScreen>
+    with SingleTickerProviderStateMixin {
   static const Color _primaryBlue = Color(0xFF2563EB);
-  static const Color _bgColor = Color(0xFFF4F7FA);
-
-  final String _baseUrl = AppConfig.hostname;
-
-  bool _isLoading = true;
-  String? _error;
-
-  List<AdminAttendanceRecord> _records = [];
-  AdminAttendanceSummary? _summary;
-  List<ScheduleOption> _scheduleOptions = [];
-
-  // Filters
-  int? _selectedScheduleId;
-  DateTime? _selectedDate;
-
+  final String _base = AppConfig.hostname;
+ 
+  late TabController _tabController;
+ 
+  // Tab 1: By Intern
+  List<InternSummaryRow> _interns = [];
+  Map<String, dynamic> _internSummary = {};
+  bool _loadingInterns = true;
+ 
+  // Tab 2: By Date
+  List<AdminByDateRecord> _byDateRecords = [];
+  bool _loadingByDate = false;
+  DateTime _selectedDate = DateTime.now();
+  Map<String, dynamic> _byDateSummary = {};
+ 
   @override
   void initState() {
     super.initState();
-    _loadScheduleOptions();
-    _loadAttendance();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      if (_tabController.index == 1 && _byDateRecords.isEmpty) {
+        _loadByDate();
+      }
+    });
+    _loadByIntern();
   }
-
-  Future<void> _loadScheduleOptions() async {
+ 
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+ 
+  // ── API calls ─────────────────────────────────────────────────────────────
+ 
+  Future<void> _loadByIntern() async {
+    setState(() => _loadingInterns = true);
     try {
-      final url = '$_baseUrl/api/internship/attendance/schedules';
-      final res = await http.get(Uri.parse(url));
+      final res = await http.get(
+          Uri.parse('$_base/api/internship/attendance/admin/by-intern'));
       if (res.statusCode == 200) {
-        final decoded = jsonDecode(res.body);
-        if (decoded is List) {
+        final body = jsonDecode(res.body);
+        if (body['success'] == true) {
           setState(() {
-            _scheduleOptions = decoded
-                .map((e) => ScheduleOption.fromJson(e as Map<String, dynamic>))
+            _interns = (body['data'] as List)
+                .map((e) => InternSummaryRow.fromJson(e))
                 .toList();
+            _internSummary = body['summary'] ?? {};
           });
         }
       }
     } catch (e) {
-      debugPrint('Error loading schedule options: $e');
+      debugPrint('loadByIntern error: $e');
+    } finally {
+      if (mounted) setState(() => _loadingInterns = false);
     }
   }
-
-  Future<void> _loadAttendance() async {
-    setState(() { _isLoading = true; _error = null; });
-
+ 
+  Future<void> _loadByDate() async {
+    setState(() => _loadingByDate = true);
     try {
-      var url = '$_baseUrl/api/internship/attendance/admin';
-      final params = <String>[];
-      if (_selectedScheduleId != null) {
-        params.add('schedule_id=$_selectedScheduleId');
-      }
-      if (_selectedDate != null) {
-        params.add('date=${DateFormat('yyyy-MM-dd').format(_selectedDate!)}');
-      }
-      if (params.isNotEmpty) url += '?${params.join('&')}';
-
-      debugPrint('Admin attendance URL: $url');
-      final res = await http.get(Uri.parse(url));
-      debugPrint('Admin attendance status: ${res.statusCode}');
-      debugPrint('Admin attendance body: ${res.body}');
-
+      final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
+      final res = await http.get(Uri.parse(
+          '$_base/api/internship/attendance/admin?date=$dateStr'));
       if (res.statusCode == 200) {
-        final decoded = jsonDecode(res.body);
-        if (decoded is Map && decoded['success'] == true) {
-          final data = decoded['data'] as List;
+        final body = jsonDecode(res.body);
+        if (body['success'] == true) {
           setState(() {
-            _records = data
-                .map((e) => AdminAttendanceRecord.fromJson(e as Map<String, dynamic>))
+            _byDateRecords = (body['data'] as List)
+                .map((e) => AdminByDateRecord.fromJson(e))
                 .toList();
-            _summary = AdminAttendanceSummary.fromJson(
-                decoded['summary'] as Map<String, dynamic>);
-            _isLoading = false;
+            _byDateSummary = body['summary'] ?? {};
           });
         }
-      } else {
-        setState(() { _error = 'Failed to load: ${res.statusCode}'; _isLoading = false; });
       }
     } catch (e) {
-      setState(() { _error = 'Error: $e'; _isLoading = false; });
+      debugPrint('loadByDate error: $e');
+    } finally {
+      if (mounted) setState(() => _loadingByDate = false);
     }
   }
-
+ 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate ?? DateTime.now(),
+      initialDate: _selectedDate,
       firstDate: DateTime(2024),
       lastDate: DateTime.now(),
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(primary: _primaryBlue),
-        ),
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+            colorScheme: const ColorScheme.light(primary: _primaryBlue)),
         child: child!,
       ),
     );
     if (picked != null) {
       setState(() => _selectedDate = picked);
-      _loadAttendance();
+      _loadByDate();
     }
   }
-
-  void _clearFilters() {
-    setState(() {
-      _selectedScheduleId = null;
-      _selectedDate = null;
-    });
-    _loadAttendance();
+ 
+  Future<void> _openMap(String coords) async {
+    final uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$coords');
+    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
-
-  Future<void> _openGoogleMaps(String coordinates) async {
-    final uri = Uri.parse(
-        'https://www.google.com/maps/search/?api=1&query=$coordinates');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-  }
-
+ 
+  // ── Build ─────────────────────────────────────────────────────────────────
+ 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bgColor,
+      backgroundColor: const Color(0xFFF4F7FA),
       appBar: AppBar(
-        title: const Text(
-          'Intern Attendance',
-          style: TextStyle(
-              color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.0),
-        ),
+        title: const Text('Intern Attendance',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         centerTitle: true,
         backgroundColor: _primaryBlue,
         iconTheme: const IconThemeData(color: Colors.white),
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
-            onPressed: _loadAttendance,
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _loadAttendance,
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _error != null
-                ? Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
-                : CustomScrollView(
-                    slivers: [
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            children: [
-                              // ── Summary Stats ───────────────────────────
-                              if (_summary != null) _buildSummaryRow(),
-                              const SizedBox(height: 16),
-                              // ── Filters ─────────────────────────────────
-                              _buildFilters(),
-                              const SizedBox(height: 12),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      // ── Records List ─────────────────────────────────────
-                      if (_records.isEmpty)
-                        SliverFillRemaining(
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.event_busy_rounded,
-                                    size: 64, color: Colors.grey.shade300),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'No attendance records found.',
-                                  style: TextStyle(
-                                      fontSize: 16, color: Colors.grey.shade500),
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                      else
-                        SliverPadding(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                          sliver: SliverList(
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) =>
-                                  _AttendanceAdminCard(
-                                record: _records[index],
-                                onOpenMap: _openGoogleMaps,
-                              ),
-                              childCount: _records.length,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-      ),
-    );
-  }
-
-  Widget _buildSummaryRow() {
-    final s = _summary!;
-    return Row(
-      children: [
-        _StatCard(label: 'Total', value: '${s.totalRecords}',
-            icon: Icons.list_alt_rounded, color: _primaryBlue),
-        const SizedBox(width: 8),
-        _StatCard(label: 'Interns', value: '${s.uniqueInterns}',
-            icon: Icons.people_rounded, color: Colors.purple),
-        const SizedBox(width: 8),
-        _StatCard(label: 'Done', value: '${s.completed}',
-            icon: Icons.check_circle_rounded, color: Colors.green),
-        const SizedBox(width: 8),
-        _StatCard(label: 'Active', value: '${s.inProgress}',
-            icon: Icons.radio_button_checked_rounded, color: Colors.orange),
-      ],
-    );
-  }
-
-  Widget _buildFilters() {
-    final hasFilter = _selectedScheduleId != null || _selectedDate != null;
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05),
-              blurRadius: 8, offset: const Offset(0, 3))
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.filter_list_rounded, size: 16, color: _primaryBlue),
-              const SizedBox(width: 6),
-              const Text('Filters',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-              const Spacer(),
-              if (hasFilter)
-                GestureDetector(
-                  onTap: _clearFilters,
-                  child: const Text('Clear all',
-                      style: TextStyle(
-                          color: Colors.redAccent,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600)),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Schedule filter
-          if (_scheduleOptions.isNotEmpty) ...[
-            DropdownButtonFormField<int>(
-              value: _selectedScheduleId,
-              decoration: InputDecoration(
-                labelText: 'Schedule Slot',
-                prefixIcon: const Icon(Icons.calendar_today_rounded, size: 18),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                isDense: true,
-              ),
-              hint: const Text('All schedules', style: TextStyle(fontSize: 13)),
-              items: [
-                const DropdownMenuItem(value: null, child: Text('All schedules')),
-                ..._scheduleOptions.map((s) => DropdownMenuItem(
-                      value: s.id,
-                      child: Text(s.label,
-                          style: const TextStyle(fontSize: 13),
-                          overflow: TextOverflow.ellipsis),
-                    )),
-              ],
-              onChanged: (val) {
-                setState(() => _selectedScheduleId = val);
-                _loadAttendance();
-              },
-            ),
-            const SizedBox(height: 10),
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(0))),
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.white,
+          indicatorWeight: 3,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white60,
+          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+          tabs: const [
+            Tab(icon: Icon(Icons.people_rounded, size: 18), text: 'By Intern'),
+            Tab(icon: Icon(Icons.calendar_month_rounded, size: 18), text: 'By Date'),
           ],
-
-          // Date filter
-          GestureDetector(
-            onTap: _pickDate,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade400),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(children: [
-                Icon(Icons.date_range_rounded, size: 18,
-                    color: _selectedDate != null ? _primaryBlue : Colors.grey),
-                const SizedBox(width: 10),
-                Text(
-                  _selectedDate != null
-                      ? DateFormat('dd MMM yyyy').format(_selectedDate!)
-                      : 'Filter by date',
-                  style: TextStyle(
-                      fontSize: 13,
-                      color: _selectedDate != null ? Colors.black87 : Colors.grey),
-                ),
-                const Spacer(),
-                if (_selectedDate != null)
-                  GestureDetector(
-                    onTap: () {
-                      setState(() => _selectedDate = null);
-                      _loadAttendance();
-                    },
-                    child: const Icon(Icons.close_rounded,
-                        size: 16, color: Colors.grey),
-                  ),
-              ]),
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildByInternTab(),
+          _buildByDateTab(),
+        ],
+      ),
+    );
+  }
+ 
+  // ── Tab 1: By Intern ──────────────────────────────────────────────────────
+ 
+  Widget _buildByInternTab() {
+    if (_loadingInterns) return const Center(child: CircularProgressIndicator());
+ 
+    return RefreshIndicator(
+      onRefresh: _loadByIntern,
+      child: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: _buildInternSummaryCards(),
             ),
           ),
+          if (_interns.isEmpty)
+            SliverFillRemaining(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.people_outline, size: 64, color: Colors.grey.shade300),
+                    const SizedBox(height: 12),
+                    Text('No attendance records yet.',
+                        style: TextStyle(color: Colors.grey.shade500, fontSize: 15)),
+                  ],
+                ),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (_, i) => _InternSummaryCard(
+                    row: _interns[i],
+                    baseUrl: _base,
+                    onOpenMap: _openMap,
+                  ),
+                  childCount: _interns.length,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+ 
+  Widget _buildInternSummaryCards() {
+    final total     = _internSummary['total_interns'] ?? 0;
+    final present   = _internSummary['present_today'] ?? 0;
+    final absent    = _internSummary['absent_today'] ?? 0;
+    final completed = _internSummary['completed_today'] ?? 0;
+ 
+    return Row(children: [
+      _StatCard(label: 'Total', value: '$total',
+          icon: Icons.people_rounded, color: _primaryBlue),
+      const SizedBox(width: 8),
+      _StatCard(label: 'Present', value: '$present',
+          icon: Icons.login_rounded, color: Colors.orange),
+      const SizedBox(width: 8),
+      _StatCard(label: 'Done', value: '$completed',
+          icon: Icons.check_circle_rounded, color: Colors.green),
+      const SizedBox(width: 8),
+      _StatCard(label: 'Absent', value: '$absent',
+          icon: Icons.cancel_rounded, color: Colors.red),
+    ]);
+  }
+ 
+  // ── Tab 2: By Date ────────────────────────────────────────────────────────
+ 
+  Widget _buildByDateTab() {
+    return RefreshIndicator(
+      onRefresh: _loadByDate,
+      child: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Column(
+                children: [
+                  // Date picker row
+                  GestureDetector(
+                    onTap: _pickDate,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withOpacity(0.05),
+                              blurRadius: 8, offset: const Offset(0, 3))
+                        ],
+                      ),
+                      child: Row(children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: _primaryBlue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.calendar_month_rounded,
+                              color: _primaryBlue, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Viewing attendance for',
+                                style: TextStyle(
+                                    fontSize: 11, color: Colors.grey)),
+                            Text(
+                              DateFormat('EEEE, dd MMM yyyy').format(_selectedDate),
+                              style: const TextStyle(
+                                  fontSize: 15, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        const Spacer(),
+                        const Icon(Icons.edit_calendar_rounded,
+                            color: Colors.grey, size: 18),
+                      ]),
+                    ),
+                  ),
+ 
+                  const SizedBox(height: 10),
+ 
+                  // Summary for selected date
+                  if (_byDateSummary.isNotEmpty)
+                    Row(children: [
+                      _StatCard(
+                          label: 'Present',
+                          value: '${_byDateSummary['total_records'] ?? 0}',
+                          icon: Icons.how_to_reg_rounded,
+                          color: _primaryBlue),
+                      const SizedBox(width: 8),
+                      _StatCard(
+                          label: 'Done',
+                          value: '${_byDateSummary['completed'] ?? 0}',
+                          icon: Icons.check_circle_rounded,
+                          color: Colors.green),
+                      const SizedBox(width: 8),
+                      _StatCard(
+                          label: 'Active',
+                          value: '${_byDateSummary['in_progress'] ?? 0}',
+                          icon: Icons.radio_button_checked_rounded,
+                          color: Colors.orange),
+                    ]),
+                ],
+              ),
+            ),
+          ),
+ 
+          if (_loadingByDate)
+            const SliverFillRemaining(
+                child: Center(child: CircularProgressIndicator()))
+          else if (_byDateRecords.isEmpty)
+            SliverFillRemaining(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.event_busy_rounded,
+                        size: 64, color: Colors.grey.shade300),
+                    const SizedBox(height: 12),
+                    Text('No attendance on this date.',
+                        style: TextStyle(
+                            color: Colors.grey.shade500, fontSize: 15)),
+                  ],
+                ),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (_, i) => _ByDateCard(
+                    record: _byDateRecords[i],
+                    onOpenMap: _openMap,
+                  ),
+                  childCount: _byDateRecords.length,
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 }
-
-// ── Stat Card ────────────────────────────────────────────────────────────────
-
+ 
+// ── Intern Summary Card (Tab 1) ──────────────────────────────────────────────
+ 
+class _InternSummaryCard extends StatefulWidget {
+  final InternSummaryRow row;
+  final String baseUrl;
+  final void Function(String) onOpenMap;
+ 
+  const _InternSummaryCard({
+    required this.row,
+    required this.baseUrl,
+    required this.onOpenMap,
+  });
+ 
+  @override
+  State<_InternSummaryCard> createState() => _InternSummaryCardState();
+}
+ 
+class _InternSummaryCardState extends State<_InternSummaryCard> {
+  static const Color _primaryBlue = Color(0xFF2563EB);
+  bool _expanded = false;
+  bool _loadingHistory = false;
+  List<DailyRecord> _history = [];
+ 
+  Future<void> _loadHistory() async {
+    if (_history.isNotEmpty) {
+      setState(() => _expanded = !_expanded);
+      return;
+    }
+    setState(() { _expanded = true; _loadingHistory = true; });
+    try {
+      final res = await http.get(Uri.parse(
+          '${widget.baseUrl}/api/internship/attendance/admin/intern/${widget.row.internId}'));
+      if (res.statusCode == 200) {
+        final body = jsonDecode(res.body);
+        if (body['success'] == true) {
+          setState(() {
+            _history = (body['records'] as List)
+                .map((e) => DailyRecord.fromJson(e))
+                .toList();
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('loadHistory error: $e');
+    } finally {
+      if (mounted) setState(() => _loadingHistory = false);
+    }
+  }
+ 
+  @override
+  Widget build(BuildContext context) {
+    final row = widget.row;
+    final timeFormat = DateFormat('hh:mm a');
+ 
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10, offset: const Offset(0, 4))],
+      ),
+      child: Column(
+        children: [
+          // ── Header ─────────────────────────────────────────────────────
+          InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: _loadHistory,
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      // Avatar
+                      CircleAvatar(
+                        radius: 24,
+                        backgroundColor: _primaryBlue.withOpacity(0.1),
+                        backgroundImage: row.photoUrl != null
+                            ? NetworkImage(row.photoUrl!) : null,
+                        child: row.photoUrl == null
+                            ? Text(
+                                row.internName.isNotEmpty
+                                    ? row.internName[0].toUpperCase() : '?',
+                                style: const TextStyle(
+                                    color: _primaryBlue,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18))
+                            : null,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(row.internName,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 15)),
+                            Text(row.institution,
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.grey.shade500),
+                                overflow: TextOverflow.ellipsis),
+                          ],
+                        ),
+                      ),
+                      // Today's status badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: row.statusColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                              color: row.statusColor.withOpacity(0.4)),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(row.statusIcon, color: row.statusColor, size: 13),
+                          const SizedBox(width: 4),
+                          Text(row.statusLabel,
+                              style: TextStyle(
+                                  color: row.statusColor,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold)),
+                        ]),
+                      ),
+                    ],
+                  ),
+ 
+                  const SizedBox(height: 10),
+ 
+                  // Today's clock-in/out if present
+                  if (row.todayStatus != 'absent') ...[
+                    Row(children: [
+                      Expanded(child: _MiniTimeChip(
+                          label: 'In',
+                          time: row.todayClockIn != null
+                              ? timeFormat.format(row.todayClockIn!.toLocal())
+                              : '-',
+                          color: _primaryBlue)),
+                      const SizedBox(width: 8),
+                      Expanded(child: _MiniTimeChip(
+                          label: 'Out',
+                          time: row.todayClockOut != null
+                              ? timeFormat.format(row.todayClockOut!.toLocal())
+                              : 'Not yet',
+                          color: row.todayClockOut != null
+                              ? Colors.green : Colors.grey)),
+                    ]),
+                    const SizedBox(height: 8),
+                  ],
+ 
+                  // Stats row
+                  Row(children: [
+                    Icon(Icons.bar_chart_rounded,
+                        size: 13, color: Colors.grey.shade400),
+                    const SizedBox(width: 4),
+                    Text('${row.totalDays} day${row.totalDays != 1 ? 's' : ''} total  ·  '
+                        '${row.completedDays} completed',
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.grey.shade600)),
+                    const Spacer(),
+                    Icon(_expanded
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                        color: Colors.grey.shade400, size: 18),
+                    Text(_expanded ? 'Hide history' : 'View history',
+                        style: const TextStyle(
+                            fontSize: 12, color: _primaryBlue,
+                            fontWeight: FontWeight.w500)),
+                  ]),
+                ],
+              ),
+            ),
+          ),
+ 
+          // ── Expanded history ────────────────────────────────────────────
+          if (_expanded) ...[
+            Divider(color: Colors.grey.shade100, height: 1),
+            if (_loadingHistory)
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_history.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text('No records found.',
+                    style: TextStyle(color: Colors.grey.shade400)),
+              )
+            else
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(
+                    vertical: 8, horizontal: 14),
+                itemCount: _history.length,
+                separatorBuilder: (_, __) =>
+                    Divider(color: Colors.grey.shade100, height: 1),
+                itemBuilder: (_, i) =>
+                    _DailyRecordTile(record: _history[i], onOpenMap: widget.onOpenMap),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+ 
+// ── Daily Record Tile (inside intern card) ───────────────────────────────────
+ 
+class _DailyRecordTile extends StatelessWidget {
+  final DailyRecord record;
+  final void Function(String) onOpenMap;
+ 
+  const _DailyRecordTile({required this.record, required this.onOpenMap});
+ 
+  @override
+  Widget build(BuildContext context) {
+    final timeFormat = DateFormat('hh:mm a');
+    final dateFormat = DateFormat('dd MMM yyyy');
+    final Color statusColor = record.hasClockOut ? Colors.green : Colors.orange;
+ 
+    DateTime? workDt = DateTime.tryParse(record.workDate);
+ 
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(Icons.calendar_today_rounded,
+                size: 13, color: Colors.grey.shade400),
+            const SizedBox(width: 5),
+            Text(
+              workDt != null ? dateFormat.format(workDt) : record.workDate,
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+            ),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: statusColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                record.hasClockOut ? 'Completed' : 'In Progress',
+                style: TextStyle(
+                    color: statusColor,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 6),
+          Row(children: [
+            Expanded(child: _MiniTimeChip(
+                label: 'In',
+                time: record.clockInTime != null
+                    ? timeFormat.format(record.clockInTime!.toLocal()) : '-',
+                color: const Color(0xFF2563EB))),
+            const SizedBox(width: 8),
+            Expanded(child: _MiniTimeChip(
+                label: 'Out',
+                time: record.clockOutTime != null
+                    ? timeFormat.format(record.clockOutTime!.toLocal()) : 'Not yet',
+                color: record.hasClockOut ? Colors.green : Colors.grey)),
+          ]),
+          if (record.hasClockOut) ...[
+            const SizedBox(height: 4),
+            Row(children: [
+              Icon(Icons.timer_rounded, size: 12, color: Colors.grey.shade400),
+              const SizedBox(width: 4),
+              Text('Duration: ${record.duration}',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+            ]),
+          ],
+          if (record.clockInLocation != null &&
+              record.clockInLocation!.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            GestureDetector(
+              onTap: record.gpsCoords != null
+                  ? () => onOpenMap(record.gpsCoords!) : null,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.location_on_rounded,
+                      size: 13, color: Colors.green.shade400),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      record.clockInLocation!.split('\n').first,
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: record.gpsCoords != null
+                              ? Colors.blue : Colors.grey.shade500,
+                          decoration: record.gpsCoords != null
+                              ? TextDecoration.underline : null),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+ 
+// ── By Date Card (Tab 2) ─────────────────────────────────────────────────────
+ 
+class _ByDateCard extends StatelessWidget {
+  final AdminByDateRecord record;
+  final void Function(String) onOpenMap;
+ 
+  const _ByDateCard({required this.record, required this.onOpenMap});
+ 
+  static const Color _primaryBlue = Color(0xFF2563EB);
+ 
+  @override
+  Widget build(BuildContext context) {
+    final timeFormat = DateFormat('hh:mm a');
+ 
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8, offset: const Offset(0, 3))],
+      ),
+      child: Column(
+        children: [
+          Row(children: [
+            CircleAvatar(
+              radius: 20,
+              backgroundColor: _primaryBlue.withOpacity(0.1),
+              backgroundImage: record.photoUrl != null
+                  ? NetworkImage(record.photoUrl!) : null,
+              child: record.photoUrl == null
+                  ? Text(
+                      record.internName.isNotEmpty
+                          ? record.internName[0].toUpperCase() : '?',
+                      style: const TextStyle(
+                          color: _primaryBlue, fontWeight: FontWeight.bold))
+                  : null,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(record.internName,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 14)),
+                  Text(record.institution,
+                      style: TextStyle(
+                          fontSize: 11, color: Colors.grey.shade500),
+                      overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: record.statusColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: record.statusColor.withOpacity(0.3)),
+              ),
+              child: Text(record.statusLabel,
+                  style: TextStyle(
+                      color: record.statusColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold)),
+            ),
+          ]),
+          const SizedBox(height: 10),
+          Row(children: [
+            Expanded(child: _MiniTimeChip(
+                label: 'Clock In',
+                time: record.clockInTime != null
+                    ? timeFormat.format(record.clockInTime!.toLocal()) : '-',
+                color: _primaryBlue)),
+            const SizedBox(width: 8),
+            Expanded(child: _MiniTimeChip(
+                label: 'Clock Out',
+                time: record.clockOutTime != null
+                    ? timeFormat.format(record.clockOutTime!.toLocal()) : 'Not yet',
+                color: record.hasClockOut ? Colors.green : Colors.grey)),
+          ]),
+          if (record.clockInLocation != null &&
+              record.clockInLocation!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: record.gpsCoords != null
+                  ? () => onOpenMap(record.gpsCoords!) : null,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.withOpacity(0.2)),
+                ),
+                child: Row(children: [
+                  const Icon(Icons.location_on_rounded,
+                      size: 14, color: Colors.green),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      record.clockInLocation!.split('\n').first,
+                      style: const TextStyle(fontSize: 11, color: Colors.blue),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (record.gpsCoords != null)
+                    const Icon(Icons.open_in_new_rounded,
+                        size: 12, color: Colors.blue),
+                ]),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+ 
+// ── Shared Widgets ────────────────────────────────────────────────────────────
+ 
 class _StatCard extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
   final Color color;
-
+ 
   const _StatCard({
     required this.label,
     required this.value,
     required this.icon,
     required this.color,
   });
-
+ 
   @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.05),
-                blurRadius: 6, offset: const Offset(0, 3))
-          ],
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(height: 4),
+  Widget build(BuildContext context) => Expanded(
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 6, offset: const Offset(0, 3))],
+          ),
+          child: Column(children: [
+            Icon(icon, color: color, size: 18),
+            const SizedBox(height: 3),
             Text(value,
                 style: TextStyle(
                     fontSize: 18, fontWeight: FontWeight.bold, color: color)),
             Text(label,
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
-          ],
+                style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+          ]),
         ),
-      ),
-    );
-  }
+      );
 }
-
-// ── Admin Attendance Card ────────────────────────────────────────────────────
-
-class _AttendanceAdminCard extends StatelessWidget {
-  final AdminAttendanceRecord record;
-  final void Function(String coordinates) onOpenMap;
-
-  const _AttendanceAdminCard({
-    required this.record,
-    required this.onOpenMap,
-  });
-
-  static const Color _primaryBlue = Color(0xFF2563EB);
-
-  @override
-  Widget build(BuildContext context) {
-    final timeFormat = DateFormat('hh:mm a');
-    final dateFormat = DateFormat('dd MMM yyyy');
-
-    final clockIn = record.clockInTime != null
-        ? timeFormat.format(record.clockInTime!.toLocal())
-        : '-';
-    final clockOut = record.clockOutTime != null
-        ? timeFormat.format(record.clockOutTime!.toLocal())
-        : 'Not yet';
-    final clockInDate = record.clockInTime != null
-        ? dateFormat.format(record.clockInTime!.toLocal())
-        : '-';
-
-    final statusColor = record.hasClockOut ? Colors.green : Colors.orange;
-    final statusText = record.hasClockOut ? 'Completed' : 'In Progress';
-    final statusIcon = record.hasClockOut
-        ? Icons.check_circle_rounded
-        : Icons.radio_button_checked_rounded;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4))
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Header: name + status ──────────────────────────────────────
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: _primaryBlue.withOpacity(0.1),
-                backgroundImage: record.photoUrl != null
-                    ? NetworkImage(record.photoUrl!)
-                    : null,
-                child: record.photoUrl == null
-                    ? Text(
-                        record.internName.isNotEmpty
-                            ? record.internName[0].toUpperCase()
-                            : '?',
-                        style: const TextStyle(
-                            color: _primaryBlue, fontWeight: FontWeight.bold),
-                      )
-                    : null,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(record.internName,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 15)),
-                    Text(record.institution,
-                        style: TextStyle(
-                            fontSize: 12, color: Colors.grey.shade500),
-                        overflow: TextOverflow.ellipsis),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: statusColor.withOpacity(0.4)),
-                ),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(statusIcon, color: statusColor, size: 12),
-                  const SizedBox(width: 4),
-                  Text(statusText,
-                      style: TextStyle(
-                          color: statusColor,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold)),
-                ]),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 10),
-
-          // ── Schedule info ──────────────────────────────────────────────
-          Row(children: [
-            Icon(Icons.event_rounded, size: 13, color: Colors.grey.shade400),
-            const SizedBox(width: 5),
-            Expanded(
-              child: Text(
-                '$clockInDate · ${record.scheduleDescription}',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ]),
-
-          const Divider(height: 16),
-
-          // ── Clock in / out times ───────────────────────────────────────
-          Row(children: [
-            Expanded(child: _TimeChip(
-                icon: Icons.login_rounded,
-                label: 'Clock In',
-                time: clockIn,
-                color: _primaryBlue)),
-            const SizedBox(width: 10),
-            Expanded(child: _TimeChip(
-                icon: Icons.logout_rounded,
-                label: 'Clock Out',
-                time: clockOut,
-                color: record.hasClockOut ? Colors.green : Colors.grey)),
-          ]),
-
-          // ── Duration ──────────────────────────────────────────────────
-          if (record.hasClockOut) ...[
-            const SizedBox(height: 8),
-            Row(children: [
-              Icon(Icons.timer_rounded, size: 13, color: Colors.grey.shade400),
-              const SizedBox(width: 5),
-              Text('Duration: ${record.shiftDuration}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-            ]),
-          ],
-
-          // ── Location ──────────────────────────────────────────────────
-          if (record.clockInLocation != null &&
-              record.clockInLocation!.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            GestureDetector(
-              onTap: record.gpsCoordinates != null
-                  ? () => onOpenMap(record.gpsCoordinates!)
-                  : null,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.06),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.green.withOpacity(0.2)),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.location_on_rounded,
-                        size: 15, color: Colors.green),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            record.clockInLocation!
-                                .split('\n')
-                                .first, // show place name only
-                            style: const TextStyle(
-                                fontSize: 12, color: Colors.black87),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (record.gpsCoordinates != null) ...[
-                            const SizedBox(height: 2),
-                            const Text('Tap to view on Google Maps',
-                                style: TextStyle(
-                                    fontSize: 10,
-                                    color: Colors.blue,
-                                    fontStyle: FontStyle.italic)),
-                          ],
-                        ],
-                      ),
-                    ),
-                    if (record.gpsCoordinates != null)
-                      const Icon(Icons.open_in_new_rounded,
-                          size: 14, color: Colors.blue),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _TimeChip extends StatelessWidget {
-  final IconData icon;
+ 
+class _MiniTimeChip extends StatelessWidget {
   final String label;
   final String time;
   final Color color;
-
-  const _TimeChip({
-    required this.icon,
+ 
+  const _MiniTimeChip({
     required this.label,
     required this.time,
     required this.color,
   });
-
+ 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            Icon(icon, size: 12, color: color),
-            const SizedBox(width: 4),
-            Text(label,
-                style: TextStyle(
-                    fontSize: 10, color: color, fontWeight: FontWeight.w600)),
-          ]),
-          const SizedBox(height: 3),
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withOpacity(0.2)),
+        ),
+        child: Row(children: [
+          Text(label,
+              style: TextStyle(
+                  fontSize: 11, color: color, fontWeight: FontWeight.w600)),
+          const SizedBox(width: 6),
           Text(time,
               style: TextStyle(
-                  fontSize: 14, fontWeight: FontWeight.bold, color: color)),
-        ],
-      ),
-    );
-  }
+                  fontSize: 13, fontWeight: FontWeight.bold, color: color)),
+        ]),
+      );
 }
