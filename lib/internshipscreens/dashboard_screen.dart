@@ -354,10 +354,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (internId != null) {
         if (mounted) {
           Navigator.push(context, MaterialPageRoute(
-            builder: (_) =>
-                DocsUpload(userId: internId, scheduleId: null),
-          ));
-        }
+    builder: (_) => DocsUpload(userId: widget.userId, scheduleId: null),
+  ));
+}
       } else {
         _showSnack('⚠️ Please complete your registration first.', Colors.orange);
         if (mounted) {

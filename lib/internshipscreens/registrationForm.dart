@@ -410,7 +410,7 @@ class _RegistrationFormState extends State<RegistrationForm> {
             context,
             MaterialPageRoute(
               builder: (context) => DocsUpload(
-                userId: internId,
+                userId: widget.userId,
                 scheduleId: widget.scheduleId,
               ),
             ),

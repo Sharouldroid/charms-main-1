@@ -27,14 +27,14 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
     _loadSubmissions();
   }
 
+  // ─── Load Submissions ────────────────────────────────────────────────────────
+
   Future<void> _loadSubmissions() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
       final response = await http.get(
-        Uri.parse('${AppConfig.hostname}/api/internship/documents/admin/submissions')
+        Uri.parse('${AppConfig.hostname}/api/internship/documents/admin/submissions'),
       );
 
       if (response.statusCode == 200) {
@@ -48,47 +48,49 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
     } catch (e) {
       _showErrorMessage('Error loading submissions: $e');
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
+
+  // ─── Download File ───────────────────────────────────────────────────────────
 
   Future<void> _downloadFile(int submissionId, String fileName) async {
-  try {
-    _showLoadingDialog('Downloading file...');
+    try {
+      _showLoadingDialog('Downloading file...');
 
-    final response = await http.get(
-      Uri.parse('${AppConfig.hostname}/api/internship/documents/download/$submissionId'),
-    );
+      final response = await http.get(
+        Uri.parse('${AppConfig.hostname}/api/internship/documents/download/$submissionId'),
+      );
 
-    if (mounted) Navigator.of(context).pop();
+      if (mounted) Navigator.of(context).pop();
 
-    if (response.statusCode == 200) {
-      final bytes = response.bodyBytes;
-      final blob = html.Blob([bytes]);
-      final url = html.Url.createObjectUrlFromBlob(blob);
-      final anchor = html.AnchorElement(href: url)
-        ..setAttribute('download', fileName)
-        ..click();
-      html.Url.revokeObjectUrl(url);
+      if (response.statusCode == 200) {
+        final bytes = response.bodyBytes;
+        final blob = html.Blob([bytes]);
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        final anchor = html.AnchorElement(href: url)
+          ..setAttribute('download', fileName)
+          ..click();
+        html.Url.revokeObjectUrl(url);
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('File downloaded successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('File downloaded successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        _showErrorMessage('Failed to download file: ${response.statusCode}');
       }
-    } else {
-      _showErrorMessage('Failed to download file: ${response.statusCode}');
+    } catch (e) {
+      if (mounted) Navigator.of(context).pop();
+      _showErrorMessage('Error downloading file: $e');
     }
-  } catch (e) {
-    if (mounted) Navigator.of(context).pop();
-    _showErrorMessage('Error downloading file: $e');
   }
-}
+
+  // ─── Update Status ───────────────────────────────────────────────────────────
 
   Future<void> _updateSubmissionStatus(
       int submissionId, String status, String comments) async {
@@ -96,17 +98,16 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
       _showLoadingDialog('Updating status...');
 
       final response = await http.put(
-        Uri.parse('${AppConfig.hostname}/api/internship/documents/submissions/$submissionId/status'),
+        Uri.parse(
+            '${AppConfig.hostname}/api/internship/documents/submissions/$submissionId/status'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'status': status,
-          'adminComments': comments, // Fixed: Changed from 'admin_comments' to 'adminComments'
+          'adminComments': comments,
         }),
       );
 
-      if (mounted) {
-        Navigator.of(context).pop(); // Close loading dialog
-      }
+      if (mounted) Navigator.of(context).pop();
 
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -115,34 +116,87 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
             backgroundColor: Colors.green,
           ),
         );
-        _loadSubmissions(); // Reload submissions
+        _loadSubmissions();
       } else {
-        // Handle error response safely
         String errorMessage = 'Failed to update status';
-        
         try {
           final errorData = jsonDecode(response.body);
-          errorMessage = errorData['error'] ?? errorData['message'] ?? 'Unknown error';
+          errorMessage =
+              errorData['error'] ?? errorData['message'] ?? 'Unknown error';
         } catch (e) {
-          if (response.body.contains('<!DOCTYPE') || response.body.contains('<html')) {
-            errorMessage = 'Server error (${response.statusCode}). Please check the API endpoint.';
+          if (response.body.contains('<!DOCTYPE') ||
+              response.body.contains('<html')) {
+            errorMessage =
+                'Server error (${response.statusCode}). Please check the API endpoint.';
           } else {
             errorMessage = 'Server error: ${response.body}';
           }
         }
-        
         _showErrorMessage(errorMessage);
       }
     } catch (e) {
-      if (mounted) {
-        Navigator.of(context).pop(); // Close loading dialog if open
-      }
+      if (mounted) Navigator.of(context).pop();
       _showErrorMessage('Error updating status: $e');
     }
   }
 
+  // ─── Delete Submission ───────────────────────────────────────────────────────
+
+  Future<void> _deleteSubmission(int submissionId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Submission'),
+        content: const Text(
+            'Are you sure you want to delete this submission? This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child:
+                const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      _showLoadingDialog('Deleting...');
+
+      final response = await http.delete(
+        Uri.parse(
+            '${AppConfig.hostname}/api/internship/documents/submissions/$submissionId'),
+      );
+
+      if (mounted) Navigator.of(context).pop();
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Submission deleted successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _loadSubmissions();
+      } else {
+        _showErrorMessage('Failed to delete submission');
+      }
+    } catch (e) {
+      if (mounted) Navigator.of(context).pop();
+      _showErrorMessage('Error deleting: $e');
+    }
+  }
+
+  // ─── Dialogs ─────────────────────────────────────────────────────────────────
+
   void _showStatusDialog(Map<String, dynamic> submission) {
-    String selectedStatus = submission['status'];
+    String selectedStatus = submission['status'] ?? 'pending';
     TextEditingController commentsController = TextEditingController(
       text: submission['admin_comments'] ?? '',
     );
@@ -157,31 +211,37 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Student: ${submission['first_name']} ${submission['last_name']}',
+                'Student: ${submission['first_name'] ?? 'Unknown'} ${submission['last_name'] ?? ''}',
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
-              Text('File: ${submission['file_name']}'),
+              Text('File: ${submission['file_name'] ?? 'Unnamed File'}'),
               const SizedBox(height: 16),
-              const Text('Status:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text('Status:',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
                 value: selectedStatus,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
                 items: const [
                   DropdownMenuItem(value: 'pending', child: Text('Pending')),
-                  DropdownMenuItem(value: 'approved', child: Text('Approved')),
-                  DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
-                  DropdownMenuItem(value: 'resubmit', child: Text('Request Resubmit')),
+                  DropdownMenuItem(
+                      value: 'approved', child: Text('Approved')),
+                  DropdownMenuItem(
+                      value: 'rejected', child: Text('Rejected')),
+                  DropdownMenuItem(
+                      value: 'resubmit', child: Text('Request Resubmit')),
                 ],
                 onChanged: (value) {
                   selectedStatus = value!;
                 },
               ),
               const SizedBox(height: 16),
-              const Text('Comments:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text('Comments:',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               TextField(
                 controller: commentsController,
@@ -233,6 +293,7 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
   }
 
   void _showErrorMessage(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -241,12 +302,16 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
     );
   }
 
+  // ─── Filter ──────────────────────────────────────────────────────────────────
+
   List<Map<String, dynamic>> get filteredSubmissions {
-    if (_filterStatus == 'all') {
-      return _submissions;
-    }
-    return _submissions.where((sub) => sub['status'] == _filterStatus).toList();
+    if (_filterStatus == 'all') return _submissions;
+    return _submissions
+        .where((sub) => sub['status'] == _filterStatus)
+        .toList();
   }
+
+  // ─── Submission Card ─────────────────────────────────────────────────────────
 
   Widget _buildSubmissionCard(Map<String, dynamic> submission) {
     Color statusColor;
@@ -277,12 +342,13 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header with student info and status
+            // ── Header: student info + status badge ──
             Row(
               children: [
                 Expanded(
@@ -290,21 +356,23 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${submission['first_name']} ${submission['last_name']}',
+                        '${submission['first_name'] ?? 'Unknown'} ${submission['last_name'] ?? ''}',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                         ),
                       ),
                       Text(
-                        submission['email'],
-                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                        submission['email'] ?? '-',
+                        style:
+                            TextStyle(color: Colors.grey[600], fontSize: 12),
                       ),
                     ],
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: statusColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(16),
@@ -316,7 +384,9 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
                       Icon(statusIcon, size: 16, color: statusColor),
                       const SizedBox(width: 4),
                       Text(
-                        submission['status'].toString().toUpperCase(),
+                        (submission['status'] ?? 'unknown')
+                            .toString()
+                            .toUpperCase(),
                         style: TextStyle(
                           color: statusColor,
                           fontWeight: FontWeight.bold,
@@ -331,7 +401,7 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
 
             const SizedBox(height: 12),
 
-            // File info
+            // ── File info ──
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -347,12 +417,14 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          submission['file_name'],
-                          style: const TextStyle(fontWeight: FontWeight.w500),
+                          submission['file_name'] ?? 'Unnamed File',
+                          style:
+                              const TextStyle(fontWeight: FontWeight.w500),
                         ),
                         Text(
-                          'Uploaded: ${DateTime.parse(submission['upload_date']).toString().split(' ')[0]}',
-                          style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                          'Uploaded: ${submission['upload_date'] != null ? DateTime.parse(submission['upload_date']).toString().split(' ')[0] : 'Unknown'}',
+                          style: TextStyle(
+                              color: Colors.grey[600], fontSize: 12),
                         ),
                       ],
                     ),
@@ -361,9 +433,9 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
               ),
             ),
 
-            // Admin comments if any
+            // ── Admin comments ──
             if (submission['admin_comments'] != null &&
-                submission['admin_comments'].isNotEmpty) ...[
+                submission['admin_comments'].toString().isNotEmpty) ...[
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(12),
@@ -395,13 +467,16 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
 
             const SizedBox(height: 16),
 
-            // Action buttons
+            // ── Action buttons ──
             Row(
               children: [
+                // Download
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () => _downloadFile(
-                        submission['id'], submission['file_name']),
+                      submission['id'],
+                      submission['file_name'] ?? 'file',
+                    ),
                     icon: const Icon(Icons.download, size: 16),
                     label: const Text('Download'),
                     style: OutlinedButton.styleFrom(
@@ -410,6 +485,8 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
                   ),
                 ),
                 const SizedBox(width: 8),
+
+                // Review
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () => _showStatusDialog(submission),
@@ -421,6 +498,19 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
                     ),
                   ),
                 ),
+                const SizedBox(width: 8),
+
+                // Delete
+                IconButton(
+                  onPressed: () => _deleteSubmission(submission['id']),
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  tooltip: 'Delete Submission',
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.red.withOpacity(0.1),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
               ],
             ),
           ],
@@ -429,12 +519,32 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
     );
   }
 
+  // ─── Filter Chip ─────────────────────────────────────────────────────────────
+
+  Widget _buildFilterChip(String value, String label) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: FilterChip(
+        label: Text(label),
+        selected: _filterStatus == value,
+        onSelected: (selected) {
+          setState(() => _filterStatus = value);
+        },
+        selectedColor: Colors.blueAccent.withOpacity(0.2),
+        checkmarkColor: Colors.blueAccent,
+      ),
+    );
+  }
+
+  // ─── Build ───────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Student Submissions'),
         backgroundColor: Colors.blueAccent,
+        foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -449,7 +559,8 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                const Text('Filter: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text('Filter: ',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
                 Expanded(
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
@@ -477,13 +588,15 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.inbox, size: 64, color: Colors.grey[400]),
+                            Icon(Icons.inbox,
+                                size: 64, color: Colors.grey[400]),
                             const SizedBox(height: 16),
                             Text(
                               _filterStatus == 'all'
                                   ? 'No submissions yet'
                                   : 'No $_filterStatus submissions',
-                              style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                              style: TextStyle(
+                                  color: Colors.grey[600], fontSize: 16),
                             ),
                           ],
                         ),
@@ -491,28 +604,12 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
                     : ListView.builder(
                         itemCount: filteredSubmissions.length,
                         itemBuilder: (context, index) {
-                          return _buildSubmissionCard(filteredSubmissions[index]);
+                          return _buildSubmissionCard(
+                              filteredSubmissions[index]);
                         },
                       ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildFilterChip(String value, String label) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: FilterChip(
-        label: Text(label),
-        selected: _filterStatus == value,
-        onSelected: (selected) {
-          setState(() {
-            _filterStatus = value;
-          });
-        },
-        selectedColor: Colors.blueAccent.withOpacity(0.2),
-        checkmarkColor: Colors.blueAccent,
       ),
     );
   }
