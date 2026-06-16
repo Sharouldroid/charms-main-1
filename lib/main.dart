@@ -42,7 +42,6 @@ import 'package:charms/internshipproviders/InternAttendanceProvider.dart';
 // 🌟 HR MODULE IMPORTS (ADDED)
 // ------------------------
 import 'package:charms/camera_service.dart';
-
 import 'package:charms/HRproviders/attendances.dart';
 import 'package:charms/HRproviders/claims.dart';
 import 'package:charms/HRproviders/leaves.dart';

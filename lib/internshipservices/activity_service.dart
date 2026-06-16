@@ -97,4 +97,21 @@ class ActivityService {
       );
     }
   }
+
+  // PUT /api/internship/activities/{activityId}
+  Future<void> updateActivity(int activityId, String activityDescription) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/api/internship/activities/$activityId'),
+      headers: _headers(),
+      body: jsonEncode({
+        'activity_description': activityDescription,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Failed to update activity: ${response.statusCode} ${response.body}',
+      );
+    }
+  }
 }

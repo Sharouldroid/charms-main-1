@@ -92,9 +92,8 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
 
   void _onInternSelected(int? internId) {
     if (internId != null) {
-     final selected = _interns.firstWhere(
-    (intern) => (intern['user_id'] as num).toInt() == internId
-  );
+      final selected = _interns.firstWhere(
+          (intern) => (intern['user_id'] as num).toInt() == internId);
       setState(() {
         _selectedInternId = internId;
         final first = selected['first_name'] ?? '';
@@ -106,8 +105,42 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
     }
   }
 
+  /// Returns true if the activity was logged today (local time).
+  bool _isEditableToday(Activity activity) {
+    final now = DateTime.now();
+    final logged = activity.createdAt.toLocal();
+    return logged.year == now.year &&
+        logged.month == now.month &&
+        logged.day == now.day;
+  }
+
   void _showAddActivityDialog() {
     _activityController.clear();
+    _showActivityDialog(
+      title: 'Log Activity',
+      hint: 'What did you work on today?',
+      onSubmit: _addActivity,
+    );
+  }
+
+  void _showEditActivityDialog(Activity activity) {
+    _activityController.text = activity.activityDescription;
+    _showActivityDialog(
+      title: 'Edit Activity',
+      hint: 'Update your activity description...',
+      onSubmit: () => _editActivity(activity),
+      submitLabel: 'Update',
+      submitColor: Colors.deepPurple,
+    );
+  }
+
+  void _showActivityDialog({
+    required String title,
+    required String hint,
+    required VoidCallback onSubmit,
+    String submitLabel = 'Submit',
+    Color submitColor = Colors.blueAccent,
+  }) {
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -123,17 +156,20 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.blueAccent.withOpacity(0.1),
+                      color: submitColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.edit_note,
-                        color: Colors.blueAccent, size: 22),
+                    child: Icon(
+                      title == 'Edit Activity' ? Icons.edit : Icons.edit_note,
+                      color: submitColor,
+                      size: 22,
+                    ),
                   ),
                   const SizedBox(width: 12),
-                  const Text(
-                    'Log Activity',
-                    style:
-                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -143,14 +179,13 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
                 maxLines: 4,
                 autofocus: true,
                 decoration: InputDecoration(
-                  hintText: 'What did you work on today?',
+                  hintText: hint,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide:
-                        const BorderSide(color: Colors.blueAccent, width: 2),
+                    borderSide: BorderSide(color: submitColor, width: 2),
                   ),
                   contentPadding: const EdgeInsets.all(12),
                 ),
@@ -174,16 +209,16 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
                     child: ElevatedButton(
                       onPressed: () {
                         Navigator.of(context).pop();
-                        _addActivity();
+                        onSubmit();
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueAccent,
+                        backgroundColor: submitColor,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10)),
                       ),
-                      child: const Text('Submit'),
+                      child: Text(submitLabel),
                     ),
                   ),
                 ],
@@ -222,14 +257,47 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
     }
   }
 
+  Future<void> _editActivity(Activity activity) async {
+  if (activity.id == null) {
+    _showErrorSnackbar('Cannot edit this activity: missing ID');
+    return;
+  }
+  if (_activityController.text.trim().isEmpty) {
+    _showErrorSnackbar('Please enter an activity description');
+    return;
+  }
+  setState(() => _isLoading = true);
+  try {
+    await _activityService.updateActivity(
+      activity.id!,
+      _activityController.text.trim(),
+    );
+    _activityController.clear();
+    await _loadActivities();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Activity updated successfully!'),
+          backgroundColor: Colors.deepPurple,
+        ),
+      );
+    }
+  } catch (e) {
+    setState(() => _isLoading = false);
+    _showErrorSnackbar('Failed to update activity: $e');
+  }
+}
+
   void _showErrorSnackbar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
 
-  String _formatDate(DateTime dt) => DateFormat('dd MMM yyyy').format(dt.toLocal());
-  String _formatTime(DateTime dt) => DateFormat('hh:mm a').format(dt.toLocal());
+  String _formatDate(DateTime dt) =>
+      DateFormat('dd MMM yyyy').format(dt.toLocal());
+  String _formatTime(DateTime dt) =>
+      DateFormat('hh:mm a').format(dt.toLocal());
 
   @override
   Widget build(BuildContext context) {
@@ -292,8 +360,8 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
                                   final name = '$first $last'.trim();
                                   return DropdownMenuItem<int>(
                                     value: (intern['user_id'] as num).toInt(),
-                                    child: Text(
-                                        name.isEmpty ? 'Unknown' : name),
+                                    child:
+                                        Text(name.isEmpty ? 'Unknown' : name),
                                   );
                                 }).toList(),
                                 onChanged: _onInternSelected,
@@ -395,6 +463,9 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
                             itemBuilder: (context, index) {
                               final activity = _activities[index];
                               final isFirst = index == 0;
+                              final canEdit = widget.role == 'Intern' &&
+                                  _isEditableToday(activity);
+
                               return Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -441,8 +512,8 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
                                             BorderRadius.circular(12),
                                         boxShadow: [
                                           BoxShadow(
-                                            color:
-                                                Colors.black.withOpacity(0.05),
+                                            color: Colors.black
+                                                .withOpacity(0.05),
                                             blurRadius: 6,
                                             offset: const Offset(0, 2),
                                           ),
@@ -452,12 +523,65 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          Text(
-                                            activity.activityDescription,
-                                            style: const TextStyle(
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.w500,
-                                            ),
+                                          Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  activity.activityDescription,
+                                                  style: const TextStyle(
+                                                    fontSize: 15,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ),
+                                              if (canEdit) ...[
+                                                const SizedBox(width: 8),
+                                                Tooltip(
+                                                  message: 'Edit activity',
+                                                  child: InkWell(
+                                                    onTap: () =>
+                                                        _showEditActivityDialog(
+                                                            activity),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            6),
+                                                    child: Container(
+                                                      padding:
+                                                          const EdgeInsets.all(
+                                                              4),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.deepPurple
+                                                            .withOpacity(0.08),
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(6),
+                                                      ),
+                                                      child: const Icon(
+                                                        Icons.edit_outlined,
+                                                        size: 16,
+                                                        color:
+                                                            Colors.deepPurple,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ] else if (widget.role ==
+                                                  'Intern') ...[
+                                                // Show locked icon for past entries
+                                                const SizedBox(width: 8),
+                                                Tooltip(
+                                                  message:
+                                                      'Can only edit today\'s activities',
+                                                  child: Icon(
+                                                    Icons.lock_outline,
+                                                    size: 14,
+                                                    color: Colors.grey[300],
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
                                           ),
                                           const SizedBox(height: 8),
                                           Row(
@@ -467,8 +591,7 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
                                                   color: Colors.grey[400]),
                                               const SizedBox(width: 4),
                                               Text(
-                                                _formatDate(
-                                                    activity.createdAt),
+                                                _formatDate(activity.createdAt),
                                                 style: TextStyle(
                                                     fontSize: 12,
                                                     color: Colors.grey[500]),
@@ -479,8 +602,7 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
                                                   color: Colors.grey[400]),
                                               const SizedBox(width: 4),
                                               Text(
-                                                _formatTime(
-                                                    activity.createdAt),
+                                                _formatTime(activity.createdAt),
                                                 style: TextStyle(
                                                     fontSize: 12,
                                                     color: Colors.grey[500]),
