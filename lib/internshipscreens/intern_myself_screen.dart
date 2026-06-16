@@ -6,7 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import 'package:charms/HRproviders/staffs.dart';
 import 'package:charms/HRmodels/staff.dart';
-import 'package:charms/internshipscreens/dashboard_screen.dart';
+//import 'package:charms/internshipscreens/dashboard_screen.dart';
 import 'package:charms/internshipscreens/intern_change_password.dart';
 import 'package:charms/utils/logout_helper.dart';
 
@@ -232,18 +232,7 @@ class _InternMySelfScreenState extends State<InternMySelfScreen> {
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => DashboardScreen(
-                  username: widget.username,
-                  role: 'Intern',
-                  userId: widget.userId,
-                ),
-              ),
-            );
-          },
+          onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           'My Profile',
