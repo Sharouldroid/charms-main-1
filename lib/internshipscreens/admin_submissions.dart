@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:charms/main.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:html' as html;
 
 class AdminSubmissionsPage extends StatefulWidget {
@@ -87,6 +88,19 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
     } catch (e) {
       if (mounted) Navigator.of(context).pop();
       _showErrorMessage('Error downloading file: $e');
+    }
+  }
+
+  // ─── Open Link ───────────────────────────────────────────────────────────────
+
+  Future<void> _openLink(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      _showErrorMessage('Invalid link');
+      return;
+    }
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      _showErrorMessage('Could not open link');
     }
   }
 
@@ -339,6 +353,11 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
         statusIcon = Icons.help;
     }
 
+    final hasFile = submission['file_name'] != null &&
+        submission['file_name'].toString().isNotEmpty;
+    final documentLink = submission['document_link'];
+    final hasLink = documentLink != null && documentLink.toString().isNotEmpty;
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       elevation: 3,
@@ -401,37 +420,73 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
 
             const SizedBox(height: 12),
 
-            // ── File info ──
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.insert_drive_file, color: Colors.blue),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          submission['file_name'] ?? 'Unnamed File',
-                          style:
-                              const TextStyle(fontWeight: FontWeight.w500),
-                        ),
-                        Text(
-                          'Uploaded: ${submission['upload_date'] != null ? DateTime.parse(submission['upload_date']).toString().split(' ')[0] : 'Unknown'}',
-                          style: TextStyle(
-                              color: Colors.grey[600], fontSize: 12),
-                        ),
-                      ],
+            // ── File info (only if a file exists) ──
+            if (hasFile)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.insert_drive_file, color: Colors.blue),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            submission['file_name'] ?? 'Unnamed File',
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                          Text(
+                            'Uploaded: ${submission['upload_date'] != null ? DateTime.parse(submission['upload_date']).toString().split(' ')[0] : 'Unknown'}',
+                            style: TextStyle(
+                                color: Colors.grey[600], fontSize: 12),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
+
+            // ── Link info (only if a link exists) ──
+            if (hasLink) ...[
+              if (hasFile) const SizedBox(height: 8),
+              InkWell(
+                onTap: () => _openLink(documentLink.toString()),
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.indigo[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.indigo[200]!),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.link, color: Colors.indigo),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          documentLink.toString(),
+                          style: const TextStyle(
+                            color: Colors.indigo,
+                            decoration: TextDecoration.underline,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const Icon(Icons.open_in_new, size: 16, color: Colors.indigo),
+                    ],
+                  ),
+                ),
+              ),
+            ],
 
             // ── Admin comments ──
             if (submission['admin_comments'] != null &&
@@ -470,21 +525,22 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
             // ── Action buttons ──
             Row(
               children: [
-                // Download
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _downloadFile(
-                      submission['id'],
-                      submission['file_name'] ?? 'file',
-                    ),
-                    icon: const Icon(Icons.download, size: 16),
-                    label: const Text('Download'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.blue,
+                // Download (only when a file exists)
+                if (hasFile)
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _downloadFile(
+                        submission['id'],
+                        submission['file_name'] ?? 'file',
+                      ),
+                      icon: const Icon(Icons.download, size: 16),
+                      label: const Text('Download'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.blue,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
+                if (hasFile) const SizedBox(width: 8),
 
                 // Review
                 Expanded(

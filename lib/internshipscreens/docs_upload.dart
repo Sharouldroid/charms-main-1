@@ -21,7 +21,8 @@ class DocsUpload extends StatefulWidget {
 }
 
 class _DocsUploadState extends State<DocsUpload> {
-  PlatformFile? _selectedFile; // ✅ Changed from File to PlatformFile
+  PlatformFile? _selectedFile;
+  final TextEditingController _linkController = TextEditingController();
   bool _isUploading = false;
   String? _uploadMessage;
   List<Map<String, dynamic>> _submissions = [];
@@ -31,6 +32,12 @@ class _DocsUploadState extends State<DocsUpload> {
   void initState() {
     super.initState();
     _loadUserSubmissions();
+  }
+
+  @override
+  void dispose() {
+    _linkController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadUserSubmissions() async {
@@ -70,7 +77,7 @@ class _DocsUploadState extends State<DocsUpload> {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'],
-      withData: kIsWeb, // ✅ Load bytes on web
+      withData: kIsWeb,
     );
 
     if (result != null) {
@@ -82,9 +89,11 @@ class _DocsUploadState extends State<DocsUpload> {
   }
 
   Future<void> _uploadFile() async {
-    if (_selectedFile == null) {
+    final link = _linkController.text.trim();
+
+    if (_selectedFile == null && link.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a file to upload')),
+        const SnackBar(content: Text('Please select a file or enter a link')),
       );
       return;
     }
@@ -102,52 +111,51 @@ class _DocsUploadState extends State<DocsUpload> {
 
       request.headers['Accept'] = 'application/json';
 
-      // ✅ Web vs Mobile file handling (same as HR module)
-      if (kIsWeb) {
-        // Web: Use bytes
-        final bytes = _selectedFile!.bytes;
-        if (bytes == null) {
-          throw Exception('Failed to read file bytes');
-        }
+      // ✅ Web vs Mobile file handling (only if a file was picked)
+      if (_selectedFile != null) {
+        if (kIsWeb) {
+          final bytes = _selectedFile!.bytes;
+          if (bytes == null) {
+            throw Exception('Failed to read file bytes');
+          }
 
-        final filename = _selectedFile!.name;
-        final ext = filename.split('.').last.toLowerCase();
-        
-        // Determine content type
-        MediaType contentType;
-        if (ext == 'pdf') {
-          contentType = MediaType('application', 'pdf');
-        } else if (ext == 'doc' || ext == 'docx') {
-          contentType = MediaType('application', 'msword');
-        } else if (ext == 'jpg' || ext == 'jpeg') {
-          contentType = MediaType('image', 'jpeg');
-        } else if (ext == 'png') {
-          contentType = MediaType('image', 'png');
+          final filename = _selectedFile!.name;
+          final ext = filename.split('.').last.toLowerCase();
+
+          MediaType contentType;
+          if (ext == 'pdf') {
+            contentType = MediaType('application', 'pdf');
+          } else if (ext == 'doc' || ext == 'docx') {
+            contentType = MediaType('application', 'msword');
+          } else if (ext == 'jpg' || ext == 'jpeg') {
+            contentType = MediaType('image', 'jpeg');
+          } else if (ext == 'png') {
+            contentType = MediaType('image', 'png');
+          } else {
+            contentType = MediaType('application', 'octet-stream');
+          }
+
+          request.files.add(
+            http.MultipartFile.fromBytes(
+              'document',
+              bytes,
+              filename: filename,
+              contentType: contentType,
+            ),
+          );
         } else {
-          contentType = MediaType('application', 'octet-stream');
-        }
+          final path = _selectedFile!.path;
+          if (path == null) {
+            throw Exception('File path is null');
+          }
 
-        request.files.add(
-          http.MultipartFile.fromBytes(
-            'document',
-            bytes,
-            filename: filename,
-            contentType: contentType,
-          ),
-        );
-      } else {
-        // Mobile: Use path
-        final path = _selectedFile!.path;
-        if (path == null) {
-          throw Exception('File path is null');
+          request.files.add(
+            await http.MultipartFile.fromPath(
+              'document',
+              path,
+            ),
+          );
         }
-
-        request.files.add(
-          await http.MultipartFile.fromPath(
-            'document',
-            path,
-          ),
-        );
       }
 
       // Add form fields
@@ -155,40 +163,44 @@ class _DocsUploadState extends State<DocsUpload> {
       if (widget.scheduleId != null) {
         request.fields['scheduleId'] = widget.scheduleId.toString();
       }
+      if (link.isNotEmpty) {
+        request.fields['documentLink'] = link;
+      }
 
-      print('📤 Uploading file: ${_selectedFile!.name}');
+      print('📤 Uploading — file: ${_selectedFile?.name ?? "none"}, link: ${link.isEmpty ? "none" : link}');
       print('📤 URL: ${AppConfig.hostname}/api/internship/documents/upload');
 
       // Send request
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
-      
+
       print('📥 Response status: ${response.statusCode}');
       print('📥 Response body: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         setState(() {
-          _uploadMessage = 'File uploaded successfully! Awaiting admin review.';
+          _uploadMessage = 'Submitted successfully! Awaiting admin review.';
           _selectedFile = null;
+          _linkController.clear();
         });
 
         _loadUserSubmissions();
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ Document uploaded successfully!'),
+            content: Text('✅ Submitted successfully!'),
             backgroundColor: Colors.green,
           ),
         );
       } else {
         final errorData = jsonDecode(response.body);
         setState(() {
-          _uploadMessage = 'Failed to upload: ${errorData['error'] ?? 'Unknown error'}';
+          _uploadMessage = 'Failed to submit: ${errorData['error'] ?? 'Unknown error'}';
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ Upload failed: ${errorData['error']}'),
+            content: Text('❌ Submit failed: ${errorData['error']}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -278,11 +290,12 @@ class _DocsUploadState extends State<DocsUpload> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Accepted: PDF, DOC, DOCX, JPG, JPEG, PNG',
+                            'Accepted: PDF, DOC, DOCX, JPG, JPEG, PNG — or paste a link below',
                             style: TextStyle(
                               color: Colors.grey[600],
                               fontSize: 12,
                             ),
+                            textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 20),
 
@@ -330,6 +343,22 @@ class _DocsUploadState extends State<DocsUpload> {
 
                           const SizedBox(height: 16),
 
+                          // ✅ Link input field
+                          TextField(
+                            controller: _linkController,
+                            keyboardType: TextInputType.url,
+                            decoration: InputDecoration(
+                              labelText: 'Or paste a link (optional)',
+                              hintText: 'https://drive.google.com/...',
+                              prefixIcon: const Icon(Icons.link),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 16),
+
                           // Buttons
                           Row(
                             children: [
@@ -343,7 +372,7 @@ class _DocsUploadState extends State<DocsUpload> {
                               const SizedBox(width: 16),
                               Expanded(
                                 child: ElevatedButton.icon(
-                                  onPressed: _isUploading || _selectedFile == null
+                                  onPressed: _isUploading
                                       ? null
                                       : _uploadFile,
                                   icon: _isUploading
@@ -356,7 +385,7 @@ class _DocsUploadState extends State<DocsUpload> {
                                           ),
                                         )
                                       : const Icon(Icons.upload),
-                                  label: Text(_isUploading ? 'Uploading...' : 'Upload'),
+                                  label: Text(_isUploading ? 'Uploading...' : 'Submit'),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.blueAccent,
                                   ),
@@ -418,7 +447,8 @@ class _DocsUploadState extends State<DocsUpload> {
                           itemBuilder: (context, index) {
                             final submission = _submissions[index];
                             final status = submission['status'] ?? 'pending';
-                            final adminComment = submission['admin_comments']; // get comment
+                            final adminComment = submission['admin_comments'];
+                            final documentLink = submission['document_link'];
 
                             return Card(
                               margin: const EdgeInsets.only(bottom: 10),
@@ -450,6 +480,24 @@ class _DocsUploadState extends State<DocsUpload> {
                                       'Submitted: ${submission['submitted_at'] ?? 'Unknown'}',
                                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                                     ),
+
+                                    // ✅ Show link if present
+                                    if (documentLink != null && documentLink.toString().isNotEmpty) ...[
+                                      const SizedBox(height: 6),
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.link, size: 14, color: Colors.indigo),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              documentLink.toString(),
+                                              style: const TextStyle(fontSize: 12, color: Colors.indigo),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
 
                                     // Show admin comment if rejected or resubmit
                                     if (adminComment != null && adminComment.toString().isNotEmpty &&
@@ -518,13 +566,13 @@ class _DocsUploadState extends State<DocsUpload> {
                 ],
               ),
             ),
-            floatingActionButton: FloatingActionButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            backgroundColor: Colors.blueAccent,
-            tooltip: 'Back to Dashboard',
-            child: const Icon(Icons.home, color: Colors.white),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.of(context).pop();
+        },
+        backgroundColor: Colors.blueAccent,
+        tooltip: 'Back to Dashboard',
+        child: const Icon(Icons.home, color: Colors.white),
       ),
     );
   }
