@@ -23,28 +23,33 @@ import 'package:charms/internshipscreens/slot_details_screen.dart';
 import 'package:charms/internshipproviders/InternAttendanceProvider.dart';
 import 'package:charms/internshipscreens/InternAttendanceHistoryScreen.dart';
 import 'package:charms/internshipscreens/admin_intern_attendance_screen.dart';
+// 🌟 ADDED: Available Schedules card dependencies
+import 'package:charms/internshipproviders/schedule_provider.dart';
+import 'package:charms/internshipmodels/schedule.dart';
+import 'package:charms/internshipservices/schedule_service.dart';
+import 'package:charms/main.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String username;
   final String role;
   final int userId;
- 
+
   const DashboardScreen({
     super.key,
     required this.username,
     required this.role,
     required this.userId,
   });
- 
+
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
- 
+
 class _DashboardScreenState extends State<DashboardScreen> {
   Staff? _currentStaff;
   bool _isLoading = true;
   String _profilePicture = 'assets/profilepicture.png';
- 
+
   // ── Attendance state (Intern only) ─────────────────────────────────────
   bool _isClockIn = false;
   bool _isClockOut = false;
@@ -54,7 +59,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // The schedule the intern is currently registered for (today's schedule)
   // We resolve this lazily when the FAB sheet opens.
   int? _activeScheduleId;
- 
+
+  // ── Available Schedules card state (Intern only) ────────────────────────
+  List<Schedule> _availableSchedules = [];
+  Map<int, Map<String, dynamic>> _scheduleRegCounts = {};
+  bool _schedulesLoading = true;
+
   @override
   void initState() {
     super.initState();
@@ -67,29 +77,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // ✅ Restore clock-in/out state from backend on dashboard load
       if (widget.role == 'Intern') {
         _checkAttendanceState();
+        _loadAvailableSchedules();
       }
     });
   }
- 
+
   // ── Check existing attendance state from backend ───────────────────────
   Future<void> _checkAttendanceState() async {
     try {
       final reg = await InternHelper.getActiveRegistration(widget.userId);
       if (reg == null || reg.scheduleId == null) return;
- 
+
       final provider = context.read<InternAttendanceProvider>();
       final result = await provider.checkAttendance(
         userId: widget.userId,
         scheduleId: reg.scheduleId!,
       );
- 
+
       if (mounted) {
         setState(() {
           _isClockIn  = result['has_clocked_in']  == true;
           _isClockOut = result['has_clocked_out'] == true;
           _clockInLocationStr = result['clock_in_location']?.toString();
           _activeScheduleId   = reg.scheduleId;
- 
+
           if (_isClockOut && result['clock_out_time'] != null) {
             final t = DateTime.tryParse(result['clock_out_time'].toString());
             if (t != null) {
@@ -102,17 +113,50 @@ class _DashboardScreenState extends State<DashboardScreen> {
       debugPrint('Error checking attendance state: $e');
     }
   }
- 
+
+  // ── Load available schedules (Intern only) ──────────────────────────────
+  Future<void> _loadAvailableSchedules() async {
+    try {
+      final provider = context.read<ScheduleProvider>();
+      await provider.loadSchedules();
+
+      final now = DateTime.now();
+      final upcoming = provider.schedules
+          .where((s) =>
+              s.endDate.isAfter(now.subtract(const Duration(days: 1))))
+          .toList()
+        ..sort((a, b) => a.startDate.compareTo(b.startDate));
+
+      final shortlist = upcoming.take(4).toList();
+      final counts = <int, Map<String, dynamic>>{};
+      final service = ScheduleService(baseUrl: AppConfig.hostname);
+      for (final s in shortlist) {
+        counts[s.id] = await service.checkRegistrationLimit(s.id);
+      }
+
+      if (mounted) {
+        setState(() {
+          _availableSchedules = shortlist;
+          _scheduleRegCounts = counts;
+          _schedulesLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading available schedules: $e');
+      if (mounted) setState(() => _schedulesLoading = false);
+    }
+  }
+
   // ── Load staff / profile picture ───────────────────────────────────────
   Future<void> _loadStaffData() async {
     try {
       final staffsProvider = context.read<Staffs>();
       await staffsProvider.fetchStaff();
- 
+
       final matches = staffsProvider.staffList
           .where((s) => s.userId == widget.userId)
           .toList();
- 
+
       if (matches.isNotEmpty) {
         _currentStaff = matches.first;
         if (_currentStaff!.filepath != null &&
@@ -127,24 +171,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (mounted) setState(() => _isLoading = false);
     }
   }
- 
+
   Future<void> _logout(BuildContext context) async {
     await LogoutHelper.fullLogout(context);
   }
- 
+
   // ── GPS helpers (same pattern as StaffScheduleDetailsScreen) ───────────
   Future<String?> _getCurrentLocation() async {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) return null;
- 
+
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) return null;
       }
       if (permission == LocationPermission.deniedForever) return null;
- 
+
       final pos = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high);
       return '${pos.latitude.toStringAsFixed(6)}, ${pos.longitude.toStringAsFixed(6)}';
@@ -153,7 +197,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return null;
     }
   }
- 
+
   Future<String?> _getPlaceName(double lat, double lng) async {
     try {
       final url = Uri.parse(
@@ -167,11 +211,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     } catch (_) {}
     return null;
   }
- 
+
   Future<String?> _buildDisplayLocation() async {
     final coords = await _getCurrentLocation();
     if (coords == null) return null;
- 
+
     String display = coords;
     final parts = coords.split(', ');
     if (parts.length == 2) {
@@ -184,14 +228,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
     return display;
   }
- 
+
   // ── Resolve today's active schedule for the intern ─────────────────────
   Future<int?> _resolveActiveScheduleId() async {
     // We call InternHelper to get intern_id, then check today's registrations.
     // Resolved lazily in _handleClockIn via InternHelper.getActiveRegistration
     return null;
   }
- 
+
   // ── FAB: Clock In / Out bottom sheet ───────────────────────────────────
   void _showAttendanceSheet() {
     showModalBottomSheet(
@@ -220,10 +264,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
   }
- 
+
   Future<void> _handleClockIn() async {
     setState(() => _isAttendanceLoading = true);
- 
+
     try {
       // 1. Resolve the active registration → gets both intern_id and schedule_id
       final reg = await InternHelper.getActiveRegistration(widget.userId);
@@ -231,7 +275,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _showSnack('⚠️ Please complete your registration first.', Colors.orange);
         return;
       }
- 
+
       // 2. Show location snackbar
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -248,10 +292,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           backgroundColor: Colors.blueGrey,
         ));
       }
- 
+
       // 3. Get GPS + reverse geocode
       final locationStr = await _buildDisplayLocation();
- 
+
       // 4. Clock in with correct intern_id (internRegister.id) and schedule_id
       final provider = context.read<InternAttendanceProvider>();
       final result = await provider.clockIn(
@@ -260,7 +304,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         clockInTime: DateTime.now().toIso8601String(),
         clockInLocation: locationStr,
       );
- 
+
       if (result['success'] == true) {
         setState(() {
           _isClockIn = true;
@@ -278,7 +322,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (mounted) setState(() => _isAttendanceLoading = false);
     }
   }
- 
+
   Future<void> _handleClockOut() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -299,7 +343,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
     if (confirm != true) return;
- 
+
     setState(() => _isAttendanceLoading = true);
     try {
       // Use cached schedule_id if available, otherwise re-resolve
@@ -312,7 +356,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
         scheduleId = reg.scheduleId!;
       }
- 
+
       final now = DateTime.now();
       final provider = context.read<InternAttendanceProvider>();
       final result = await provider.clockOut(
@@ -320,7 +364,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         scheduleId: scheduleId,
         clockOutTime: now.toIso8601String(),
       );
- 
+
       if (result['success'] == true) {
         setState(() {
           _isClockOut = true;
@@ -337,13 +381,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (mounted) setState(() => _isAttendanceLoading = false);
     }
   }
- 
+
   void _showSnack(String msg, Color color) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(msg), backgroundColor: color));
   }
- 
+
   // ── Navigation helpers (unchanged from original) ───────────────────────
   Future<void> _navigateToDocumentUpload() async {
     if (widget.role != 'Intern') return;
@@ -373,7 +417,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     }
   }
- 
+
   Future<void> _navigateToMonitorPerformance() async {
     if (widget.role == 'Intern') {
       _showLoading();
@@ -404,7 +448,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ));
     }
   }
- 
+
   Future<void> _navigateToAssessment() async {
     if (widget.role == 'Intern') {
       _showLoading();
@@ -435,7 +479,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ));
     }
   }
- 
+
   void _showLoading() {
     showDialog(
       context: context,
@@ -443,7 +487,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       builder: (_) => const Center(child: CircularProgressIndicator()),
     );
   }
- 
+
   // ── Build ──────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
@@ -466,7 +510,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       );
     }
- 
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -537,7 +581,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       body: Container(
         color: const Color.fromARGB(255, 254, 251, 251),
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
@@ -599,7 +643,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
               const SizedBox(height: 40),
- 
+
               // Dashboard buttons
               Container(
                 decoration: BoxDecoration(
@@ -627,49 +671,50 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ],
                 ),
               ),
+
+              // 🌟 ADDED: Available Schedules card (Intern only)
+              if (widget.role == 'Intern') ...[
+                const SizedBox(height: 24),
+                _buildAvailableSchedulesCard(),
+              ],
             ],
           ),
         ),
       ),
- 
-      // ── FAB: Attendance (Intern only) ────────────────────────────────
-      floatingActionButton: widget.role == 'Intern'
-          ? FloatingActionButton.extended(
-              onPressed: _showAttendanceSheet,
-              backgroundColor: Colors.blueAccent,
-              icon: Icon(
-                _isClockOut
-                    ? Icons.check_circle_rounded
-                    : _isClockIn
-                        ? Icons.logout_rounded
-                        : Icons.login_rounded,
-                color: Colors.white,
-              ),
-              label: Text(
-                _isClockOut
-                    ? 'Completed'
-                    : _isClockIn
-                        ? 'Clock Out'
-                        : 'Clock In',
-                style: const TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.bold),
-              ),
-            )
-          : null,
- 
+
+      // FAB removed — Clock In/Out now lives in the bottom nav bar
+
       bottomNavigationBar: BottomNavigationBar(
-        items: <BottomNavigationBarItem>[
-          const BottomNavigationBarItem(
-              icon: Icon(Icons.home), label: 'Home'),
-          const BottomNavigationBarItem(
-              icon: Icon(Icons.schedule), label: 'Schedule'),
-          if (widget.role == 'Intern')
-            const BottomNavigationBarItem(
-                icon: Icon(Icons.timeline), label: 'Timeline')
-          else
-            const BottomNavigationBarItem(
-                icon: Icon(Icons.feedback), label: 'Slot Details'),
-        ],
+        type: BottomNavigationBarType.fixed,
+        items: widget.role == 'Intern'
+            ? <BottomNavigationBarItem>[
+                const BottomNavigationBarItem(
+                    icon: Icon(Icons.home), label: 'Home'),
+                BottomNavigationBarItem(
+                  icon: Icon(
+                    _isClockOut
+                        ? Icons.check_circle_rounded
+                        : _isClockIn
+                            ? Icons.logout_rounded
+                            : Icons.login_rounded,
+                  ),
+                  label: _isClockOut
+                      ? 'Completed'
+                      : _isClockIn
+                          ? 'Clock Out'
+                          : 'Clock In',
+                ),
+                const BottomNavigationBarItem(
+                    icon: Icon(Icons.timeline), label: 'Timeline'),
+              ]
+            : <BottomNavigationBarItem>[
+                const BottomNavigationBarItem(
+                    icon: Icon(Icons.home), label: 'Home'),
+                const BottomNavigationBarItem(
+                    icon: Icon(Icons.schedule), label: 'Schedule'),
+                const BottomNavigationBarItem(
+                    icon: Icon(Icons.feedback), label: 'Slot Details'),
+              ],
         selectedItemColor: Colors.blueAccent,
         onTap: (index) {
           switch (index) {
@@ -677,12 +722,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Navigator.pop(context);
               break;
             case 1:
-              Navigator.push(context, MaterialPageRoute(
-                builder: (_) => ScheduleCalendar(
-                  isAdmin: widget.role == 'Admin',
-                  userId: widget.userId,
-                ),
-              ));
+              if (widget.role == 'Intern') {
+                _showAttendanceSheet();
+              } else {
+                Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => ScheduleCalendar(
+                    isAdmin: widget.role == 'Admin',
+                    userId: widget.userId,
+                  ),
+                ));
+              }
               break;
             case 2:
               if (widget.role == 'Intern') {
@@ -701,10 +750,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
   }
- 
+
   List<Widget> _buildDashboardButtons(BuildContext context) {
     final buttons = <Widget>[];
- 
+
     if (widget.role == 'Admin') {
       buttons.addAll([
         _buildDashboardButton(context, 'Create Schedule', Icons.calendar_today,
@@ -760,13 +809,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ));
         }),
-        _buildDashboardButton(context, 'Assessment', Icons.assessment, () {
-          Navigator.push(context, MaterialPageRoute(
-            builder: (context) => AssessmentInternPage(
-              internId: widget.userId,
-            ),
-          ));
-        }),
+        // _buildDashboardButton(context, 'Assessment', Icons.assessment, () {
+        //   Navigator.push(context, MaterialPageRoute(
+        //     builder: (context) => AssessmentInternPage(
+        //       internId: widget.userId,
+        //     ),
+        //   ));
+        // }),
         _buildDashboardButton(context, 'Check Status', Icons.check_circle,
             () {
           Navigator.push(context, MaterialPageRoute(
@@ -792,15 +841,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }),
       ]);
     }
- 
+
     return buttons;
   }
- 
+
   Widget _buildDashboardButton(
       BuildContext context, String title, IconData icon, VoidCallback onPressed) {
     final buttonWidth = (MediaQuery.of(context).size.width / 3) - 32;
     const buttonHeight = 120.0;
- 
+
     return SizedBox(
       width: buttonWidth,
       height: buttonHeight,
@@ -834,8 +883,104 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
   }
+
+  // ── Available Schedules card (Intern only) ──────────────────────────────
+  Widget _buildAvailableSchedulesCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const Icon(Icons.event_available, color: Colors.blueAccent, size: 20),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text('Available Schedules',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(
+                  builder: (_) =>
+                      ScheduleCalendar(isAdmin: false, userId: widget.userId),
+                ));
+              },
+              child: const Text('View All'),
+            ),
+          ]),
+          const Divider(height: 20),
+          if (_schedulesLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_availableSchedules.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text('No schedules available right now.',
+                  style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+            )
+          else
+            Column(children: _availableSchedules.map(_buildScheduleRow).toList()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScheduleRow(Schedule s) {
+    final countData = _scheduleRegCounts[s.id];
+    final current = (countData?['currentRegistrations'] as num?)?.toInt() ?? 0;
+    final max = (countData?['maxRegistrations'] as num?)?.toInt() ?? 5;
+    final isFull = current >= max;
+    final startDate = DateFormat('EEE, dd MMM').format(s.startDate.toLocal());
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+              color: isFull ? Colors.red : Colors.green,
+              shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(s.description,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 13)),
+              Text(startDate,
+                  style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+            ],
+          ),
+        ),
+        Text(
+          isFull ? 'Full' : '${max - current} left',
+          style: TextStyle(
+              color: isFull ? Colors.red : Colors.green,
+              fontWeight: FontWeight.bold,
+              fontSize: 12),
+        ),
+      ]),
+    );
+  }
 }
- 
+
 // ── Attendance Bottom Sheet ────────────────────────────────────────────────
 class _AttendanceBottomSheet extends StatelessWidget {
   final int userId;
@@ -847,7 +992,7 @@ class _AttendanceBottomSheet extends StatelessWidget {
   final VoidCallback onClockOut;
   final VoidCallback onViewHistory;
   final bool isLoading;
- 
+
   const _AttendanceBottomSheet({
     required this.userId,
     required this.isClockIn,
@@ -859,9 +1004,9 @@ class _AttendanceBottomSheet extends StatelessWidget {
     required this.onViewHistory,
     required this.isLoading,
   });
- 
+
   static const Color _primaryBlue = Color(0xFF2563EB);
- 
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -887,7 +1032,7 @@ class _AttendanceBottomSheet extends StatelessWidget {
                 color: Colors.grey.shade300,
                 borderRadius: BorderRadius.circular(2)),
           ),
- 
+
           // Title
           Row(
             children: [
@@ -907,7 +1052,7 @@ class _AttendanceBottomSheet extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
- 
+
           // Status indicator
           Container(
             width: double.infinity,
@@ -931,7 +1076,7 @@ class _AttendanceBottomSheet extends StatelessWidget {
               ),
             ]),
           ),
- 
+
           // Clock-in location display
           if (isClockIn && clockInLocationStr != null) ...[
             const SizedBox(height: 12),
@@ -963,9 +1108,9 @@ class _AttendanceBottomSheet extends StatelessWidget {
               ),
             ),
           ],
- 
+
           const SizedBox(height: 20),
- 
+
           // Action button
           if (isLoading)
             const Center(child: CircularProgressIndicator())
@@ -1028,9 +1173,9 @@ class _AttendanceBottomSheet extends StatelessWidget {
                 ],
               ),
             ),
- 
+
           const SizedBox(height: 12),
- 
+
           // View History button (always visible)
           SizedBox(
             width: double.infinity,
@@ -1052,19 +1197,19 @@ class _AttendanceBottomSheet extends StatelessWidget {
       ),
     );
   }
- 
+
   Color get _statusColor {
     if (isClockOut) return Colors.green;
     if (isClockIn) return Colors.orange;
     return Colors.blueGrey;
   }
- 
+
   IconData get _statusIcon {
     if (isClockOut) return Icons.check_circle_rounded;
     if (isClockIn) return Icons.radio_button_checked_rounded;
     return Icons.access_time_rounded;
   }
- 
+
   String get _statusText {
     if (isClockOut) return 'Shift completed — you have clocked out.';
     if (isClockIn) return 'Currently clocked in — remember to clock out!';

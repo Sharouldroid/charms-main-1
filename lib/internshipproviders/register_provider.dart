@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:charms/internshipmodels/register.dart';
 import 'package:charms/internshipservices/register_service.dart';
 import 'package:charms/main.dart';
+import 'package:image_picker/image_picker.dart';
 
 class RegisterProvider with ChangeNotifier {
   final RegisterService _registerService =
@@ -26,6 +27,18 @@ class RegisterProvider with ChangeNotifier {
     return userId;
   }
 
+  Future<Register> updateMyDetails(int userId, Map<String, dynamic> payload) async {
+    final updated = await _registerService.updateMyDetails(userId, payload);
+    notifyListeners();
+    return updated;
+  }
+
+  Future<String> uploadInternPhoto(int userId, XFile photo) async {
+    final filepath = await _registerService.uploadInternPhoto(userId, photo);
+    notifyListeners();
+    return filepath;
+  }
+
   Future<void> loadInterns() async {
     try {
       _internList = await _registerService.fetchInterns();
@@ -35,6 +48,10 @@ class RegisterProvider with ChangeNotifier {
     } finally {
       notifyListeners();
     }
+  }
+
+  Future<String?> getInternPhotoPath(int userId) {
+    return _registerService.getInternPhotoPath(userId);
   }
 
   Future<Register> getInternDetails(int internId) {

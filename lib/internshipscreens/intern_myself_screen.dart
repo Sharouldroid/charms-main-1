@@ -4,9 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 
-import 'package:charms/HRproviders/staffs.dart';
-import 'package:charms/HRmodels/staff.dart';
-//import 'package:charms/internshipscreens/dashboard_screen.dart';
+import 'package:charms/internshipmodels/register.dart';
+import 'package:charms/internshipproviders/register_provider.dart';
 import 'package:charms/internshipscreens/intern_change_password.dart';
 import 'package:charms/utils/logout_helper.dart';
 
@@ -25,37 +24,60 @@ class InternMySelfScreen extends StatefulWidget {
 }
 
 class _InternMySelfScreenState extends State<InternMySelfScreen> {
-  Staff? _currentStaff;
+  Register? _intern;
+  String? _photoUrl;
   bool _isLoading = true;
   bool _isEditing = false;
   bool _isUploadingImage = false;
+  bool _notRegistered = false;
   XFile? _profileImage;
+  String? _error;
 
   final _formKey = GlobalKey<FormState>();
 
-  // ── Editable controllers (what intern CAN change) ───────────────────────────
-  late TextEditingController _phoneController;
+  // ── Common country codes (Malaysia first, since most interns are local) ─
+  static const List<Map<String, String>> _countryCodes = [
+    {'code': '+60', 'name': 'Malaysia'},
+    {'code': '+65', 'name': 'Singapore'},
+    {'code': '+62', 'name': 'Indonesia'},
+    {'code': '+66', 'name': 'Thailand'},
+    {'code': '+63', 'name': 'Philippines'},
+    {'code': '+84', 'name': 'Vietnam'},
+    {'code': '+86', 'name': 'China'},
+    {'code': '+91', 'name': 'India'},
+  ];
+  static const String _otherCodeOption = 'Other';
+
+  String? _selectedAreaCode; // one of _countryCodes' 'code', or 'Other'
+  late TextEditingController _customAreaCodeController;
+
+  // ── Editable controllers (what intern CAN change) ───────────────────────
   late TextEditingController _emailController;
+  late TextEditingController _areaCodeController;
+  late TextEditingController _phoneController;
   late TextEditingController _addressController;
   late TextEditingController _address2Controller;
   late TextEditingController _cityController;
   late TextEditingController _stateController;
   late TextEditingController _postcodeController;
 
-  // ── Colors matching Intern Dashboard ─────────────────────────────────────────
+  // ── Colors matching Intern Dashboard ─────────────────────────────────────
   final Color _bgColor = const Color(0xFFF4F7FA);
   final Color _primaryBlue = Colors.blueAccent;
+  final Color _primaryPurple = const Color.fromARGB(255, 123, 64, 251);
 
   @override
   void initState() {
     super.initState();
     _initializeControllers();
-    Future.microtask(_loadStaffData);
+    Future.microtask(_loadInternData);
   }
 
   void _initializeControllers() {
-    _phoneController = TextEditingController();
     _emailController = TextEditingController();
+    _areaCodeController = TextEditingController();
+    _customAreaCodeController = TextEditingController();
+    _phoneController = TextEditingController();
     _addressController = TextEditingController();
     _address2Controller = TextEditingController();
     _cityController = TextEditingController();
@@ -63,49 +85,86 @@ class _InternMySelfScreenState extends State<InternMySelfScreen> {
     _postcodeController = TextEditingController();
   }
 
-  Future<void> _loadStaffData() async {
-    setState(() => _isLoading = true);
+  Future<void> _loadInternData() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+      _notRegistered = false;
+    });
 
     try {
-      debugPrint('🔍 Loading intern profile...');
-      final staffsProvider = context.read<Staffs>();
-      await staffsProvider.fetchStaff();
-
-      final matches = staffsProvider.staffList
-          .where((s) => s.userId == widget.userId)
-          .toList();
-
-      if (matches.isEmpty) {
-        throw Exception('Profile not found');
-      }
+      debugPrint('🔍 Loading intern profile from registration record...');
+      final registerProvider = context.read<RegisterProvider>();
+      final intern = await registerProvider.getInternDetails(widget.userId);
+      final photoUrl = await _fetchPhotoUrl();
 
       setState(() {
-        _currentStaff = matches.first;
+        _intern = intern;
+        _photoUrl = photoUrl;
         _updateControllers();
       });
 
       debugPrint('✅ Profile loaded successfully');
     } catch (error) {
       debugPrint('❌ Error: $error');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load profile: $error')),
-        );
+      final msg = error.toString();
+      // Not registered yet → friendly empty state, not a generic error
+      if (msg.contains('404') || msg.toLowerCase().contains('not found')) {
+        setState(() => _notRegistered = true);
+      } else {
+        setState(() => _error = msg);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  Future<String?> _fetchPhotoUrl() async {
+    // Photo is stored in HR_userdata, keyed by the same user_id as the
+    // registration record.
+    try {
+      final registerProvider = context.read<RegisterProvider>();
+      final filepath = await registerProvider.getInternPhotoPath(widget.userId);
+      if (filepath != null && filepath.isNotEmpty) {
+        return 'https://devcms.com.my/charmsAPI/public/storage/$filepath';
+      }
+    } catch (e) {
+      debugPrint('⚠️ Could not fetch photo: $e');
+    }
+    return null;
+  }
+
   void _updateControllers() {
-    if (_currentStaff == null) return;
-    _phoneController.text = _currentStaff!.phone;
-    _emailController.text = _currentStaff!.email;
-    _addressController.text = _currentStaff!.address1;
-    _address2Controller.text = _currentStaff!.address2;
-    _cityController.text = _currentStaff!.city;
-    _stateController.text = _currentStaff!.state;
-    _postcodeController.text = _currentStaff!.postcode.toString();
+    if (_intern == null) return;
+    _emailController.text = _intern!.email;
+    _areaCodeController.text = _intern!.areaCode;
+    _phoneController.text = _intern!.phoneNumber;
+    _addressController.text = _intern!.streetAddress1;
+    _address2Controller.text = _intern!.streetAddress2 ?? '';
+    _cityController.text = _intern!.city;
+    _stateController.text = _intern!.state;
+    _postcodeController.text = _intern!.postalCode;
+
+    // Match the loaded area code against the known list; if it's not one
+    // of ours, fall back to "Other" with the raw value in the custom field.
+    final match = _countryCodes.firstWhere(
+      (c) => c['code'] == _intern!.areaCode,
+      orElse: () => const {},
+    );
+    if (match.isNotEmpty) {
+      _selectedAreaCode = match['code'];
+      _customAreaCodeController.text = '';
+    } else {
+      _selectedAreaCode = _otherCodeOption;
+      _customAreaCodeController.text = _intern!.areaCode;
+    }
+  }
+
+  String get _effectiveAreaCode {
+    if (_selectedAreaCode == _otherCodeOption) {
+      return _customAreaCodeController.text.trim();
+    }
+    return _selectedAreaCode ?? '+60';
   }
 
   Future<void> _pickAndUploadImage() async {
@@ -121,10 +180,10 @@ class _InternMySelfScreenState extends State<InternMySelfScreen> {
       });
 
       await context
-          .read<Staffs>()
-          .uploadStaffPhoto(_currentStaff!.staffId, picked);
+          .read<RegisterProvider>()
+          .uploadInternPhoto(widget.userId, picked);
 
-      await _loadStaffData();
+      await _loadInternData();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -156,44 +215,22 @@ class _InternMySelfScreenState extends State<InternMySelfScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final updatedStaff = Staff(
-        staffId: _currentStaff!.staffId,
-        userId: _currentStaff!.userId,
-        username: _currentStaff!.username,
-        email: _emailController.text,
-        usertype: _currentStaff!.usertype,
-        firstname: _currentStaff!.firstname,
-        lastname: _currentStaff!.lastname,
-        occupation: _currentStaff!.occupation,
-        phone: _phoneController.text,
-        category: _currentStaff!.category,
-        nationality: _currentStaff!.nationality,
-        religion: _currentStaff!.religion,
-        maritalStatus: _currentStaff!.maritalStatus,
-        gender: _currentStaff!.gender,
-        officePhone: _currentStaff!.officePhone,
-        emergencyName: _currentStaff!.emergencyName,
-        emergencyIc: _currentStaff!.emergencyIc,
-        emergencyRelation: _currentStaff!.emergencyRelation,
-        emergencyGender: _currentStaff!.emergencyGender,
-        emergencyPhone: _currentStaff!.emergencyPhone,
-        idNum: _currentStaff!.idNum,
-        dob: _currentStaff!.dob,
-        address1: _addressController.text,
-        address2: _address2Controller.text,
-        city: _cityController.text,
-        postcode: int.tryParse(_postcodeController.text) ?? 0,
-        state: _stateController.text,
-        country: _currentStaff!.country,
-        filepath: _currentStaff!.filepath,
-        filename: _currentStaff!.filename,
-      );
+      final payload = {
+        'email': _emailController.text,
+        'area_code': _effectiveAreaCode,
+        'phone_number': _phoneController.text,
+        'street_address_1': _addressController.text,
+        'street_address_2': _address2Controller.text,
+        'city': _cityController.text,
+        'state': _stateController.text,
+        'postal_code': _postcodeController.text,
+      };
 
       await context
-          .read<Staffs>()
-          .updateStaffDetails(_currentStaff!.staffId, updatedStaff);
+          .read<RegisterProvider>()
+          .updateMyDetails(widget.userId, payload);
 
-      await _loadStaffData();
+      await _loadInternData();
 
       if (mounted) {
         setState(() => _isEditing = false);
@@ -246,20 +283,21 @@ class _InternMySelfScreenState extends State<InternMySelfScreen> {
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
         ),
         actions: [
-          IconButton(
-            icon: Icon(
-              _isEditing ? Icons.check_circle : Icons.edit,
-              color: Colors.white,
+          if (_intern != null)
+            IconButton(
+              icon: Icon(
+                _isEditing ? Icons.check_circle : Icons.edit,
+                color: Colors.white,
+              ),
+              tooltip: _isEditing ? 'Save Changes' : 'Edit Profile',
+              onPressed: () {
+                if (_isEditing) {
+                  _saveChanges();
+                } else {
+                  setState(() => _isEditing = true);
+                }
+              },
             ),
-            tooltip: _isEditing ? 'Save Changes' : 'Edit Profile',
-            onPressed: () {
-              if (_isEditing) {
-                _saveChanges();
-              } else {
-                setState(() => _isEditing = true);
-              }
-            },
-          ),
           if (_isEditing)
             IconButton(
               icon: const Icon(Icons.close, color: Colors.white),
@@ -280,367 +318,397 @@ class _InternMySelfScreenState extends State<InternMySelfScreen> {
       ),
       body: _isLoading
           ? Center(child: CircularProgressIndicator(color: _primaryBlue))
-          : SingleChildScrollView(
+          : _notRegistered
+              ? _buildNotRegisteredState()
+              : _error != null
+                  ? _buildErrorState()
+                  : _buildProfileBody(),
+    );
+  }
+
+  // ── Empty state: intern hasn't registered for a schedule yet ───────────
+  Widget _buildNotRegisteredState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.assignment_late_outlined,
+                size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text(
+              'No Profile Found Yet',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'You need to register for an internship schedule first.\n'
+              'Your profile will appear here once registered.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _loadInternData,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Refresh'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _primaryBlue,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline, color: Colors.red, size: 48),
+          const SizedBox(height: 12),
+          Text('Failed to load profile',
+              style: TextStyle(color: Colors.grey[700], fontSize: 16)),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: _loadInternData,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Retry'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _primaryBlue,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileBody() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Gradient Profile Header (matches Intern Details look) ────
+            Container(
+              width: double.infinity,
               padding: const EdgeInsets.all(20),
-              child: Form(
-                key: _formKey,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [_primaryBlue, _primaryPurple],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: _pickAndUploadImage,
+                    child: Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 40,
+                          backgroundColor: Colors.white.withOpacity(0.3),
+                          backgroundImage: _profileImage != null
+                              ? (kIsWeb
+                                  ? NetworkImage(_profileImage!.path)
+                                      as ImageProvider
+                                  : FileImage(File(_profileImage!.path)))
+                              : (_photoUrl != null
+                                  ? NetworkImage(_photoUrl!)
+                                  : null),
+                          child: (_profileImage == null && _photoUrl == null)
+                              ? Text(
+                                  _intern!.firstName.isNotEmpty
+                                      ? _intern!.firstName[0].toUpperCase()
+                                      : '?',
+                                  style: const TextStyle(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : _isUploadingImage
+                                  ? const CircularProgressIndicator(
+                                      color: Colors.white,
+                                    )
+                                  : null,
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              border:
+                                  Border.all(color: _primaryBlue, width: 2),
+                            ),
+                            child: Icon(Icons.camera_alt,
+                                size: 14, color: _primaryBlue),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${_intern!.firstName} ${_intern!.lastName}',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _intern!.email,
+                          style: const TextStyle(
+                              fontSize: 13, color: Colors.white70),
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _isEditing
+                                    ? Icons.edit
+                                    : Icons.verified_user,
+                                size: 12,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                _isEditing ? 'Editing Mode' : 'Intern',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // ── Read-Only Personal Information ─────────────────────────
+            _sectionTitle('Personal Information (Read-Only)'),
+            _infoCard([
+              _readOnlyRow(Icons.cake, 'Age', '${_intern!.age}'),
+              _readOnlyRow(Icons.person, 'Gender', _intern!.gender),
+              _readOnlyRow(
+                  Icons.calendar_today, 'Date of Birth', _intern!.dateOfBirth),
+            ]),
+
+            const SizedBox(height: 16),
+
+            // ── Editable Contact Information ────────────────────────────
+            _sectionTitle('Contact Information (Editable)'),
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
-                    // ── Profile Picture Section ─────────────────────────────
-                    Center(
-                      child: Column(
-                        children: [
-                          GestureDetector(
-                            onTap: _pickAndUploadImage,
-                            child: Stack(
-                              children: [
-                                Container(
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: _primaryBlue.withOpacity(0.3),
-                                        blurRadius: 20,
-                                        offset: const Offset(0, 8),
-                                      ),
-                                    ],
-                                  ),
-                                  child: CircleAvatar(
-                                    radius: 60,
-                                    backgroundColor:
-                                        _primaryBlue.withOpacity(0.12),
-                                    backgroundImage: _profileImage != null
-                                        ? (kIsWeb
-                                            ? NetworkImage(_profileImage!.path)
-                                                as ImageProvider
-                                            : FileImage(
-                                                File(_profileImage!.path)))
-                                        : (_currentStaff?.filepath != null &&
-                                                _currentStaff!
-                                                    .filepath!.isNotEmpty)
-                                            ? NetworkImage(
-                                                'https://devcms.com.my/charmsAPI/public/storage/${_currentStaff!.filepath}')
-                                            : null,
-                                    child: (_profileImage == null &&
-                                            (_currentStaff?.filepath == null ||
-                                                _currentStaff!
-                                                    .filepath!.isEmpty))
-                                        ? Icon(Icons.person_rounded,
-                                            size: 60, color: _primaryBlue)
-                                        : _isUploadingImage
-                                            ? const CircularProgressIndicator(
-                                                color: Colors.white,
-                                              )
-                                            : null,
-                                  ),
-                                ),
-                                Positioned(
-                                  bottom: 0,
-                                  right: 0,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: _primaryBlue,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                          color: Colors.white, width: 3),
-                                    ),
-                                    child: const Icon(Icons.camera_alt,
-                                        size: 18, color: Colors.white),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          Text(
-                            '${_currentStaff?.firstname ?? ''} ${_currentStaff?.lastname ?? ''}'
-                                .trim(),
-                            style: const TextStyle(
-                              fontSize: 26,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF1E293B),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _currentStaff?.email ?? '',
-                            style: TextStyle(
-                              color: Colors.grey.shade600,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: _isEditing
-                                  ? Colors.orange.withOpacity(0.1)
-                                  : Colors.green.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  _isEditing
-                                      ? Icons.edit
-                                      : Icons.verified_user,
-                                  size: 16,
-                                  color: _isEditing
-                                      ? Colors.orange
-                                      : Colors.green,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  _isEditing ? 'Editing Mode' : 'Intern',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: _isEditing
-                                        ? Colors.orange
-                                        : Colors.green,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                    _editableField(
+                      'Email',
+                      _emailController,
+                      Icons.email,
+                      enabled: _isEditing,
                     ),
-
-                    const SizedBox(height: 40),
-
-                    // ── Read-Only Information Card ──────────────────────────
-                    Card(
-                      elevation: 4,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                    _areaCodeDropdown(enabled: _isEditing),
+                    if (_selectedAreaCode == _otherCodeOption)
+                      _editableField(
+                        'Custom Area Code (e.g. +81)',
+                        _customAreaCodeController,
+                        Icons.dialpad,
+                        enabled: _isEditing,
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // FIX: wrap Text in Flexible to prevent overflow
-                            Row(
-                              children: [
-                                Icon(Icons.lock_outline,
-                                    color: Colors.grey.shade600, size: 24),
-                                const SizedBox(width: 12),
-                                Flexible(
-                                  child: Text(
-                                    'Official Information (Read-Only)',
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Contact admin to change these details',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            _buildReadOnlyRow(
-                              'Full Name',
-                              '${_currentStaff?.firstname ?? ''} ${_currentStaff?.lastname ?? ''}',
-                              Icons.badge,
-                            ),
-                            _buildReadOnlyRow(
-                              'Date of Birth',
-                              _currentStaff?.dob ?? 'N/A',
-                              Icons.cake,
-                            ),
-                            _buildReadOnlyRow(
-                              'Occupation',
-                              _currentStaff?.occupation ?? 'Intern',
-                              Icons.work,
-                            ),
-                          ],
-                        ),
-                      ),
+                    _editableField(
+                      'Phone Number',
+                      _phoneController,
+                      Icons.phone,
+                      enabled: _isEditing,
+                      keyboardType: TextInputType.phone,
                     ),
-
-                    const SizedBox(height: 20),
-
-                    // ── Editable Contact Card ───────────────────────────────
-                    Card(
-                      elevation: 4,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // FIX: wrap Text in Flexible to prevent overflow
-                            Row(
-                              children: [
-                                Icon(Icons.edit_note,
-                                    color: _primaryBlue, size: 24),
-                                const SizedBox(width: 12),
-                                Flexible(
-                                  child: Text(
-                                    'Contact Information (Editable)',
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 20),
-                            _buildEditableField(
-                              'Email',
-                              _emailController,
-                              Icons.email,
-                              enabled: _isEditing,
-                            ),
-                            _buildEditableField(
-                              'Phone Number',
-                              _phoneController,
-                              Icons.phone,
-                              enabled: _isEditing,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // ── Editable Address Card ───────────────────────────────
-                    Card(
-                      elevation: 4,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Address card header — icon + short title, no overflow risk
-                            Row(
-                              children: [
-                                Icon(Icons.location_on,
-                                    color: _primaryBlue, size: 24),
-                                const SizedBox(width: 12),
-                                Flexible(
-                                  child: Text(
-                                    'Address (Editable)',
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 20),
-                            _buildEditableField(
-                              'Street Address',
-                              _addressController,
-                              Icons.home,
-                              enabled: _isEditing,
-                            ),
-                            _buildEditableField(
-                              'Address Line 2',
-                              _address2Controller,
-                              Icons.home_work,
-                              enabled: _isEditing,
-                            ),
-                            _buildEditableField(
-                              'City',
-                              _cityController,
-                              Icons.location_city,
-                              enabled: _isEditing,
-                            ),
-                            _buildEditableField(
-                              'State',
-                              _stateController,
-                              Icons.map,
-                              enabled: _isEditing,
-                            ),
-                            _buildEditableField(
-                              'Postcode',
-                              _postcodeController,
-                              Icons.pin_drop,
-                              enabled: _isEditing,
-                              keyboardType: TextInputType.number,
-                            ),
-                            _buildReadOnlyRow(
-                              'Country',
-                              _currentStaff?.country ?? 'N/A',
-                              Icons.flag,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 30),
-
-                    // ── Change Password Button ──────────────────────────────
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => InternChangePasswordScreen(
-                                userId: widget.userId,
-                                username: widget.username,
-                              ),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.lock_reset, size: 20),
-                        label: const Text(
-                          'Change Password',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: _primaryBlue,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          side: BorderSide(color: _primaryBlue, width: 2),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 30),
                   ],
                 ),
               ),
             ),
+
+            const SizedBox(height: 16),
+
+            // ── Read-Only Academic Information ──────────────────────────
+            _sectionTitle('Academic Information (Read-Only)'),
+            _infoCard([
+              _readOnlyRow(Icons.school, 'Institution', _intern!.institutionName),
+              _readOnlyRow(Icons.menu_book, 'Programme', _intern!.programme),
+              _readOnlyRow(Icons.class_, 'Course', _intern!.course),
+              _readOnlyRow(Icons.layers, 'Level of Study', _intern!.levelOfStudy),
+              if (_intern!.faculty.isNotEmpty)
+                _readOnlyRow(Icons.account_balance, 'Faculty', _intern!.faculty),
+            ]),
+
+            const SizedBox(height: 16),
+
+            // ── Editable Address ────────────────────────────────────────
+            _sectionTitle('Address (Editable)'),
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    _editableField(
+                      'Street Address',
+                      _addressController,
+                      Icons.home,
+                      enabled: _isEditing,
+                    ),
+                    _editableField(
+                      'Address Line 2',
+                      _address2Controller,
+                      Icons.home_work,
+                      enabled: _isEditing,
+                      requiredField: false,
+                    ),
+                    _editableField(
+                      'City',
+                      _cityController,
+                      Icons.location_city,
+                      enabled: _isEditing,
+                    ),
+                    _editableField(
+                      'State',
+                      _stateController,
+                      Icons.map,
+                      enabled: _isEditing,
+                    ),
+                    _editableField(
+                      'Postcode',
+                      _postcodeController,
+                      Icons.pin_drop,
+                      enabled: _isEditing,
+                      keyboardType: TextInputType.number,
+                    ),
+                    _readOnlyRow(Icons.flag, 'Country', _intern!.country),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // ── Change Password Button ──────────────────────────────────
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => InternChangePasswordScreen(
+                        userId: widget.userId,
+                        username: widget.username,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.lock_reset, size: 20),
+                label: const Text(
+                  'Change Password',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _primaryBlue,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  side: BorderSide(color: _primaryBlue, width: 2),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
     );
   }
 
-  // ❌ Read-only display
-  Widget _buildReadOnlyRow(String label, String value, IconData icon) {
+  Widget _sectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 8, top: 4),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: title.contains('Editable') ? _primaryBlue : Colors.grey.shade600,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+  Widget _infoCard(List<Widget> children) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(children: children),
+    );
+  }
+
+  Widget _readOnlyRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -650,23 +718,12 @@ class _InternMySelfScreenState extends State<InternMySelfScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1E293B),
-                  ),
-                ),
+                Text(label,
+                    style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                const SizedBox(height: 2),
+                Text(value,
+                    style: const TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.w500)),
               ],
             ),
           ),
@@ -675,22 +732,22 @@ class _InternMySelfScreenState extends State<InternMySelfScreen> {
     );
   }
 
-  // ✅ Editable field
-  Widget _buildEditableField(
+  Widget _editableField(
     String label,
     TextEditingController controller,
     IconData icon, {
     required bool enabled,
     TextInputType? keyboardType,
+    bool requiredField = true,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 14),
       child: TextFormField(
         controller: controller,
         enabled: enabled,
         keyboardType: keyboardType,
         style: const TextStyle(
-          fontSize: 16,
+          fontSize: 15,
           fontWeight: FontWeight.w600,
           color: Color(0xFF1E293B),
         ),
@@ -698,7 +755,7 @@ class _InternMySelfScreenState extends State<InternMySelfScreen> {
           labelText: label,
           labelStyle: TextStyle(
             color: enabled ? _primaryBlue : Colors.grey.shade500,
-            fontSize: 14,
+            fontSize: 13,
           ),
           prefixIcon: Icon(
             icon,
@@ -708,23 +765,24 @@ class _InternMySelfScreenState extends State<InternMySelfScreen> {
           filled: true,
           fillColor: enabled ? Colors.white : Colors.grey.shade100,
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
             borderSide: BorderSide(color: _primaryBlue),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
             borderSide: BorderSide(color: _primaryBlue.withOpacity(0.3)),
           ),
           disabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
             borderSide: BorderSide(color: Colors.grey.shade300),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
             borderSide: BorderSide(color: _primaryBlue, width: 2),
           ),
         ),
         validator: (value) {
+          if (!requiredField) return null;
           if (value == null || value.isEmpty) {
             return 'Please enter $label';
           }
@@ -737,10 +795,73 @@ class _InternMySelfScreenState extends State<InternMySelfScreen> {
     );
   }
 
+  Widget _areaCodeDropdown({required bool enabled}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: DropdownButtonFormField<String>(
+        value: _selectedAreaCode ?? '+60',
+        items: [
+          ..._countryCodes.map(
+            (c) => DropdownMenuItem(
+              value: c['code'],
+              child: Text('${c['code']}  ${c['name']}'),
+            ),
+          ),
+          const DropdownMenuItem(
+            value: _otherCodeOption,
+            child: Text('Other (enter manually)'),
+          ),
+        ],
+        onChanged: enabled
+            ? (value) {
+                setState(() => _selectedAreaCode = value);
+              }
+            : null,
+        style: const TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF1E293B),
+        ),
+        decoration: InputDecoration(
+          labelText: 'Area Code',
+          labelStyle: TextStyle(
+            color: enabled ? _primaryBlue : Colors.grey.shade500,
+            fontSize: 13,
+          ),
+          prefixIcon: Icon(
+            Icons.dialpad,
+            size: 20,
+            color: enabled ? _primaryBlue : Colors.grey.shade400,
+          ),
+          filled: true,
+          fillColor: enabled ? Colors.white : Colors.grey.shade100,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: _primaryBlue),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: _primaryBlue.withOpacity(0.3)),
+          ),
+          disabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: _primaryBlue, width: 2),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
-    _phoneController.dispose();
     _emailController.dispose();
+    _areaCodeController.dispose();
+    _customAreaCodeController.dispose();
+    _phoneController.dispose();
     _addressController.dispose();
     _address2Controller.dispose();
     _cityController.dispose();

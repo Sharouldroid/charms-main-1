@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:charms/main.dart';
 import '../internshipmodels/register.dart';
+import 'package:image_picker/image_picker.dart';
 
 class RegisterService {
   final String baseUrl;
@@ -118,4 +119,69 @@ Future<List<Map<String, dynamic>>> fetchInterns() async {
 
     throw Exception('Failed to load intern details: ${response.statusCode} ${response.body}');
   }
+
+  // PUT /api/internship/registers/{id}/contact
+  Future<Register> updateMyDetails(int userId, Map<String, dynamic> payload) async {
+    final url = '$baseUrl/api/internship/registers/$userId/contact';
+
+    final response = await http.put(
+      Uri.parse(url),
+      headers: _headers(),
+      body: jsonEncode(payload),
+    );
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      return Register.fromJson(body['data']);
+    }
+
+    final errorData = jsonDecode(response.body);
+    throw Exception(errorData['message'] ?? 'Failed to update profile: ${response.statusCode}');
+  }
+
+  // POST /api/internship/registers/{id}/photo  (multipart)
+  // POST /api/internship/registers/{id}/photo  (multipart) — PWA-safe
+  Future<String> uploadInternPhoto(int userId, XFile photo) async {
+    final url = '$baseUrl/api/internship/registers/$userId/photo';
+    final request = http.MultipartRequest('POST', Uri.parse(url));
+
+    request.headers['Accept'] = 'application/json';
+    if (token != null && token!.isNotEmpty) {
+      request.headers['Authorization'] = 'Bearer $token';
+    }
+
+    final bytes = await photo.readAsBytes(); // works on web + mobile + desktop
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'photo',
+        bytes,
+        filename: photo.name, // XFile.name works cross-platform too
+      ),
+    );
+
+    final streamed = await request.send();
+    final response = await http.Response.fromStream(streamed);
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      return body['data']['filepath'] as String;
+    }
+
+    throw Exception('Failed to upload photo: ${response.statusCode} ${response.body}');
+  }
+
+  // GET /api/internship/registers/{id}/with-photo
+  Future<String?> getInternPhotoPath(int userId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/internship/registers/$userId/with-photo'),
+      headers: _headers(),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['filepath'] as String?;
+    }
+    return null;
+  }
+
 }
