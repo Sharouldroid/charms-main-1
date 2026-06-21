@@ -7,6 +7,7 @@ class Attendances with ChangeNotifier {
 
   String? lastCheckedClockOutTime;
   String? lastCheckedClockInLocation;
+  String? lastCheckedClockInTime;
 
   // 1. CREATE ATTENDANCE (staff clock-in) — status always 2
   Future<Map<String, dynamic>> recordAttendance({
@@ -34,6 +35,8 @@ class Attendances with ChangeNotifier {
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         final data = json.decode(response.body);
+        lastCheckedClockInLocation = data['clock_in_location'];
+        lastCheckedClockInTime     = data['clock_in_time'];
         return {'success': true, 'clockInLocation': data['clock_in_location']};
       }
       return {'success': false, 'clockInLocation': null};
@@ -84,6 +87,7 @@ class Attendances with ChangeNotifier {
         final data = json.decode(response.body);
         lastCheckedClockOutTime    = data['clock_out_time'];
         lastCheckedClockInLocation = data['clock_in_location'];
+        lastCheckedClockInTime     = data['clock_in_time'];
         if (data['exists'] == true && data['attendance_status'] == 2) return true;
       }
       return false;

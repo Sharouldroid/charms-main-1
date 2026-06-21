@@ -45,6 +45,7 @@ class _PartTimerScheduleDetailsScreenState
   bool _isCheckingAttendance = true;
   String? _clockOutTimeStr;
   String? _clockInLocationStr;
+  String? _clockInTimeStr;
   late int _acceptanceStatus;
 
   final Color _primary = const Color(0xFFF97316);
@@ -65,12 +66,14 @@ class _PartTimerScheduleDetailsScreenState
         scheduleId: widget.scheduleId,
       );
       final clockOutTime = ap.lastCheckedClockOutTime;
+      final clockInTime = ap.lastCheckedClockInTime;
       final clockInLocation = ap.lastCheckedClockInLocation;
       if (mounted) {
         setState(() {
           isClockIn = hasAttendance;
           isClockOut = clockOutTime != null && clockOutTime.isNotEmpty;
           _clockOutTimeStr = clockOutTime;
+           _clockInTimeStr = clockInTime;
           _clockInLocationStr = clockInLocation;
           _isCheckingAttendance = false;
         });
@@ -194,6 +197,7 @@ class _PartTimerScheduleDetailsScreenState
         setState(() {
           isClockIn = true;
           _clockInLocationStr = displayLocation;
+          _clockInTimeStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Successfully clocked in!'), backgroundColor: Colors.green),
@@ -345,6 +349,8 @@ class _PartTimerScheduleDetailsScreenState
                       'Status',
                       isClockOut ? 'Shift Completed' : isClockIn ? 'Clocked In' : widget.status,
                     ),
+                     if (isClockIn) _row('Clock In', _clockInTimeStr ?? '-'),
+                    if (isClockOut) _row('Clock Out', _clockOutTimeStr ?? '-'),
                   ],
                 ),
               ),

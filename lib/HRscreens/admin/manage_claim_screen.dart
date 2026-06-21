@@ -239,7 +239,7 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
     }
   }
 
-  // ── Payment claim actions (NEW) ────────────────────────────────────────────
+  // ── Payment claim actions ──────────────────────────────────────────────────
   Future<void> _approvePaymentClaim(PaymentClaim claim) async {
     setState(() => _processing = true);
     try {
@@ -280,6 +280,68 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
       } else {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Failed to reject payment claim')));
+      }
+    } finally {
+      if (mounted) setState(() => _processing = false);
+    }
+  }
+
+  // ── Mark a payment claim as paid (NEW) ─────────────────────────────────────
+  Future<void> _confirmMarkAsPaid(PaymentClaim claim) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(children: [
+          Icon(Icons.payments_rounded, color: Colors.green, size: 20),
+          SizedBox(width: 8),
+          Text('Mark as Paid',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        ]),
+        content: Text(
+          'Confirm that RM ${claim.totalAmount.toStringAsFixed(2)} has been paid '
+          'to ${claim.staffName ?? 'this staff'}?\n\n'
+          'This records today\'s date as the payment date.',
+          style: const TextStyle(fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Confirm Paid'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+    await _markClaimAsPaid(claim);
+  }
+
+  Future<void> _markClaimAsPaid(PaymentClaim claim) async {
+    setState(() => _processing = true);
+    try {
+      final success = await Provider.of<PaymentClaims>(context, listen: false)
+          .markAsPaid(claim.claimId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(success
+            ? '✅ Marked as paid.'
+            : 'Failed to mark as paid. Try again.'),
+        backgroundColor: success ? Colors.green : Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ));
+      if (success) {
+        await _fetchAll();
       }
     } finally {
       if (mounted) setState(() => _processing = false);
@@ -378,6 +440,10 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
               if (claim.reviewedAt != null)
                 _detailRow('Reviewed',
                     DateFormat('dd MMM yyyy').format(claim.reviewedAt!)),
+              if (claim.paidAt != null)
+                _detailRow('Paid On',
+                    DateFormat('dd MMM yyyy').format(claim.paidAt!),
+                    isHighlight: true),
               if (claim.rejectionReason != null &&
                   claim.rejectionReason!.isNotEmpty) ...[
                 const SizedBox(height: 10),
@@ -429,6 +495,24 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
               },
               child: const Text('Approve'),
             ),
+          ] else if (claim.status == 'Approved' && claim.paidAt == null) ...[
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Close', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10))),
+              icon: const Icon(Icons.payments_rounded, size: 16),
+              label: const Text('Mark as Paid'),
+              onPressed: () {
+                Navigator.pop(ctx);
+                _confirmMarkAsPaid(claim);
+              },
+            ),
           ] else
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -469,16 +553,24 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
         ]),
       );
 
-  // ── Payment claim card (NEW) ───────────────────────────────────────────────
+  // ── Payment claim card ──────────────────────────────────────────────────────
   Widget _buildPaymentClaimCard(PaymentClaim claim, {bool isPending = false}) {
     final monthLabel = DateFormat('MMMM yyyy')
         .format(DateTime(claim.year, claim.month));
 
-    Color  statusColor = Colors.orange;
-    Color  statusBg    = Colors.orange.withOpacity(0.1);
-    IconData statusIcon = Icons.pending_actions_rounded;
+    Color    statusColor = Colors.orange;
+    Color    statusBg    = Colors.orange.withOpacity(0.1);
+    IconData statusIcon  = Icons.pending_actions_rounded;
+    String   statusLabel = claim.status;
 
-    if (claim.status == 'Approved') {
+    final isPaid = claim.status == 'Approved' && claim.paidAt != null;
+
+    if (isPaid) {
+      statusColor = Colors.green;
+      statusBg    = Colors.green.withOpacity(0.1);
+      statusIcon  = Icons.verified_rounded;
+      statusLabel = 'Paid';
+    } else if (claim.status == 'Approved') {
       statusColor = Colors.teal;
       statusBg    = Colors.teal.withOpacity(0.1);
       statusIcon  = Icons.check_circle_rounded;
@@ -487,6 +579,8 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
       statusBg    = Colors.redAccent.withOpacity(0.1);
       statusIcon  = Icons.cancel_rounded;
     }
+
+    final canMarkPaid = claim.status == 'Approved' && claim.paidAt == null;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12, left: 16, right: 16),
@@ -559,7 +653,7 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
                       Icon(statusIcon, size: 12, color: statusColor),
                       const SizedBox(width: 4),
-                      Text(claim.status,
+                      Text(statusLabel,
                           style: TextStyle(
                               color: statusColor,
                               fontSize: 12,
@@ -574,10 +668,20 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
                           fontSize: 11, color: Colors.grey.shade400),
                     ),
                   ],
+                  if (claim.paidAt != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      'Paid: ${DateFormat('dd MMM yyyy').format(claim.paidAt!)}',
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.green.shade600,
+                          fontWeight: FontWeight.w600),
+                    ),
+                  ],
                 ]),
               ),
 
-              // Quick approve/reject for pending
+              // Quick actions
               if (isPending)
                 Column(children: [
                   IconButton(
@@ -596,7 +700,16 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
                         ? null
                         : () => _showPaymentClaimRejectDialog(claim),
                   ),
-                ]),
+                ])
+              else if (canMarkPaid)
+                IconButton(
+                  icon: const Icon(Icons.payments_rounded,
+                      color: Colors.green, size: 28),
+                  tooltip: 'Mark as Paid',
+                  onPressed: _processing
+                      ? null
+                      : () => _confirmMarkAsPaid(claim),
+                ),
             ]),
           ),
         ),
@@ -604,7 +717,7 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
     );
   }
 
-  // ── Payment claims list (NEW tab content) ─────────────────────────────────
+  // ── Payment claims list ────────────────────────────────────────────────────
   Widget _buildPaymentClaimsList(List<PaymentClaim> claims,
       {bool isPending = false}) {
     final filtered = _applyPaymentClaimFilters(claims);
@@ -847,6 +960,7 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
     final pending  = filtered.where((c) => c.status == 'Pending').length;
     final approved = filtered.where((c) => c.status == 'Approved').length;
     final rejected = filtered.where((c) => c.status == 'Rejected').length;
+    final paid     = filtered.where((c) => c.paidAt != null).length;
     final totalAmt = filtered.fold<double>(0, (s, c) => s + c.totalAmount);
 
     return Padding(
@@ -859,6 +973,8 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
           _summaryChip(Icons.pending_actions_rounded, '$pending Pending', Colors.orange),
           const SizedBox(width: 8),
           _summaryChip(Icons.check_circle_rounded, '$approved Approved', Colors.teal),
+          const SizedBox(width: 8),
+          _summaryChip(Icons.verified_rounded, '$paid Paid', Colors.green),
           const SizedBox(width: 8),
           _summaryChip(Icons.cancel_rounded, '$rejected Rejected', Colors.redAccent),
           const SizedBox(width: 8),

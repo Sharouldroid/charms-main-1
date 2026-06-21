@@ -111,7 +111,7 @@ class MyApp extends StatelessWidget {
         // CHARMS PROVIDERS
         // --------------------------------
         ChangeNotifierProvider<app_auth.Auth>(create: (_) => app_auth.Auth()),
-        
+
         ChangeNotifierProvider<charms_users.Users>(
             create: (_) => charms_users.Users()),
         ChangeNotifierProvider<hr_users.Users>(

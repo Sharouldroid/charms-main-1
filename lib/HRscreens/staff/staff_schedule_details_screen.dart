@@ -54,6 +54,7 @@ class _StaffScheduleDetailsScreenState
   bool _isLoading = false;
   bool _isCheckingAttendance = true;
   String? _clockOutTimeStr;
+  String? _clockInTimeStr;
   String? _clockInLocationStr;
   late int _acceptanceStatus;
 
@@ -74,12 +75,14 @@ class _StaffScheduleDetailsScreenState
         staffId: widget.staffId, scheduleId: widget.scheduleId,
       );
       final clockOutTime    = ap.lastCheckedClockOutTime;
+      final clockInTime     = ap.lastCheckedClockInTime;
       final clockInLocation = ap.lastCheckedClockInLocation;
       if (mounted) {
         setState(() {
           isClockIn  = hasAttendance;
           isClockOut = clockOutTime != null && clockOutTime.isNotEmpty;
           _clockOutTimeStr    = clockOutTime;
+          _clockInTimeStr     = clockInTime;
           _clockInLocationStr = clockInLocation;
           _isCheckingAttendance = false;
         });
@@ -254,7 +257,7 @@ class _StaffScheduleDetailsScreenState
       );
 
       if (result['success'] == true && mounted) {
-        setState(() { isClockIn = true; _clockInLocationStr = displayLocation; });
+        setState(() { isClockIn = true; _clockInLocationStr = displayLocation; _clockInTimeStr = DateFormat('hh:mm a').format(DateTime.now()); });
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Successfully clocked in!'), backgroundColor: Colors.green));
       }
@@ -390,6 +393,10 @@ class _StaffScheduleDetailsScreenState
                     isClockOut ? 'Shift Completed' : isClockIn ? 'Clocked In' : widget.status,
                     valueColor: isClockIn || isClockOut ? Colors.green : Colors.red,
                   ),
+                  if (isClockIn)
+                    _buildDetailsRow(Icons.login_rounded, 'Clock In Time', _clockInTimeStr ?? '-'),
+                  if (isClockOut)
+                    _buildDetailsRow(Icons.logout_rounded, 'Clock Out Time', _clockOutTimeStr ?? '-'),
                 ],
               )),
               const SizedBox(height: 16),

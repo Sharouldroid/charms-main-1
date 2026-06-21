@@ -1,3 +1,23 @@
+class ClaimDailyAttendance {
+  final DateTime workDate;
+  final String? clockInTime;
+  final String? clockOutTime;
+
+  ClaimDailyAttendance({
+    required this.workDate,
+    this.clockInTime,
+    this.clockOutTime,
+  });
+
+  factory ClaimDailyAttendance.fromJson(Map<String, dynamic> json) {
+    return ClaimDailyAttendance(
+      workDate: DateTime.tryParse(json['work_date'] ?? '') ?? DateTime.now(),
+      clockInTime: json['clock_in_time'],
+      clockOutTime: json['clock_out_time'],
+    );
+  }
+}
+
 class PaymentClaim {
   final int claimId;
   final int staffId;
@@ -11,12 +31,14 @@ class PaymentClaim {
   final DateTime? submittedAt;
   final DateTime? reviewedAt;
   final int? reviewedBy;
+  final DateTime? paidAt;
   final DateTime createdAt;
   final DateTime updatedAt;
 
   // joined fields (from dashboard/getAllClaims)
   final String? staffName;
   final String? staffPhoto;
+  final List<ClaimDailyAttendance> dailyAttendance;
 
   PaymentClaim({
     required this.claimId,
@@ -31,10 +53,12 @@ class PaymentClaim {
     this.submittedAt,
     this.reviewedAt,
     this.reviewedBy,
+    this.paidAt,
     required this.createdAt,
     required this.updatedAt,
     this.staffName,
     this.staffPhoto,
+    this.dailyAttendance = const [],
   });
 
   factory PaymentClaim.fromJson(Map<String, dynamic> json) {
@@ -55,6 +79,9 @@ class PaymentClaim {
                          ? DateTime.tryParse(json['reviewed_at'])
                          : null,
       reviewedBy:      json['reviewed_by'],
+      paidAt: json['paid_at'] != null 
+    ? DateTime.tryParse(json['paid_at'])
+    : null,
       createdAt: json['created_at'] != null 
     ? DateTime.parse(json['created_at']) 
     : DateTime.now(),
@@ -63,6 +90,11 @@ class PaymentClaim {
     : DateTime.now(),
       staffName:       json['staff_name'],
       staffPhoto:      json['staff_photo_url'],
+      dailyAttendance: json['daily_attendance'] != null
+          ? (json['daily_attendance'] as List)
+              .map((e) => ClaimDailyAttendance.fromJson(e))
+              .toList()
+          : [],
     );
   }
 
@@ -80,6 +112,7 @@ class PaymentClaim {
       'submitted_at':     submittedAt?.toIso8601String(),
       'reviewed_at':      reviewedAt?.toIso8601String(),
       'reviewed_by':      reviewedBy,
+      'paid_at': paidAt?.toIso8601String(),
       'created_at':       createdAt.toIso8601String(),
       'updated_at':       updatedAt.toIso8601String(),
     };
@@ -93,6 +126,7 @@ class PaymentClaim {
     int? totalDays,
     double? dayRate,
     double? totalAmount,
+    DateTime? paidAt,
     String? status,
     String? rejectionReason,
     DateTime? submittedAt,
@@ -102,6 +136,7 @@ class PaymentClaim {
     DateTime? updatedAt,
     String? staffName,
     String? staffPhoto,
+    List<ClaimDailyAttendance>? dailyAttendance,
   }) {
     return PaymentClaim(
       claimId:         claimId ?? this.claimId,
@@ -120,6 +155,7 @@ class PaymentClaim {
       updatedAt:       updatedAt ?? this.updatedAt,
       staffName:       staffName ?? this.staffName,
       staffPhoto:      staffPhoto ?? this.staffPhoto,
+      paidAt:            paidAt ?? this.paidAt,
     );
   }
 }

@@ -158,6 +158,29 @@ void _setLoading(bool val) {
     }
   }
 
+  // ── ADMIN: Mark an approved claim as paid ─────────────────────────────────
+Future<bool> markAsPaid(int claimId) async {
+  try {
+    final res = await http.post(
+      Uri.parse('$_base/payment-claims/$claimId/mark-paid'),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (res.statusCode == 200) {
+      final idx = _claims.indexWhere((c) => c.claimId == claimId);
+      if (idx != -1) {
+        _claims[idx] = _claims[idx].copyWith(paidAt: DateTime.now());
+        notifyListeners();
+      }
+      return true;
+    }
+    return false;
+  } catch (e) {
+    _error = e.toString();
+    return false;
+  }
+}
+
   // ── ADMIN: Reject a claim ─────────────────────────────────────────────────
   Future<bool> rejectClaim(
       int claimId, int reviewedBy, String rejectionReason) async {

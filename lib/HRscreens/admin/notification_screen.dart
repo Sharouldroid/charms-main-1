@@ -93,6 +93,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
     await flutterLocalNotificationsPlugin!.show(0, title, body, details);
   }
 
+  // ── Format a raw API timestamp into hh:mm a, or '—' if missing/invalid ─────
+  String _formatClaimTime(String? raw) {
+    if (raw == null || raw.isEmpty) return '—';
+    final parsed = DateTime.tryParse(raw);
+    return parsed != null ? DateFormat('hh:mm a').format(parsed) : '—';
+  }
+
   // ── Part Timer Payment Claim Card ─────────────────────────────────────────
   Widget _buildPaymentClaimCard(PaymentClaim claim) {
     final monthName = DateFormat('MMMM yyyy').format(
@@ -176,6 +183,38 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   'Days Worked',
                   '${claim.totalDays} day${claim.totalDays > 1 ? 's' : ''}',
                   Colors.teal),
+
+              // ── Daily clock in/out breakdown ───────────────────────
+              if (claim.dailyAttendance.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                ...claim.dailyAttendance.map((d) => Padding(
+                      padding: const EdgeInsets.only(left: 24, bottom: 4),
+                      child: Row(children: [
+                        Icon(Icons.calendar_today_rounded,
+                            size: 12, color: Colors.grey.shade400),
+                        const SizedBox(width: 6),
+                        Text(DateFormat('dd MMM').format(d.workDate),
+                            style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade600,
+                                fontWeight: FontWeight.w600)),
+                        const SizedBox(width: 10),
+                        Icon(Icons.login_rounded, size: 12, color: Colors.green),
+                        const SizedBox(width: 3),
+                        Text(_formatClaimTime(d.clockInTime),
+                            style: TextStyle(
+                                fontSize: 11, color: Colors.grey.shade700)),
+                        const SizedBox(width: 10),
+                        Icon(Icons.logout_rounded,
+                            size: 12, color: Colors.redAccent),
+                        const SizedBox(width: 3),
+                        Text(_formatClaimTime(d.clockOutTime),
+                            style: TextStyle(
+                                fontSize: 11, color: Colors.grey.shade700)),
+                      ]),
+                    )),
+              ],
+
               const SizedBox(height: 8),
               _claimDetailRow(
                   Icons.attach_money_rounded,
