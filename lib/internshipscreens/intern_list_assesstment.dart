@@ -6,6 +6,7 @@ import 'package:charms/main.dart';
 import 'package:charms/internshipproviders/register_provider.dart';
 import 'package:charms/internshipscreens/assessment_intern.dart';
 import 'package:charms/internshipscreens/intern_detail_submissions.dart';
+import 'package:charms/internshipscreens/monitor_performance.dart'; 
 
 // ── Shared helper to build photo URL ──────────────────────────────────────────
 String? buildPhotoUrl(String? filepath) {
@@ -128,60 +129,114 @@ class _InternListPageState extends State<InternListPage> {
                         final intern = _filteredInterns[index];
                         final userId = intern['user_id'].toString();
                         final photoUrl = buildPhotoUrl(_photoMap[userId]);
+                        final internIdInt = (intern['user_id'] as num).toInt();
+                        final firstName = intern['first_name'] ?? '?';
 
                         return Card(
-                          elevation: 3,
-                          margin: const EdgeInsets.symmetric(vertical: 8.0),
-                          child: ListTile(
-                            leading: internAvatar(intern['first_name'], photoUrl),
-                            title: Text(intern['first_name']),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text("Age: ${intern['age']} - Gender: ${intern['gender']}"),
-                                if ((intern['slot_count'] ?? 1) > 1)
-                                  Container(
-                                    margin: const EdgeInsets.only(top: 4),
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.blue[50],
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: Colors.blueAccent),
+                        elevation: 3,
+                        margin: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: Column(
+                          children: [
+                            ListTile(
+                              leading: internAvatar(firstName, photoUrl),
+                              title: Text(firstName),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text("Age: ${intern['age']} - Gender: ${intern['gender']}"),
+                                  if ((intern['slot_count'] ?? 1) > 1)
+                                    Container(
+                                      margin: const EdgeInsets.only(top: 4),
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue[50],
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: Colors.blueAccent),
+                                      ),
+                                      child: Text(
+                                        '${intern['slot_count']} slots registered',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.blueAccent,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
                                     ),
-                                    child: Text(
-                                      '${intern['slot_count']} slots registered',
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.blueAccent,
-                                        fontWeight: FontWeight.w600,
+                                ],
+                              ),
+                              trailing: const Icon(Icons.chevron_right),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => InternDetailScreen(internId: internIdInt),
+                                  ),
+                                );
+                              },
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      onPressed: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => MonitorPerformancePage(
+                                              role: 'Admin',
+                                              userId: internIdInt,
+                                              internId: userId,
+                                              internName: firstName,
+                                              preselectedInternId: internIdInt,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      icon: const Icon(Icons.bar_chart, size: 18),
+                                      label: const Text('Monitor'),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: Colors.blueAccent,
+                                        side: const BorderSide(color: Colors.blueAccent),
                                       ),
                                     ),
                                   ),
-                              ],
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      onPressed: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => AssessmentInternPage(
+                                              internId: internIdInt,
+                                              photoUrl: photoUrl,
+                                              isAdmin: true,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      icon: const Icon(Icons.rate_review, size: 18, color: Colors.white),
+                                      label: const Text('Assess', style: TextStyle(color: Colors.white)),
+                                      style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                            trailing: const Icon(Icons.chevron_right),
-                            onTap: () {
-                              final userId = intern['user_id']?.toString() ?? '';
-                              final photoUrl = buildPhotoUrl(_photoMap[userId]);
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      InternDetailScreen(internId: (intern['user_id'] as num).toInt())
-                                ),
-                              );
-                            },
-                          ),
-                        );
-                      },
+                          ],
+                        ),
+                      );
+                     },
                     ),
                   ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+                ],
+              ),
+            ),
+          );
+        }
+      }
 
 // ─────────────────────────────────────────
 // ASSESSMENT LIST — tap to rate intern

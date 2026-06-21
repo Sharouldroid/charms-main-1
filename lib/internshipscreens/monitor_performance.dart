@@ -10,6 +10,7 @@ class MonitorPerformancePage extends StatefulWidget {
   final int userId;
   final String? internName;
   final String? internId;
+  final int? preselectedInternId;
 
   const MonitorPerformancePage({
     super.key,
@@ -17,6 +18,7 @@ class MonitorPerformancePage extends StatefulWidget {
     required this.userId,
     this.internName,
     this.internId,
+    this.preselectedInternId,
   });
 
   @override
@@ -50,20 +52,25 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
   }
 
   Future<void> _loadInterns() async {
-    setState(() => _isLoading = true);
-    try {
-      await Provider.of<RegisterProvider>(context, listen: false).loadInterns();
-      final allInterns =
-          Provider.of<RegisterProvider>(context, listen: false).internList;
-      setState(() {
-        _interns = allInterns;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() => _isLoading = false);
-      _showErrorSnackbar('Failed to load interns: $e');
+  setState(() => _isLoading = true);
+  try {
+    await Provider.of<RegisterProvider>(context, listen: false).loadInterns();
+    final allInterns =
+        Provider.of<RegisterProvider>(context, listen: false).internList;
+    setState(() {
+      _interns = allInterns;
+      _isLoading = false;
+    });
+
+    // NEW: auto-select if navigated from a specific intern
+    if (widget.preselectedInternId != null) {
+      _onInternSelected(widget.preselectedInternId);
     }
+  } catch (e) {
+    setState(() => _isLoading = false);
+    _showErrorSnackbar('Failed to load interns: $e');
   }
+}
 
   Future<void> _loadActivities() async {
     setState(() => _isLoading = true);

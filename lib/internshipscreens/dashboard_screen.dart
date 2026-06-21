@@ -719,18 +719,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
             builder: (_) => const InternListPage(),
           ));
         }),
-        _buildDashboardButton(context, 'Monitor Performance', Icons.monitor,
-            () {
-          Navigator.push(context, MaterialPageRoute(
-            builder: (_) => MonitorPerformancePage(
-                role: widget.role, userId: widget.userId),
-          ));
-        }),
-        _buildDashboardButton(context, 'Assessment', Icons.assessment, () {
-          Navigator.push(context, MaterialPageRoute(
-            builder: (_) => const AssessmentListPage(),
-          ));
-        }),
+        // _buildDashboardButton(context, 'Monitor Performance', Icons.monitor,
+        //     () {
+        //   Navigator.push(context, MaterialPageRoute(
+        //     builder: (_) => MonitorPerformancePage(
+        //         role: widget.role, userId: widget.userId),
+        //   ));
+        // }),
+        // _buildDashboardButton(context, 'Assessment', Icons.assessment, () {
+        //   Navigator.push(context, MaterialPageRoute(
+        //     builder: (_) => const AssessmentListPage(),
+        //   ));
+        // }),
         _buildDashboardButton(context, 'Intern Submissions', Icons.assignment,
             () {
           Navigator.push(context, MaterialPageRoute(
