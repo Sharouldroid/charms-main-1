@@ -54,6 +54,7 @@ import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
 import 'package:charms/HRproviders/schedule_exchanges.dart';
 import 'package:charms/HRscreens/staff/part_timer_dashboard_screen.dart';
 import 'package:charms/HRproviders/payment_claims.dart';
+import 'package:charms/HRproviders/auth.dart' as hr_auth;
 // 🌟 ADDED CHARMS MAINTENANCE PAGES
 import 'campsite_maintenance.dart';
 import 'maintenance_page.dart';
@@ -148,6 +149,7 @@ class MyApp extends StatelessWidget {
         // --------------------------------
         // 🌟 HR MODULE PROVIDERS (ADDED)
         // --------------------------------
+        ChangeNotifierProvider<hr_auth.Auth>(create: (_) => hr_auth.Auth()),
         ChangeNotifierProvider(create: (ctx) => Staffs()),
         ChangeNotifierProvider(create: (ctx) => hr_schedules.Schedules()), // Uses alias
         ChangeNotifierProvider(create: (ctx) => Payments()),

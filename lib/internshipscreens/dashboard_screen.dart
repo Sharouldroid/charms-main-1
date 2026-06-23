@@ -23,7 +23,6 @@ import 'package:charms/internshipscreens/slot_details_screen.dart';
 import 'package:charms/internshipproviders/InternAttendanceProvider.dart';
 import 'package:charms/internshipscreens/InternAttendanceHistoryScreen.dart';
 import 'package:charms/internshipscreens/admin_intern_attendance_screen.dart';
-// 🌟 ADDED: Available Schedules card dependencies
 import 'package:charms/internshipproviders/schedule_provider.dart';
 import 'package:charms/internshipmodels/schedule.dart';
 import 'package:charms/internshipservices/schedule_service.dart';
@@ -56,14 +55,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _isAttendanceLoading = false;
   String? _clockInLocationStr;
   String? _clockOutTimeStr;
-  // The schedule the intern is currently registered for (today's schedule)
-  // We resolve this lazily when the FAB sheet opens.
   int? _activeScheduleId;
 
   // ── Available Schedules card state (Intern only) ────────────────────────
   List<Schedule> _availableSchedules = [];
   Map<int, Map<String, dynamic>> _scheduleRegCounts = {};
   bool _schedulesLoading = true;
+
+  // ── Design tokens ───────────────────────────────────────────────────────
+  static const Color _gradientStart = Colors.blueAccent;
+  static const Color _gradientEnd = Color(0xFF7B40FB);
 
   @override
   void initState() {
@@ -74,7 +75,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         widget.userId,
         widget.role == 'Admin',
       );
-      // ✅ Restore clock-in/out state from backend on dashboard load
       if (widget.role == 'Intern') {
         _checkAttendanceState();
         _loadAvailableSchedules();
@@ -176,7 +176,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     await LogoutHelper.fullLogout(context);
   }
 
-  // ── GPS helpers (same pattern as StaffScheduleDetailsScreen) ───────────
+  // ── GPS helpers ────────────────────────────────────────────────────────
   Future<String?> _getCurrentLocation() async {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -229,13 +229,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return display;
   }
 
-  // ── Resolve today's active schedule for the intern ─────────────────────
-  Future<int?> _resolveActiveScheduleId() async {
-    // We call InternHelper to get intern_id, then check today's registrations.
-    // Resolved lazily in _handleClockIn via InternHelper.getActiveRegistration
-    return null;
-  }
-
   // ── FAB: Clock In / Out bottom sheet ───────────────────────────────────
   void _showAttendanceSheet() {
     showModalBottomSheet(
@@ -269,14 +262,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     setState(() => _isAttendanceLoading = true);
 
     try {
-      // 1. Resolve the active registration → gets both intern_id and schedule_id
       final reg = await InternHelper.getActiveRegistration(widget.userId);
       if (reg == null || reg.scheduleId == null) {
         _showSnack('⚠️ Please complete your registration first.', Colors.orange);
         return;
       }
 
-      // 2. Show location snackbar
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Row(children: [
@@ -293,14 +284,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ));
       }
 
-      // 3. Get GPS + reverse geocode
       final locationStr = await _buildDisplayLocation();
 
-      // 4. Clock in with correct intern_id (internRegister.id) and schedule_id
       final provider = context.read<InternAttendanceProvider>();
       final result = await provider.clockIn(
         userId: widget.userId,
-        scheduleId: reg.scheduleId!, // internRegister.schedule_id → internship_schedules.id
+        scheduleId: reg.scheduleId!,
         clockInTime: DateTime.now().toIso8601String(),
         clockInLocation: locationStr,
       );
@@ -312,7 +301,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _activeScheduleId = reg.scheduleId;
         });
         _showSnack('✅ Clocked in successfully!', Colors.green);
-        if (mounted) Navigator.pop(context); // close sheet
+        if (mounted) Navigator.pop(context);
       } else {
         _showSnack('❌ ${result['message'] ?? 'Failed to clock in.'}', Colors.red);
       }
@@ -346,7 +335,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     setState(() => _isAttendanceLoading = true);
     try {
-      // Use cached schedule_id if available, otherwise re-resolve
       int? scheduleId = _activeScheduleId;
       if (scheduleId == null) {
         final reg = await InternHelper.getActiveRegistration(widget.userId);
@@ -371,7 +359,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _clockOutTimeStr = DateFormat('hh:mm a').format(now.toLocal());
         });
         _showSnack('✅ Clocked out successfully!', Colors.green);
-        if (mounted) Navigator.pop(context); // close sheet
+        if (mounted) Navigator.pop(context);
       } else {
         _showSnack('❌ ${result['message'] ?? 'Failed to clock out.'}', Colors.red);
       }
@@ -388,7 +376,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         SnackBar(content: Text(msg), backgroundColor: color));
   }
 
-  // ── Navigation helpers (unchanged from original) ───────────────────────
+  // ── Navigation helpers ─────────────────────────────────────────────────
   Future<void> _navigateToDocumentUpload() async {
     if (widget.role != 'Intern') return;
     _showLoading();
@@ -398,9 +386,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (internId != null) {
         if (mounted) {
           Navigator.push(context, MaterialPageRoute(
-    builder: (_) => DocsUpload(userId: widget.userId, scheduleId: null),
-  ));
-}
+            builder: (_) => DocsUpload(userId: widget.userId, scheduleId: null),
+          ));
+        }
       } else {
         _showSnack('⚠️ Please complete your registration first.', Colors.orange);
         if (mounted) {
@@ -432,8 +420,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ));
           }
         } else {
-          _showSnack(
-              '⚠️ Please complete your registration first.', Colors.orange);
+          _showSnack('⚠️ Please complete your registration first.', Colors.orange);
         }
       } catch (e) {
         if (mounted) {
@@ -463,8 +450,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ));
           }
         } else {
-          _showSnack(
-              '⚠️ Please complete your registration first.', Colors.orange);
+          _showSnack('⚠️ Please complete your registration first.', Colors.orange);
         }
       } catch (e) {
         if (mounted) {
@@ -512,12 +498,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: const Color(0xFFF4F6FB),
       appBar: AppBar(
         title: Text('${widget.role} Dashboard'),
         backgroundColor: Colors.blueAccent,
         actions: [
-          // Notification bell
           Consumer<InternshipNotificationProvider>(
             builder: (context, notifProvider, _) {
               return Stack(
@@ -579,111 +564,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: Container(
-        color: const Color.fromARGB(255, 254, 251, 251),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              // Profile card
-              Container(
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [
-                      Colors.blueAccent,
-                      Color.fromARGB(255, 123, 64, 251)
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Card(
-                  elevation: 0,
-                  color: Colors.transparent,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Row(
-                      children: [
-                        (_currentStaff?.filepath != null &&
-                                _currentStaff!.filepath!.isNotEmpty)
-                            ? CircleAvatar(
-                                radius: 50,
-                                backgroundColor:
-                                    Colors.blueAccent.withOpacity(0.12),
-                                backgroundImage: NetworkImage(
-                                    'https://devcms.com.my/charmsAPI/public/storage/${_currentStaff!.filepath}'),
-                              )
-                            : CircleAvatar(
-                                radius: 50,
-                                backgroundColor:
-                                    Colors.blueAccent.withOpacity(0.12),
-                                child: const Icon(Icons.person_rounded,
-                                    size: 52, color: Colors.blueAccent),
-                              ),
-                        const SizedBox(width: 20),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(widget.username,
-                                style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white)),
-                            Text(widget.role,
-                                style: const TextStyle(
-                                    fontSize: 16, color: Colors.white)),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 40),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            // ── Profile card ─────────────────────────────────────────────
+            _buildProfileCard(),
+            const SizedBox(height: 20),
 
-              // Dashboard buttons
-              Container(
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [
-                      Colors.blueAccent,
-                      Color.fromARGB(255, 123, 64, 251)
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Wrap(
-                        spacing: 16.0,
-                        runSpacing: 16.0,
-                        children: _buildDashboardButtons(context),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            // ── Dashboard buttons ────────────────────────────────────────
+            _buildDashboardButtonsCard(),
 
-              // 🌟 ADDED: Available Schedules card (Intern only)
-              if (widget.role == 'Intern') ...[
-                const SizedBox(height: 24),
-                _buildAvailableSchedulesCard(),
-              ],
+            // ── Available Schedules card (Intern only) ───────────────────
+            if (widget.role == 'Intern') ...[
+              const SizedBox(height: 20),
+              _buildAvailableSchedulesCard(),
             ],
-          ),
+            const SizedBox(height: 16),
+          ],
         ),
       ),
-
-      // FAB removed — Clock In/Out now lives in the bottom nav bar
-
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         items: widget.role == 'Intern'
@@ -751,6 +651,104 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  // ── Profile card ───────────────────────────────────────────────────────
+  Widget _buildProfileCard() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [_gradientStart, _gradientEnd],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.blueAccent.withOpacity(0.3),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Row(
+          children: [
+            (_currentStaff?.filepath != null &&
+                    _currentStaff!.filepath!.isNotEmpty)
+                ? CircleAvatar(
+                    radius: 36,
+                    backgroundColor: Colors.white.withOpacity(0.2),
+                    backgroundImage: NetworkImage(
+                        'https://devcms.com.my/charmsAPI/public/storage/${_currentStaff!.filepath}'),
+                  )
+                : CircleAvatar(
+                    radius: 36,
+                    backgroundColor: Colors.white.withOpacity(0.2),
+                    child: const Icon(Icons.person_rounded,
+                        size: 38, color: Colors.white),
+                  ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(widget.username,
+                      style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white)),
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(widget.role,
+                        style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Dashboard buttons card ─────────────────────────────────────────────
+  Widget _buildDashboardButtonsCard() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [_gradientStart, _gradientEnd],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.blueAccent.withOpacity(0.2),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Wrap(
+          spacing: 16.0,
+          runSpacing: 16.0,
+          children: _buildDashboardButtons(context),
+        ),
+      ),
+    );
+  }
+
   List<Widget> _buildDashboardButtons(BuildContext context) {
     final buttons = <Widget>[];
 
@@ -768,18 +766,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             builder: (_) => const InternListPage(),
           ));
         }),
-        // _buildDashboardButton(context, 'Monitor Performance', Icons.monitor,
-        //     () {
-        //   Navigator.push(context, MaterialPageRoute(
-        //     builder: (_) => MonitorPerformancePage(
-        //         role: widget.role, userId: widget.userId),
-        //   ));
-        // }),
-        // _buildDashboardButton(context, 'Assessment', Icons.assessment, () {
-        //   Navigator.push(context, MaterialPageRoute(
-        //     builder: (_) => const AssessmentListPage(),
-        //   ));
-        // }),
         _buildDashboardButton(context, 'Intern Submissions', Icons.assignment,
             () {
           Navigator.push(context, MaterialPageRoute(
@@ -805,33 +791,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Navigator.push(context, MaterialPageRoute(
             builder: (context) => MonitorPerformancePage(
               role: widget.role,
-              userId: widget.userId, 
+              userId: widget.userId,
             ),
           ));
         }),
-        // _buildDashboardButton(context, 'Assessment', Icons.assessment, () {
-        //   Navigator.push(context, MaterialPageRoute(
-        //     builder: (context) => AssessmentInternPage(
-        //       internId: widget.userId,
-        //     ),
-        //   ));
-        // }),
-        _buildDashboardButton(context, 'Check Status', Icons.check_circle,
-            () {
+        _buildDashboardButton(context, 'Check Status', Icons.check_circle, () {
           Navigator.push(context, MaterialPageRoute(
             builder: (_) => RegistrationStatusPage(userId: widget.userId),
           ));
         }),
         _buildDashboardButton(context, 'Upload Documents', Icons.upload_file, () {
-            Navigator.push(context, MaterialPageRoute(
-                builder: (context) => DocsUpload(
-                    userId: widget.userId,
-                    scheduleId: null,
-                ),
-            ));
+          Navigator.push(context, MaterialPageRoute(
+            builder: (context) => DocsUpload(
+              userId: widget.userId,
+              scheduleId: null,
+            ),
+          ));
         }),
-        _buildDashboardButton(context, 'My Profile', Icons.account_circle,
-            () {
+        _buildDashboardButton(context, 'My Profile', Icons.account_circle, () {
           Navigator.push(context, MaterialPageRoute(
             builder: (_) => InternMySelfScreen(
               userId: widget.userId,
@@ -858,8 +835,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(
             padding: EdgeInsets.zero,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15)),
             backgroundColor: Colors.blueAccent,
             elevation: 3,
           ),
@@ -888,52 +865,110 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildAvailableSchedulesCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            const Icon(Icons.event_available, color: Colors.blueAccent, size: 20),
-            const SizedBox(width: 8),
-            const Expanded(
-              child: Text('Available Schedules',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(
+          // ── Card header ────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 8, 0),
+            child: Row(children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [_gradientStart, _gradientEnd],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.event_available_rounded,
+                    color: Colors.white, size: 16),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Available Schedules',
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A2E)),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.push(context, MaterialPageRoute(
                   builder: (_) =>
                       ScheduleCalendar(isAdmin: false, userId: widget.userId),
-                ));
-              },
-              child: const Text('View All'),
-            ),
-          ]),
-          const Divider(height: 20),
+                )),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.blueAccent,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                  Text('View All',
+                      style: TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600)),
+                  SizedBox(width: 2),
+                  Icon(Icons.chevron_right_rounded, size: 16),
+                ]),
+              ),
+            ]),
+          ),
+
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: Divider(height: 20, thickness: 0.8),
+          ),
+
+          // ── Card body ──────────────────────────────────────────────────
           if (_schedulesLoading)
             const Padding(
-              padding: EdgeInsets.symmetric(vertical: 20),
-              child: Center(child: CircularProgressIndicator()),
+              padding: EdgeInsets.symmetric(vertical: 32),
+              child: Center(
+                  child: CircularProgressIndicator(strokeWidth: 2.5)),
             )
           else if (_availableSchedules.isEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Text('No schedules available right now.',
-                  style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+              padding:
+                  const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+              child: Column(children: [
+                Icon(Icons.calendar_month_outlined,
+                    size: 44, color: Colors.grey.shade300),
+                const SizedBox(height: 10),
+                Text(
+                  'No schedules available right now.',
+                  style:
+                      TextStyle(color: Colors.grey.shade500, fontSize: 13),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Check back later or tap View All.',
+                  style:
+                      TextStyle(color: Colors.grey.shade400, fontSize: 12),
+                ),
+              ]),
             )
           else
-            Column(children: _availableSchedules.map(_buildScheduleRow).toList()),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                  children: _availableSchedules
+                      .map(_buildScheduleRow)
+                      .toList()),
+            ),
         ],
       ),
     );
@@ -941,42 +976,146 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildScheduleRow(Schedule s) {
     final countData = _scheduleRegCounts[s.id];
-    final current = (countData?['currentRegistrations'] as num?)?.toInt() ?? 0;
+    final current =
+        (countData?['currentRegistrations'] as num?)?.toInt() ?? 0;
     final max = (countData?['maxRegistrations'] as num?)?.toInt() ?? 5;
-    final isFull = current >= max;
-    final startDate = DateFormat('EEE, dd MMM').format(s.startDate.toLocal());
+    final spotsLeft = max - current;
+    final isFull = spotsLeft <= 0;
+
+    // ── Status label logic ─────────────────────────────────────────────
+    // Show "Available" / "Almost Full" / "Full" — never raw slot count
+    final String statusLabel;
+    final Color statusColor;
+    final Color statusBg;
+    final IconData statusIcon;
+
+    if (isFull) {
+      statusLabel = 'Full';
+      statusColor = const Color(0xFFE53935);
+      statusBg    = const Color(0xFFFFEBEE);
+      statusIcon  = Icons.block_rounded;
+    } else if (spotsLeft <= 3) {
+      statusLabel = 'Almost Full';
+      statusColor = const Color(0xFFF57C00);
+      statusBg    = const Color(0xFFFFF3E0);
+      statusIcon  = Icons.warning_amber_rounded;
+    } else {
+      statusLabel = 'Available';
+      statusColor = const Color(0xFF2E7D32);
+      statusBg    = const Color(0xFFE8F5E9);
+      statusIcon  = Icons.check_circle_rounded;
+    }
+
+    final startFmt =
+        DateFormat('EEE, dd MMM yyyy').format(s.startDate.toLocal());
+    final endFmt = DateFormat('dd MMM yyyy').format(s.endDate.toLocal());
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(children: [
-        Container(
-          width: 8,
-          height: 8,
+      padding: const EdgeInsets.only(bottom: 10),
+      child: InkWell(
+        onTap: () => Navigator.push(context, MaterialPageRoute(
+          builder: (_) =>
+              ScheduleCalendar(isAdmin: false, userId: widget.userId),
+        )),
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-              color: isFull ? Colors.red : Colors.green,
-              shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(s.description,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w600, fontSize: 13)),
-              Text(startDate,
-                  style: TextStyle(color: Colors.grey[500], fontSize: 12)),
-            ],
+            color: const Color(0xFFF8F9FF),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+                color: Colors.blueAccent.withOpacity(0.1), width: 1),
           ),
+          child: Row(children: [
+            // ── Date badge ───────────────────────────────────────────────
+            Container(
+              width: 48,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [_gradientStart, _gradientEnd],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(children: [
+                Text(
+                  DateFormat('dd').format(s.startDate.toLocal()),
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      height: 1.1),
+                ),
+                Text(
+                  DateFormat('MMM').format(s.startDate.toLocal()),
+                  style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 10,
+                      height: 1.2),
+                ),
+              ]),
+            ),
+            const SizedBox(width: 12),
+
+            // ── Info ─────────────────────────────────────────────────────
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    s.description,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: Color(0xFF1A1A2E)),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Row(children: [
+                    Icon(Icons.date_range_rounded,
+                        size: 11, color: Colors.grey.shade500),
+                    const SizedBox(width: 3),
+                    Flexible(
+                      child: Text(
+                        '$startFmt – $endFmt',
+                        style: TextStyle(
+                            color: Colors.grey.shade500, fontSize: 11),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ]),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // ── Status chip ──────────────────────────────────────────────
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: statusBg,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(statusIcon, size: 12, color: statusColor),
+                const SizedBox(width: 4),
+                Text(
+                  statusLabel,
+                  style: TextStyle(
+                      color: statusColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold),
+                ),
+              ]),
+            ),
+          ]),
         ),
-        Text(
-          isFull ? 'Full' : '${max - current} left',
-          style: TextStyle(
-              color: isFull ? Colors.red : Colors.green,
-              fontWeight: FontWeight.bold,
-              fontSize: 12),
-        ),
-      ]),
+      ),
     );
   }
 }
@@ -1086,8 +1225,7 @@ class _AttendanceBottomSheet extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.green.withOpacity(0.06),
                 borderRadius: BorderRadius.circular(12),
-                border:
-                    Border.all(color: Colors.green.withOpacity(0.2)),
+                border: Border.all(color: Colors.green.withOpacity(0.2)),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1176,7 +1314,7 @@ class _AttendanceBottomSheet extends StatelessWidget {
 
           const SizedBox(height: 12),
 
-          // View History button (always visible)
+          // View History button
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
