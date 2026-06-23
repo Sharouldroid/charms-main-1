@@ -26,19 +26,21 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
   DateTime? _endDate;
   int? _duration;
 
-  final TextEditingController _descriptionController = TextEditingController();
   late TextEditingController _startDateController;
   late TextEditingController _endDateController;
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   List<int> _userRegisteredScheduleIds = [];
   Map<int, Map<String, dynamic>> _registrationCounts = {};
+
+  // ── Filter state ─────────────────────────────────────────────
+  String _filterTeam = 'All';
+  bool _availableOnly = false;
 
   @override
   void initState() {
     super.initState();
     _startDateController = TextEditingController();
-    _endDateController   = TextEditingController();
+    _endDateController = TextEditingController();
     _loadSchedules();
     _loadUserRegistrations();
   }
@@ -47,7 +49,6 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
   void dispose() {
     _startDateController.dispose();
     _endDateController.dispose();
-    _descriptionController.dispose();
     super.dispose();
   }
 
@@ -58,10 +59,15 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
         _endDate == null ? '' : _endDate!.toLocal().toString().split(' ')[0];
   }
 
+  // ── Availability is purely date-based now (no capacity cap) ──
+  bool _isScheduleAvailable(DateTime endDate) {
+    final endOfDay = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
+    return DateTime.now().isBefore(endOfDay);
+  }
+
   Future<void> _loadSchedules() async {
     final provider = Provider.of<ScheduleProvider>(context, listen: false);
     await provider.loadSchedules();
-    // Pre-load all registration counts
     for (final s in provider.schedules) {
       final data = await _getRegistrationCount(s.id);
       if (mounted) {
@@ -97,24 +103,23 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
     }
   }
 
+  // Still fetched for informational display (count registered).
   Future<Map<String, dynamic>> _getRegistrationCount(int scheduleId) async {
-  try {
-    final response = await http.get(
-      Uri.parse('${AppConfig.hostname}/api/internship/schedules/$scheduleId/check-registration'),
-    );
-    if (response.statusCode == 200) {
-      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-      return {
-        'currentRegistrations': (decoded['currentRegistrations'] as num?)?.toInt() ?? 0,
-        'maxRegistrations': (decoded['maxRegistrations'] as num?)?.toInt() ?? 5,
-        'available': decoded['available'] ?? true,
-      };
-    }
-  } catch (_) {}
-  return {'currentRegistrations': 0, 'maxRegistrations': 5, 'available': true};
-}
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConfig.hostname}/api/internship/schedules/$scheduleId/check-registration'),
+      );
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        return {
+          'currentRegistrations': (decoded['currentRegistrations'] as num?)?.toInt() ?? 0,
+        };
+      }
+    } catch (_) {}
+    return {'currentRegistrations': 0};
+  }
 
-  Future<void> _checkRegistrationLimit(int scheduleId) async {
+  Future<void> _checkRegistrationLimit(int scheduleId, DateTime endDate) async {
     if (_userRegisteredScheduleIds.contains(scheduleId)) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('⚠️ You have already registered for this session!'),
@@ -122,37 +127,23 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
       ));
       return;
     }
-    try {
-      final response = await http.get(
-        Uri.parse('${AppConfig.hostname}/api/internship/schedules/$scheduleId/check-registration'),
-      );
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['available'] == true) {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => RegistrationForm(
-                scheduleId: scheduleId,
-                userId: widget.userId,
-              ),
-            ),
-          );
-          if (result == true) await _loadUserRegistrations();
-        } else {
-          final count = data['currentRegistrations'] ?? 0;
-          final max   = data['maxRegistrations'] ?? 5;
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Registration closed! Slot is full ($count/$max)'),
-            backgroundColor: Colors.red,
-          ));
-        }
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+    if (!_isScheduleAvailable(endDate)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Registration closed — this period has ended'),
+        backgroundColor: Colors.red,
+      ));
+      return;
     }
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RegistrationForm(
+          scheduleId: scheduleId,
+          userId: widget.userId,
+        ),
+      ),
+    );
+    if (result == true) await _loadUserRegistrations();
   }
 
   Future<void> _confirmDeleteSchedule(int scheduleId) async {
@@ -227,10 +218,10 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
       setState(() {
         if (isStartDate) {
           _startDate = selected;
-          _endDate   = null;
-          _duration  = null;
+          _endDate = null;
+          _duration = null;
         } else {
-          _endDate  = selected;
+          _endDate = selected;
           _duration = _endDate!.difference(_startDate!).inDays;
         }
         _updateDateControllers();
@@ -239,89 +230,98 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
   }
 
   void _showAddScheduleDialog() {
-    _descriptionController.clear();
+    String? selectedTeam;
     showDialog(
       context: context,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.blueAccent.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.add_box, color: Colors.blueAccent, size: 22),
-                ),
-                const SizedBox(width: 12),
-                const Text('Add Schedule',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              ]),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _descriptionController,
-                decoration: InputDecoration(
-                  hintText: 'Schedule name / description',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Colors.blueAccent, width: 2),
-                  ),
-                  contentPadding: const EdgeInsets.all(12),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blueAccent.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Text('Cancel'),
+                    child: const Icon(Icons.add_box, color: Colors.blueAccent, size: 22),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      if (_descriptionController.text.isNotEmpty &&
-                          _startDate != null && _endDate != null) {
-                        Provider.of<ScheduleProvider>(context, listen: false)
-                            .addSchedule(Schedule(
-                          id: DateTime.now().millisecondsSinceEpoch,
-                          startDate: _startDate!,
-                          endDate: _endDate!,
-                          description: _descriptionController.text,
-                          duration: _endDate!.difference(_startDate!).inDays.toString(),
-                          maxRegistrations: 5,
-                        ));
-                        _descriptionController.clear();
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content: Text('Schedule created successfully!'),
-                          backgroundColor: Colors.green,
-                        ));
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blueAccent,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  const SizedBox(width: 12),
+                  const Text('Add Schedule',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ]),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: selectedTeam,
+                  decoration: InputDecoration(
+                    hintText: 'Select team',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: Colors.blueAccent, width: 2),
                     ),
-                    child: const Text('Create'),
+                    contentPadding: const EdgeInsets.all(12),
                   ),
+                  items: kInternshipTeams
+                      .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                      .toList(),
+                  onChanged: (v) => setDialogState(() => selectedTeam = v),
                 ),
-              ]),
-            ],
+                const SizedBox(height: 16),
+                Row(children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        if (selectedTeam != null && _startDate != null && _endDate != null) {
+                          Provider.of<ScheduleProvider>(context, listen: false)
+                              .addSchedule(Schedule(
+                            id: DateTime.now().millisecondsSinceEpoch,
+                            startDate: _startDate!,
+                            endDate: _endDate!,
+                            description: selectedTeam!,
+                            duration: _endDate!.difference(_startDate!).inDays.toString(),
+                            maxRegistrations: kUnlimitedRegistrations,
+                          ));
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                            content: Text('Schedule created successfully!'),
+                            backgroundColor: Colors.green,
+                          ));
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                            content: Text('Please select a team and pick a date range'),
+                            backgroundColor: Colors.orange,
+                          ));
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blueAccent,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: const Text('Create'),
+                    ),
+                  ),
+                ]),
+              ],
+            ),
           ),
         ),
       ),
@@ -332,6 +332,15 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
   Widget build(BuildContext context) {
     final scheduleProvider = Provider.of<ScheduleProvider>(context);
     final schedules = scheduleProvider.schedules;
+
+    var filteredSchedules = _filterTeam == 'All'
+        ? schedules
+        : schedules.where((s) => s.description == _filterTeam).toList();
+
+    if (_availableOnly) {
+      filteredSchedules =
+          filteredSchedules.where((s) => _isScheduleAvailable(s.endDate)).toList();
+    }
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -366,15 +375,52 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
                 : _buildInternHeader(schedules.length),
           ),
 
+          // Filter bar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Column(children: [
+              Row(children: [
+                const Icon(Icons.filter_alt, size: 18, color: Colors.blueAccent),
+                const SizedBox(width: 8),
+                const Text('Team:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: _filterTeam,
+                    decoration: InputDecoration(
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    items: ['All', ...kInternshipTeams]
+                        .map((t) => DropdownMenuItem(
+                            value: t, child: Text(t, style: const TextStyle(fontSize: 13))))
+                        .toList(),
+                    onChanged: (v) => setState(() => _filterTeam = v ?? 'All'),
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 8),
+              Row(children: [
+                Checkbox(
+                  value: _availableOnly,
+                  activeColor: Colors.blueAccent,
+                  onChanged: (v) => setState(() => _availableOnly = v ?? false),
+                ),
+                const Text('Available only', style: TextStyle(fontSize: 13)),
+              ]),
+            ]),
+          ),
+
           // Schedule list
           Expanded(
-            child: schedules.isEmpty
+            child: filteredSchedules.isEmpty
                 ? _buildEmptyState()
                 : ListView.builder(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
-                    itemCount: schedules.length,
+                    itemCount: filteredSchedules.length,
                     itemBuilder: (context, index) {
-                      final schedule = schedules[index];
+                      final schedule = filteredSchedules[index];
                       return _buildScheduleCard(schedule);
                     },
                   ),
@@ -499,9 +545,13 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
         children: [
           Icon(Icons.event_busy, size: 72, color: Colors.grey[300]),
           const SizedBox(height: 16),
-          Text('No schedules available',
-              style: TextStyle(fontSize: 16, color: Colors.grey[500])),
-          if (widget.isAdmin) ...[
+          Text(
+            _filterTeam == 'All' && !_availableOnly
+                ? 'No schedules available'
+                : 'No schedules match your filters',
+            style: TextStyle(fontSize: 16, color: Colors.grey[500]),
+          ),
+          if (widget.isAdmin && _filterTeam == 'All' && !_availableOnly) ...[
             const SizedBox(height: 8),
             Text('Select dates above to create a schedule',
                 style: TextStyle(fontSize: 13, color: Colors.grey[400])),
@@ -513,13 +563,12 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
 
   Widget _buildScheduleCard(Schedule schedule) {
     final isRegistered = _userRegisteredScheduleIds.contains(schedule.id);
-    final countData    = _registrationCounts[schedule.id];
-    final current      = (countData?['currentRegistrations'] as num?)?.toInt() ?? 0;
-    final max          = (countData?['maxRegistrations'] as num?)?.toInt() ?? 5;
-    final isAvailable  = current < max;
-    final startDate    = schedule.startDate.toLocal().toString().split(' ')[0];
-    final endDate      = schedule.endDate.toLocal().toString().split(' ')[0];
-    final duration     = schedule.duration ?? '0';
+    final isAvailable = _isScheduleAvailable(schedule.endDate);
+    final countData = _registrationCounts[schedule.id];
+    final current = (countData?['currentRegistrations'] as num?)?.toInt() ?? 0;
+    final startDate = schedule.startDate.toLocal().toString().split(' ')[0];
+    final endDate = schedule.endDate.toLocal().toString().split(' ')[0];
+    final duration = schedule.duration;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -541,112 +590,146 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: widget.isAdmin ? null : () => _checkRegistrationLimit(schedule.id),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Title row
-                Row(children: [
-                  Expanded(
-                    child: Text(
-                      schedule.description,
-                      style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B)),
-                    ),
-                  ),
-                  if (isRegistered)
+          onTap: widget.isAdmin
+              ? null
+              : (isAvailable
+                  ? () => _checkRegistrationLimit(schedule.id, schedule.endDate)
+                  : () => _checkRegistrationLimit(schedule.id, schedule.endDate)),
+          child: Opacity(
+            opacity: (!widget.isAdmin && !isAvailable && !isRegistered) ? 0.6 : 1.0,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Title row
+                  Row(children: [
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.green,
-                        borderRadius: BorderRadius.circular(20),
+                        color: Colors.blueAccent.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                        Icon(Icons.check_circle, size: 14, color: Colors.white),
-                        SizedBox(width: 4),
-                        Text('REGISTERED',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold)),
-                      ]),
-                    )
-                  else if (widget.isAdmin)
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.red),
-                      onPressed: () => _confirmDeleteSchedule(schedule.id),
-                      tooltip: 'Delete',
-                    ),
-                ]),
-
-                const SizedBox(height: 12),
-
-                // Date and duration row
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(children: [
-                    Expanded(
-                      child: _infoChip(
-                        Icons.calendar_month,
-                        '$startDate → $endDate',
-                        Colors.blueAccent,
+                      child: Text(
+                        schedule.description,
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blueAccent),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    _infoChip(
-                      Icons.timelapse,
-                      '$duration day${duration == '1' ? '' : 's'}',
-                      Colors.purple,
+                    if (!isAvailable)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                        child: Text('CLOSED',
+                            style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey[600])),
+                      ),
+                    const Spacer(),
+                    if (isRegistered)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.green,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(Icons.check_circle, size: 14, color: Colors.white),
+                          SizedBox(width: 4),
+                          Text('REGISTERED',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold)),
+                        ]),
+                      )
+                    else if (widget.isAdmin)
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, color: Colors.red),
+                        onPressed: () => _confirmDeleteSchedule(schedule.id),
+                        tooltip: 'Delete',
+                      ),
+                  ]),
+
+                  const SizedBox(height: 12),
+
+                  // Date and duration row
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(children: [
+                      Expanded(
+                        child: _infoChip(
+                          Icons.calendar_month,
+                          '$startDate → $endDate',
+                          Colors.blueAccent,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _infoChip(
+                        Icons.timelapse,
+                        '$duration day${duration == '1' ? '' : 's'}',
+                        Colors.purple,
+                      ),
+                    ]),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Registration count (informational only — no cap anymore)
+                  Row(children: [
+                    const Icon(Icons.people_alt, color: Colors.green, size: 14),
+                    const SizedBox(width: 6),
+                    Text(
+                      '$current registered',
+                      style: const TextStyle(
+                          color: Colors.green, fontSize: 12, fontWeight: FontWeight.w600),
                     ),
                   ]),
-                ),
 
-                const SizedBox(height: 12),
-
-                // Slot availability bar
-                countData == null
-                    ? _loadingSlotBar()
-                    : _slotBar(current, max, isAvailable),
-
-                // Bottom action hint
-                if (!widget.isAdmin) ...[
-                  const SizedBox(height: 10),
-                  if (isRegistered)
-                    const Row(children: [
-                      Icon(Icons.check_circle_outline, color: Colors.green, size: 14),
-                      SizedBox(width: 6),
-                      Text('You are registered for this session',
-                          style: TextStyle(
-                              color: Colors.green,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600)),
-                    ])
-                  else if (isAvailable)
-                    const Row(children: [
-                      Icon(Icons.touch_app, color: Colors.blueAccent, size: 14),
-                      SizedBox(width: 6),
-                      Text('Tap to register for this slot',
-                          style: TextStyle(
-                              color: Colors.blueAccent,
-                              fontSize: 12,
-                              fontStyle: FontStyle.italic)),
-                    ])
-                  else
-                    const Row(children: [
-                      Icon(Icons.block, color: Colors.red, size: 14),
-                      SizedBox(width: 6),
-                      Text('Registration closed — slot is full',
-                          style: TextStyle(color: Colors.red, fontSize: 12)),
-                    ]),
+                  // Bottom action hint
+                  if (!widget.isAdmin) ...[
+                    const SizedBox(height: 10),
+                    if (isRegistered)
+                      const Row(children: [
+                        Icon(Icons.check_circle_outline, color: Colors.green, size: 14),
+                        SizedBox(width: 6),
+                        Text('You are registered for this session',
+                            style: TextStyle(
+                                color: Colors.green,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600)),
+                      ])
+                    else if (isAvailable)
+                      const Row(children: [
+                        Icon(Icons.touch_app, color: Colors.blueAccent, size: 14),
+                        SizedBox(width: 6),
+                        Text('Tap to register for this slot',
+                            style: TextStyle(
+                                color: Colors.blueAccent,
+                                fontSize: 12,
+                                fontStyle: FontStyle.italic)),
+                      ])
+                    else
+                      const Row(children: [
+                        Icon(Icons.block, color: Colors.red, size: 14),
+                        SizedBox(width: 6),
+                        Text('Registration closed — period has ended',
+                            style: TextStyle(color: Colors.red, fontSize: 12)),
+                      ]),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),
@@ -661,46 +744,6 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
       Text(label,
           style: TextStyle(
               fontSize: 12, color: color, fontWeight: FontWeight.w600)),
-    ]);
-  }
-
-  Widget _loadingSlotBar() {
-    return Container(
-      height: 8,
-      decoration: BoxDecoration(
-        color: Colors.grey[200],
-        borderRadius: BorderRadius.circular(4),
-      ),
-    );
-  }
-
-  Widget _slotBar(int current, int max, bool isAvailable) {
-    final fraction = max > 0 ? (current / max).clamp(0.0, 1.0) : 0.0;
-    final color    = isAvailable ? Colors.green : Colors.red;
-
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        Icon(isAvailable ? Icons.check_circle : Icons.cancel,
-            color: color, size: 14),
-        const SizedBox(width: 6),
-        Text(
-          isAvailable
-              ? '$current/$max slots filled — Available'
-              : 'Full ($current/$max) — Registration Closed',
-          style: TextStyle(
-              color: color, fontSize: 12, fontWeight: FontWeight.w600),
-        ),
-      ]),
-      const SizedBox(height: 6),
-      ClipRRect(
-        borderRadius: BorderRadius.circular(4),
-        child: LinearProgressIndicator(
-          value: fraction,
-          minHeight: 6,
-          backgroundColor: color.withOpacity(0.15),
-          valueColor: AlwaysStoppedAnimation<Color>(color),
-        ),
-      ),
     ]);
   }
 }

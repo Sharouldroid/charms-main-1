@@ -2,9 +2,9 @@ class Schedule {
   final int id;
   final DateTime startDate;
   final DateTime endDate;
-  final String description;
+  final String description; // now holds one of the fixed team names
   final String duration; // kept as String for backend compatibility
-  final int maxRegistrations; // ✅ ADDED
+  final int maxRegistrations;
 
   Schedule({
     required this.id,
@@ -12,7 +12,7 @@ class Schedule {
     required this.endDate,
     required this.description,
     required this.duration,
-    this.maxRegistrations = 5, // ✅ Default value
+    this.maxRegistrations = kUnlimitedRegistrations,
   });
 
   factory Schedule.fromJson(Map<String, dynamic> json) {
@@ -21,8 +21,9 @@ class Schedule {
       startDate: DateTime.parse(json['start_date']),
       endDate: DateTime.parse(json['end_date']),
       description: json['description'],
-      duration: json['duration'].toString(), // ✅ Convert to string
-      maxRegistrations: json['max_registrations'] ?? 5, // ✅ ADDED
+      duration: json['duration'].toString(),
+      maxRegistrations:
+          (json['max_registrations'] as num?)?.toInt() ?? kUnlimitedRegistrations,
     );
   }
 
@@ -33,6 +34,23 @@ class Schedule {
             "${endDate.year}-${endDate.month.toString().padLeft(2, '0')}-${endDate.day.toString().padLeft(2, '0')}",
         'description': description,
         'duration': duration,
-        'max_registrations': maxRegistrations, // ✅ ADDED
+        'max_registrations': maxRegistrations,
       };
 }
+
+/// Fixed list of internship teams. Used both for the "Create Schedule"
+/// dropdown and for filtering on the calendar / slot details screens.
+const List<String> kInternshipTeams = [
+  'Administration Team',
+  'Digital Team',
+  'Chagar Hutang Team',
+  'Turtle Lab Team',
+];
+
+/// Sentinel value meaning "no limit" on registrations. The backend column
+/// likely still requires an integer, so we send a very large number rather
+/// than null. See the note at the end of this answer about updating the
+/// Laravel side too, since this alone only stops the *app* from blocking
+/// registrations — the API's own check-registration logic also needs to
+/// stop enforcing a cap.
+const int kUnlimitedRegistrations = 999999;
