@@ -373,11 +373,21 @@ class MyApp extends StatelessWidget {
           debugPrint('→ Routing to Internship Dashboard (Intern role)');
           return internship_screens.DashboardScreen(
             username: username ?? 'Intern',
-            role: 'Intern', // ✅ Set role as 'Intern'
+            role: 'Intern',
             userId: userId ?? 0,
           );
         }
-        
+
+        // ✅ Supervisor (usertype 13) → Internship Dashboard (Supervisor role)
+        if (UserRoles.supervisorGroup.contains(userType)) {
+          debugPrint('→ Routing to Internship Dashboard (Supervisor role)');
+          return internship_screens.DashboardScreen(
+            username: username ?? 'Supervisor',
+            role: 'Supervisor',
+            userId: userId ?? 0,
+          );
+        }
+
         // Staff members (7, 8, 9, 3) → Staff Dashboard
         if (UserRoles.staffMember.contains(userType)) {
           debugPrint('→ Routing to Staff Dashboard');

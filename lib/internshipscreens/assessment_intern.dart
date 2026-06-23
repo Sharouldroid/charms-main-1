@@ -9,13 +9,13 @@ import 'package:charms/main.dart';
 class AssessmentInternPage extends StatefulWidget {
   final int internId;
   final String? photoUrl;
-  final bool isAdmin;
+  final bool canAssess;
 
   const AssessmentInternPage({
     super.key,
     required this.internId,
     this.photoUrl,
-    this.isAdmin = false,
+    this.canAssess = false,
   });
 
   @override
@@ -153,7 +153,7 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
       ),
 
       // FAB: only shown to admin
-      floatingActionButton: widget.isAdmin
+      floatingActionButton: widget.canAssess
           ? FloatingActionButton.extended(
               onPressed: () {
                 Provider.of<AssessmentProvider>(context, listen: false)
@@ -318,7 +318,7 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
                               ),
                             ],
                           ),
-                          if (widget.isAdmin) ...[
+                          if (widget.canAssess) ...[
                             const SizedBox(height: 8),
                             Text(
                               'Tap "Assess Intern" below to submit an evaluation.',
@@ -376,7 +376,7 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              widget.isAdmin
+                              widget.canAssess
                                   ? 'No assessment submitted yet. Use the button below to assess this intern.'
                                   : 'No assessment data found.',
                               style: const TextStyle(color: Colors.orange),

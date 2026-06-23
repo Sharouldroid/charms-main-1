@@ -318,6 +318,21 @@ class AuthCardState extends State<AuthCard> {
       return;
     }
 
+    // ✅ Priority 1.5: Supervisor (usertype 13) → Internship Dashboard (Supervisor role)
+    if (UserRoles.supervisorGroup.contains(usertype)) {
+      debugPrint('→ Routing to Internship Dashboard (Supervisor role)');
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => internship_screens.DashboardScreen(
+            username: username,
+            role: 'Supervisor',
+            userId: userId ?? 0,
+          ),
+        ),
+      );
+      return;
+    }
+
     // ✅ Priority 2: Staff (7, 8, 9, 3) → Staff Dashboard
     if (UserRoles.staffMember.contains(usertype)) {
       debugPrint('→ Routing to Staff Dashboard');
@@ -967,6 +982,7 @@ class AuthCardState extends State<AuthCard> {
             _roleItem(UserRoles.centralLabOfficer, 'Central Lab Officer'),
             _roleItem(UserRoles.marineBiologist, 'Marine Biologist'),
             _roleItem(UserRoles.trainee, 'Intern / Trainee'),
+            _roleItem(UserRoles.supervisor, 'Supervisor'),
             _roleItem(UserRoles.turtleRanger, 'Turtle Ranger'),
             // Note: superID (1) and staffAdmin (6) are not self-registerable
           ],

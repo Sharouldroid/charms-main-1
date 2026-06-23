@@ -3,6 +3,8 @@ import 'package:charms/internshipservices/assesstment_service.dart';
 
 class AssessmentProvider with ChangeNotifier {
   Map<String, int> _ratings = {};
+  Map<String, String> _customCriteriaLabels = {};
+  int _nextCustomIndex = 6;
 
   List<Map<String, dynamic>> _interns = [];
   List<Map<String, dynamic>> _filteredInterns = [];
@@ -11,6 +13,7 @@ class AssessmentProvider with ChangeNotifier {
   String? _errorMessage;
 
   Map<String, int> get ratings => _ratings;
+  Map<String, String> get customCriteriaLabels => Map.unmodifiable(_customCriteriaLabels);
   List<Map<String, dynamic>> get interns => _interns;
   List<Map<String, dynamic>> get filteredInterns => _filteredInterns;
   bool get isLoading => _isLoading;
@@ -25,6 +28,8 @@ class AssessmentProvider with ChangeNotifier {
       'criterion_4': 1,
       'criterion_5': 1,
     };
+    _customCriteriaLabels = {};
+    _nextCustomIndex = 6;
     _errorMessage = null;
     notifyListeners();
   }
@@ -34,6 +39,20 @@ class AssessmentProvider with ChangeNotifier {
       _ratings[criterion] = value;
       notifyListeners();
     }
+  }
+
+  void addCustomCriterion(String label) {
+    final key = 'criterion_$_nextCustomIndex';
+    _nextCustomIndex++;
+    _ratings[key] = 1;
+    _customCriteriaLabels[key] = label;
+    notifyListeners();
+  }
+
+  void removeCustomCriterion(String key) {
+    _ratings.remove(key);
+    _customCriteriaLabels.remove(key);
+    notifyListeners();
   }
 
   void searchInterns(String query) {

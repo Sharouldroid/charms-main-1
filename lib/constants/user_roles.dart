@@ -23,6 +23,9 @@ class UserRoles {
   // ── Part Timer ────────────────────────────────────────
   static const int partTimer         = 12;
 
+  // ── Supervisor ────────────────────────────────────────
+  static const int supervisor        = 13;
+
   // ── Group helpers ─────────────────────────────────────
   static const List<int> hrAdmin = [superID, manager, staffAdmin];
 
@@ -32,6 +35,7 @@ class UserRoles {
 
   static const List<int> internGroup = [trainee];
   static const List<int> partTimerGroup = [partTimer];
+  static const List<int> supervisorGroup = [supervisor];
   static const List<int> elseGroup = [volunteer, boatOwner, turtleRanger];
 
   // ── Name lookup ───────────────────────────────────────
@@ -46,6 +50,7 @@ class UserRoles {
       case trainee:           return 'Intern / Trainee';
       case researcher:        return 'Researcher';
       case partTimer:         return 'Part Timer';
+      case supervisor:        return 'Supervisor';
       case volunteer:         return 'Volunteer';
       case boatOwner:         return 'Boat Owner';
       case turtleRanger:      return 'Turtle Ranger';

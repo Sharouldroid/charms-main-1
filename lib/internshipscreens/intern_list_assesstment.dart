@@ -48,7 +48,9 @@ Future<Map<String, String>> fetchAllPhotos() async {
 // INTERN LIST — view only (admin sees details)
 // ─────────────────────────────────────────
 class InternListPage extends StatefulWidget {
-  const InternListPage({super.key});
+  final bool canAssess;
+
+  const InternListPage({super.key, this.canAssess = false});
 
   @override
   _InternListPageState createState() => _InternListPageState();
@@ -598,7 +600,7 @@ class _InternListPageState extends State<InternListPage> {
                                                   AssessmentInternPage(
                                                 internId: internIdInt,
                                                 photoUrl: photoUrl,
-                                                isAdmin: true,
+                                                canAssess: widget.canAssess,
                                               ),
                                             ),
                                           );

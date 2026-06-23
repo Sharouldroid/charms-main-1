@@ -73,7 +73,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<InternshipNotificationProvider>().fetchUnreadCount(
         widget.userId,
-        widget.role == 'Admin',
+        widget.role == 'Admin' || widget.role == 'Supervisor',
       );
       if (widget.role == 'Intern') {
         _checkAttendanceState();
@@ -446,7 +446,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           if (mounted) {
             Navigator.push(context, MaterialPageRoute(
               builder: (_) => AssessmentInternPage(
-                  internId: widget.userId, isAdmin: false),
+                  internId: widget.userId, canAssess: false),
             ));
           }
         } else {
@@ -460,8 +460,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     } else {
       Navigator.push(context, MaterialPageRoute(
-        builder: (_) =>
-            AssessmentInternPage(internId: widget.userId, isAdmin: true),
+        builder: (_) => AssessmentInternPage(
+          internId: widget.userId,
+          canAssess: widget.role == 'Supervisor',
+        ),
       ));
     }
   }
@@ -518,7 +520,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         MaterialPageRoute(
                           builder: (_) => InternshipNotificationScreen(
                             userId: widget.userId,
-                            isAdmin: widget.role == 'Admin',
+                            isAdmin: widget.role == 'Admin' || widget.role == 'Supervisor',
                           ),
                         ),
                       );
@@ -526,7 +528,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         context
                             .read<InternshipNotificationProvider>()
                             .fetchUnreadCount(
-                                widget.userId, widget.role == 'Admin');
+                                widget.userId, widget.role == 'Admin' || widget.role == 'Supervisor');
                       }
                     },
                   ),
@@ -627,7 +629,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               } else {
                 Navigator.push(context, MaterialPageRoute(
                   builder: (_) => ScheduleCalendar(
-                    isAdmin: widget.role == 'Admin',
+                    isAdmin: widget.role != 'Intern',
                     userId: widget.userId,
                   ),
                 ));
@@ -752,7 +754,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<Widget> _buildDashboardButtons(BuildContext context) {
     final buttons = <Widget>[];
 
-    if (widget.role == 'Admin') {
+    if (widget.role == 'Supervisor') {
+      buttons.addAll([
+        _buildDashboardButton(context, 'Intern List', Icons.people_rounded, () {
+          Navigator.push(context, MaterialPageRoute(
+            builder: (_) => const InternListPage(canAssess: true),
+          ));
+        }),
+        // _buildDashboardButton(context, 'Activity Logs', Icons.monitor_rounded, () {
+        //   Navigator.push(context, MaterialPageRoute(
+        //     builder: (_) => MonitorPerformancePage(
+        //       role: 'Admin',
+        //       userId: widget.userId,
+        //     ),
+        //   ));
+        // }),
+        // _buildDashboardButton(context, 'Assessment', Icons.assignment_rounded, () {
+        //   Navigator.push(context, MaterialPageRoute(
+        //     builder: (_) => AssessmentInternPage(
+        //       internId: widget.userId,
+        //       canAssess: true,
+        //     ),
+        //   ));
+        // }),
+        _buildDashboardButton(context, 'Attendance', Icons.fingerprint_rounded, () {
+          Navigator.push(context, MaterialPageRoute(
+            builder: (_) => const AdminInternAttendanceScreen(),
+          ));
+        }),
+        _buildDashboardButton(context, 'Submissions', Icons.assignment_turned_in_rounded, () {
+          Navigator.push(context, MaterialPageRoute(
+            builder: (_) => AdminSubmissionsPage(adminId: widget.userId),
+          ));
+        }),
+      ]);
+    } else if (widget.role == 'Admin') {
       buttons.addAll([
         _buildDashboardButton(context, 'Create Schedule', Icons.calendar_today,
             () {
@@ -763,7 +799,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }),
         _buildDashboardButton(context, 'Intern List', Icons.person_add, () {
           Navigator.push(context, MaterialPageRoute(
-            builder: (_) => const InternListPage(),
+            builder: (_) => const InternListPage(canAssess: false),
           ));
         }),
         _buildDashboardButton(context, 'Intern Submissions', Icons.assignment,

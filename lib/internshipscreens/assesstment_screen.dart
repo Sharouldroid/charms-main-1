@@ -34,6 +34,51 @@ class _NextPageState extends State<NextPage> {
     'criterion_5': Icons.sync_alt,
   };
 
+  final TextEditingController _newCriterionController = TextEditingController();
+
+  @override
+  void dispose() {
+    _newCriterionController.dispose();
+    super.dispose();
+  }
+
+  void _showAddCriterionDialog(BuildContext context) {
+    _newCriterionController.clear();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add New Criterion'),
+        content: TextField(
+          controller: _newCriterionController,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'e.g. Leadership, Creativity...',
+            border: OutlineInputBorder(),
+          ),
+          textCapitalization: TextCapitalization.words,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final label = _newCriterionController.text.trim();
+              if (label.isNotEmpty) {
+                Provider.of<AssessmentProvider>(context, listen: false)
+                    .addCustomCriterion(label);
+                Navigator.pop(ctx);
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
+            child: const Text('Add', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _getRatingLabel(int value) {
     switch (value) {
       case 1: return 'Poor';
@@ -81,6 +126,14 @@ class _NextPageState extends State<NextPage> {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showAddCriterionDialog(context),
+        backgroundColor: Colors.blueAccent,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add),
+        label: const Text('Add Criterion'),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -138,9 +191,12 @@ class _NextPageState extends State<NextPage> {
 
             // Criterion cards
             ...ratings.keys.map((criterion) {
+              final customLabels = Provider.of<AssessmentProvider>(context, listen: false).customCriteriaLabels;
+              final isCustom = customLabels.containsKey(criterion);
               final label = criterionLabels[criterion] ??
+                  customLabels[criterion] ??
                   criterion.replaceAll('_', ' ').capitalize();
-              final icon = criterionIcons[criterion] ?? Icons.star;
+              final icon = criterionIcons[criterion] ?? Icons.star_outline_rounded;
               final value = ratings[criterion] ?? 1;
               final color = _getRatingColor(value);
 
@@ -200,6 +256,24 @@ class _NextPageState extends State<NextPage> {
                             ),
                           ),
                         ),
+                        // Delete button for custom criteria
+                        if (isCustom) ...[
+                          const SizedBox(width: 6),
+                          GestureDetector(
+                            onTap: () => Provider.of<AssessmentProvider>(
+                                    context, listen: false)
+                                .removeCustomCriterion(criterion),
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.red[50],
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(Icons.close_rounded,
+                                  size: 16, color: Colors.red[400]),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
 
