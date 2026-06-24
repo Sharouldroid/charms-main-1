@@ -25,6 +25,7 @@ class _RegistrationFormState extends State<RegistrationForm> {
   final _formKey = GlobalKey<FormState>();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
+  final _icNumberController = TextEditingController(); // ✅ NEW: IC number
   final _institutionController = TextEditingController();
   final _programmeController = TextEditingController();
   final _courseController = TextEditingController();
@@ -112,10 +113,14 @@ class _RegistrationFormState extends State<RegistrationForm> {
     r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$",
   );
 
+  // ✅ NEW: Malaysian IC format XXXXXX-XX-XXXX
+  final RegExp _icRegExp = RegExp(r'^\d{6}-\d{2}-\d{4}$');
+
   @override
   void dispose() {
     _firstNameController.dispose();
     _lastNameController.dispose();
+    _icNumberController.dispose(); // ✅ NEW
     _institutionController.dispose();
     _programmeController.dispose();
     _courseController.dispose();
@@ -365,6 +370,7 @@ class _RegistrationFormState extends State<RegistrationForm> {
         dateOfBirth: _dateOfBirth != null
             ? DateFormat('yyyy-MM-dd').format(_dateOfBirth!)
             : '',
+        icNumber: _icNumberController.text.trim(), // ✅ NEW
         age: _age ?? 0,
         gender: _selectedGender ?? '',
         levelOfStudy: _selectedLevel ?? '',
@@ -389,8 +395,9 @@ class _RegistrationFormState extends State<RegistrationForm> {
       try {
         print('🚀 Submitting registration...');
         print('Age being submitted: ${_age}');
+        print('IC Number: ${_icNumberController.text.trim()}');
         print('Date of Birth: ${DateFormat('yyyy-MM-dd').format(_dateOfBirth!)}');
-        
+
         final internId = await Provider.of<RegisterProvider>(context, listen: false)
             .registerUser(register);
 
@@ -536,6 +543,24 @@ class _RegistrationFormState extends State<RegistrationForm> {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // ✅ NEW: IC Number Field (identity info, placed near DOB)
+                  _buildTextFormField(
+                    controller: _icNumberController,
+                    label: 'IC Number (No. Kad Pengenalan)',
+                    icon: Icons.badge_outlined,
+                    keyboardType: TextInputType.text,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Please enter your IC number';
+                      }
+                      if (!_icRegExp.hasMatch(value.trim())) {
+                        return 'Format: XXXXXX-XX-XXXX (e.g. 030405-11-0417)';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 16),
 

@@ -4,6 +4,7 @@ class Register {
   final String firstName;
   final String lastName;
   final String dateOfBirth; // Stored as a string in 'yyyy-MM-dd' format
+  final String icNumber; // No. Kad Pengenalan (e.g. 030405-11-0417)
   final int age;
   final String gender;
 
@@ -37,6 +38,7 @@ class Register {
     required this.firstName,
     required this.lastName,
     required this.dateOfBirth,
+    required this.icNumber,
     required this.age,
     required this.gender,
     this.userId,
@@ -74,6 +76,7 @@ class Register {
       firstName: json['first_name'],
       lastName: json['last_name'],
       dateOfBirth: json['date_of_birth'],
+      icNumber: json['ic_number'] ?? '',
       age: json['age'],
       gender: json['gender'],
 
@@ -111,36 +114,37 @@ class Register {
       'first_name': firstName,
       'last_name': lastName,
       'date_of_birth': dateOfBirth,
+      'ic_number': icNumber,
       'age': age,
-        'gender': gender,
+      'gender': gender,
 
-        // Institution Information
-        'level_of_study': levelOfStudy,
-        'institution_name': institutionName,
-        'programme': programme,
-        'course': course,
-        'faculty': faculty,
-        'branch': branch,
+      // Institution Information
+      'level_of_study': levelOfStudy,
+      'institution_name': institutionName,
+      'programme': programme,
+      'course': course,
+      'faculty': faculty,
+      'branch': branch,
 
-        // Address Information
-        'street_address_1': streetAddress1,
-        'street_address_2': streetAddress2,
-        'city': city,
-        'state': state,
-        'postal_code': postalCode,
-        'country': country,
+      // Address Information
+      'street_address_1': streetAddress1,
+      'street_address_2': streetAddress2,
+      'city': city,
+      'state': state,
+      'postal_code': postalCode,
+      'country': country,
 
-        // Contact Information
-        'area_code': areaCode,
-        'phone_number': phoneNumber,
-        'email': email,
-        //'password': password,
+      // Contact Information
+      'area_code': areaCode,
+      'phone_number': phoneNumber,
+      'email': email,
+      //'password': password,
 
-        // Schedule Information
-        'schedule_id': scheduleId, // Add scheduleId
-      };
+      // Schedule Information
+      'schedule_id': scheduleId, // Add scheduleId
+    };
 
-      // ✅ Only include password if it's provided
+    // ✅ Only include password if it's provided
     if (password != null && password!.isNotEmpty) {
       json['password'] = password;
     }

@@ -81,9 +81,17 @@ class _OfferLetterScreenState extends State<OfferLetterScreen> {
   static const _kRujukanY     = 114.3;  // "SEATRU/2026/LI/.." top-of-box
   static const _kTarikhY      = 127.6;  // "10 FEBRUARI 2026"  top-of-box
 
-  // Paragraph 2 — bold name + IC starts right after "menerima" at x0≈126.1
+  // Paragraph 2 — bold name starts right after "menerima" at x0≈126.1
   static const _kNameX        = 126.1;
-  static const _kNameLineY    = 231.3;  // "MUHAMMAD ..." top-of-box
+  static const _kNameLineY    = 231.3;  // name + IC line, top-of-box
+
+  // IC number — centered INSIDE the template's printed ( ) placeholder.
+  // Official text layer: "(" left edge ≈386.8, ")" right edge ≈490.5.
+  // We place a fixed-width box spanning the inside of the parens and
+  // center the IC within it, so it's always centered regardless of length.
+  static const _kIcParenLeft  = 388.0;  // just inside "("
+  static const _kIcParenRight = 489.0;  // just inside ")"
+  static const _kIcY          = 231.3;  // same line as the name
 
   // Details table — "Tempoh :" value column starts at x0≈188.8
   static const _kTableValueX  = 188.8;
@@ -257,12 +265,10 @@ class _OfferLetterScreenState extends State<OfferLetterScreen> {
         .toString()
         .trim();
 
-    // Combine name + IC like image 2: "NAME (IC)". If no IC, just the name.
-    final nameWithIc = (icNumber != '-' && icNumber.isNotEmpty)
-        ? '$fullName ($icNumber)'
-        : fullName;
+    // Name WITHOUT brackets — the IC goes into the template's own ( ).
+    final nameOnly = fullName;
 
-    String startDate = 'Hingga', endDate = 'Hingga';
+    String startDate = '-', endDate = '-';
     if (_sched != null) {
       final s = DateTime.tryParse(_sched!['start_date']?.toString() ?? '');
       final e = DateTime.tryParse(_sched!['end_date']?.toString() ?? '');
@@ -272,9 +278,9 @@ class _OfferLetterScreenState extends State<OfferLetterScreen> {
       if (e != null) endDate = _toMalayDateTitle(e);
     }
 
-    final tempoh = (startDate != 'Hingga' && endDate != 'Hingga')
+    final tempoh = (startDate != '-' && endDate != '-')
         ? '$startDate Hingga $endDate'
-        : 'Hingga';
+        : '-';
 
     final doc = pw.Document();
     doc.addPage(
@@ -298,9 +304,27 @@ class _OfferLetterScreenState extends State<OfferLetterScreen> {
             _field(rujukan, left: _kHeaderValueX, top: _kRujukanY),
             _field(today,   left: _kHeaderValueX, top: _kTarikhY),
 
-            // Name + IC as ONE bold phrase right after "menerima" (image 2).
-            _field(nameWithIc,
+            // Name (bold, no brackets) right after "menerima".
+            _field(nameOnly,
                 left: _kNameX, top: _kNameLineY, bold: true),
+
+            // IC number CENTERED inside the template's printed ( ) placeholder.
+            if (icNumber != '-' && icNumber.isNotEmpty)
+              pw.Positioned(
+                left: _kIcParenLeft,
+                top: _kIcY,
+                child: pw.SizedBox(
+                  width: _kIcParenRight - _kIcParenLeft,
+                  child: pw.Text(
+                    icNumber,
+                    textAlign: pw.TextAlign.center,
+                    style: pw.TextStyle(
+                      fontSize: _kFontSize,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
 
             // Tempoh date range
             _field(tempoh, left: _kTableValueX, top: _kTempohY),
@@ -413,8 +437,8 @@ class _OfferLetterScreenState extends State<OfferLetterScreen> {
               ? _buildError()
               : PdfPreview(
                   build: (_) async => _pdfBytes!,
-                  allowPrinting: _isIntern,
-                  allowSharing: _isIntern,
+                  allowPrinting: false,
+                  allowSharing: false,
                   canChangeOrientation: false,
                   canChangePageFormat: false,
                   canDebug: false,
