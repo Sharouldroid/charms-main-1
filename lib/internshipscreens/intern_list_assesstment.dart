@@ -7,6 +7,7 @@ import 'package:charms/internshipproviders/register_provider.dart';
 import 'package:charms/internshipscreens/assessment_intern.dart';
 import 'package:charms/internshipscreens/intern_detail_submissions.dart';
 import 'package:charms/internshipscreens/monitor_performance.dart';
+import 'package:charms/internshipscreens/offer_letter_screen.dart';
 import 'package:charms/internshipmodels/schedule.dart';
 
 // ── Shared helper to build photo URL ──────────────────────────────────────────
@@ -616,6 +617,34 @@ class _InternListPageState extends State<InternListPage> {
                                       ),
                                     ),
                                   ],
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                                child: SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => OfferLetterScreen(
+                                            userId: internIdInt,
+                                            role: 'Admin',
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    icon: const Icon(
+                                        Icons.description_rounded,
+                                        size: 18),
+                                    label: const Text('View Offer Letter'),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: Colors.teal,
+                                      side: const BorderSide(
+                                          color: Colors.teal),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ],

@@ -26,6 +26,7 @@ import 'package:charms/internshipscreens/admin_intern_attendance_screen.dart';
 import 'package:charms/internshipproviders/schedule_provider.dart';
 import 'package:charms/internshipmodels/schedule.dart';
 import 'package:charms/internshipservices/schedule_service.dart';
+import 'package:charms/internshipscreens/offer_letter_screen.dart';
 import 'package:charms/main.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -849,6 +850,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
             builder: (_) => InternMySelfScreen(
               userId: widget.userId,
               username: widget.username,
+            ),
+          ));
+        }),
+        _buildDashboardButton(context, 'Offer Letter', Icons.description_rounded, () {
+          Navigator.push(context, MaterialPageRoute(
+            builder: (_) => OfferLetterScreen(
+              userId: widget.userId,
+              role: widget.role,
             ),
           ));
         }),
