@@ -1,7 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 import 'package:charms/internshipproviders/assessment_provider.dart';
 import 'package:charms/internshipscreens/assesstment_screen.dart';
+import 'package:charms/internshipmodels/register.dart';
+import 'package:charms/internshipmodels/schedule.dart';
+import 'package:charms/internshipservices/register_service.dart';
+import 'package:charms/internshipservices/schedule_service.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:charms/main.dart';
@@ -26,6 +34,8 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
     with SingleTickerProviderStateMixin {
   late AnimationController _animController;
   String? _resolvedPhotoUrl;
+  Register? _internDetails;
+  Schedule? _internSchedule;
 
   final Map<String, String> _criterionLabels = {
     'criterion_1': 'Communication Skills',
@@ -51,11 +61,15 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
       duration: const Duration(milliseconds: 900),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await Future.wait([
+      final futures = <Future>[
         Provider.of<AssessmentProvider>(context, listen: false)
             .loadAssessmentData(widget.internId),
         _loadPhoto(),
-      ]);
+      ];
+      if (widget.canAssess) {
+        futures.add(_loadInternDetails());
+      }
+      await Future.wait(futures);
       _animController.forward();
     });
   }
@@ -81,6 +95,31 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
       }
     } catch (e) {
       // fail silently
+    }
+  }
+
+  Future<void> _loadInternDetails() async {
+    try {
+      final register =
+          await RegisterService().getInternDetails(widget.internId);
+
+      Schedule? schedule;
+      try {
+        final schedules = await ScheduleService().fetchSchedules();
+        final idx = schedules.indexWhere((s) => s.id == register.scheduleId);
+        if (idx != -1) schedule = schedules[idx];
+      } catch (_) {
+        // schedule lookup failed – leave null
+      }
+
+      if (mounted) {
+        setState(() {
+          _internDetails = register;
+          _internSchedule = schedule;
+        });
+      }
+    } catch (e) {
+      // fail silently – PDF will show placeholders
     }
   }
 
@@ -134,6 +173,228 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
     );
   }
 
+  // ── PDF helpers ───────────────────────────────────────────────────────────
+
+  pw.Widget _pdfRow(String label, String value) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 3),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.SizedBox(
+            width: 130,
+            child: pw.Text(
+              label,
+              style: pw.TextStyle(
+                fontWeight: pw.FontWeight.bold,
+                fontSize: 11,
+                color: PdfColors.grey700,
+              ),
+            ),
+          ),
+          pw.Text(
+            ':  ',
+            style: const pw.TextStyle(fontSize: 11, color: PdfColors.grey700),
+          ),
+          pw.Expanded(
+            child: pw.Text(value, style: const pw.TextStyle(fontSize: 11)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _tableCell(String text, {bool isHeader = false}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(
+          fontSize: 10,
+          fontWeight: isHeader ? pw.FontWeight.bold : null,
+        ),
+      ),
+    );
+  }
+
+  // ── Generate & share the assessment PDF ──────────────────────────────────
+
+  Future<void> _downloadReport(
+    Map<String, int> ratings,
+    Map<String, String> customLabels,
+  ) async {
+    final df = DateFormat('dd MMMM yyyy');
+    final avg = _calculateAverage(ratings);
+
+    final internName = _internDetails != null
+        ? '${_internDetails!.firstName} ${_internDetails!.lastName}'
+        : 'Intern #${widget.internId}';
+    final university = _internDetails?.institutionName ?? '-';
+    final scheduleName = _internSchedule?.description ?? '-';
+    final schedulePeriod = _internSchedule != null
+        ? '${df.format(_internSchedule!.startDate)} to ${df.format(_internSchedule!.endDate)}'
+        : '-';
+
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(36),
+        build: (pw.Context ctx) => [
+          // ── Header ─────────────────────────────────────────────────
+          pw.Container(
+            padding:
+                const pw.EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.blue800,
+              borderRadius: pw.BorderRadius.circular(8),
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  'Intern Assessment Report',
+                  style: pw.TextStyle(
+                    fontSize: 20,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.white,
+                  ),
+                ),
+                pw.SizedBox(height: 4),
+                pw.Text(
+                  'Generated: ${df.format(DateTime.now())}',
+                  style: const pw.TextStyle(
+                    fontSize: 10,
+                    color: PdfColors.grey300,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          pw.SizedBox(height: 20),
+
+          // ── Intern Information ──────────────────────────────────────
+          pw.Text(
+            'Intern Information',
+            style: pw.TextStyle(
+              fontSize: 13,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.blue800,
+            ),
+          ),
+          pw.Divider(thickness: 1, color: PdfColors.blue100),
+          pw.SizedBox(height: 4),
+          _pdfRow('Name', internName),
+          _pdfRow('University', university),
+
+          pw.SizedBox(height: 16),
+
+          // ── Schedule ────────────────────────────────────────────────
+          pw.Text(
+            'Schedule',
+            style: pw.TextStyle(
+              fontSize: 13,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.blue800,
+            ),
+          ),
+          pw.Divider(thickness: 1, color: PdfColors.blue100),
+          pw.SizedBox(height: 4),
+          _pdfRow('Schedule Name', scheduleName),
+          _pdfRow('Period', schedulePeriod),
+
+          pw.SizedBox(height: 20),
+
+          // ── Assessment Results ──────────────────────────────────────
+          pw.Text(
+            'Assessment Results',
+            style: pw.TextStyle(
+              fontSize: 13,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.blue800,
+            ),
+          ),
+          pw.Divider(thickness: 1, color: PdfColors.blue100),
+          pw.SizedBox(height: 8),
+
+          pw.Table(
+            border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+            columnWidths: {
+              0: const pw.FlexColumnWidth(3),
+              1: const pw.FlexColumnWidth(1),
+              2: const pw.FlexColumnWidth(2),
+            },
+            children: [
+              pw.TableRow(
+                decoration:
+                    const pw.BoxDecoration(color: PdfColors.grey200),
+                children: [
+                  _tableCell('Criterion', isHeader: true),
+                  _tableCell('Score', isHeader: true),
+                  _tableCell('Rating', isHeader: true),
+                ],
+              ),
+              ...ratings.keys.map((key) {
+                final score = ratings[key]!;
+                final label = _criterionLabels[key] ??
+                    customLabels[key] ??
+                    key.replaceAll('_', ' ');
+                return pw.TableRow(
+                  children: [
+                    _tableCell(label),
+                    _tableCell('$score / 5'),
+                    _tableCell(_badgeLabel(score)),
+                  ],
+                );
+              }),
+            ],
+          ),
+
+          pw.SizedBox(height: 16),
+
+          // ── Overall Score ───────────────────────────────────────────
+          pw.Container(
+            padding: const pw.EdgeInsets.all(12),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.blue50,
+              borderRadius: pw.BorderRadius.circular(8),
+              border: pw.Border.all(color: PdfColors.blue200, width: 1),
+            ),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text(
+                  'Overall Score',
+                  style: pw.TextStyle(
+                    fontSize: 13,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.Text(
+                  '${avg.toStringAsFixed(1)} / 5.0  ·  ${_badgeLabel(avg.round())}',
+                  style: pw.TextStyle(
+                    fontSize: 13,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.blue800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (_) => pdf.save(),
+      name: 'Assessment_${internName.replaceAll(' ', '_')}.pdf',
+    );
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<AssessmentProvider>(context);
@@ -150,9 +411,20 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
         backgroundColor: Colors.blueAccent,
         foregroundColor: Colors.white,
         elevation: 0,
+        actions: [
+          if (widget.canAssess && hasData)
+            IconButton(
+              icon: const Icon(Icons.download_rounded),
+              tooltip: 'Download Report',
+              onPressed: () => _downloadReport(
+                ratings,
+                provider.customCriteriaLabels,
+              ),
+            ),
+        ],
       ),
 
-      // FAB: only shown to admin
+      // FAB: only shown to supervisor
       floatingActionButton: widget.canAssess
           ? FloatingActionButton.extended(
               onPressed: () {
@@ -222,7 +494,7 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Text(
-                                  'My Assessment',
+                                  'Intern Assessment',
                                   style: TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w500,
@@ -407,12 +679,10 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
                           ),
                           child: Column(
                             children: [
-                              // ── FIX: use Flexible to prevent overflow ──
                               Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
-                                  // Left: icon + label (shrinks if needed)
                                   Flexible(
                                     child: Row(
                                       children: [
@@ -434,7 +704,6 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
                                     ),
                                   ),
                                   const SizedBox(width: 8),
-                                  // Right: stars + badge (fixed, min size)
                                   Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
@@ -470,7 +739,8 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
                                 builder: (_, __) => ClipRRect(
                                   borderRadius: BorderRadius.circular(99),
                                   child: LinearProgressIndicator(
-                                    value: (score / 5) * _animController.value,
+                                    value:
+                                        (score / 5) * _animController.value,
                                     minHeight: 6,
                                     backgroundColor: Colors.grey[100],
                                     valueColor: AlwaysStoppedAnimation(
@@ -505,9 +775,10 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
                     child: OutlinedButton.icon(
                       onPressed: () async {
                         _animController.reset();
-                        await Provider.of<AssessmentProvider>(context,
-                                listen: false)
-                            .loadAssessmentData(widget.internId);
+                        final p = Provider.of<AssessmentProvider>(
+                            context,
+                            listen: false);
+                        await p.loadAssessmentData(widget.internId);
                         _animController.forward();
                       },
                       icon: const Icon(Icons.refresh_rounded, size: 18),
