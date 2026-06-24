@@ -391,6 +391,7 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
                     ...ratings.keys.map((key) {
                       final score = ratings[key]!;
                       final label = _criterionLabels[key] ??
+                          provider.customCriteriaLabels[key] ??
                           key.replaceAll('_', ' ').capitalize();
                       final icon =
                           _criterionIcons[key] ?? Icons.star_outline;

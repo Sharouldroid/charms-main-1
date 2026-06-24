@@ -91,29 +91,41 @@ class AssessmentProvider with ChangeNotifier {
   }
 
   Future<void> submitAssessment(int internId) async {
-    await AssessmentService().submitAssessment(internId, _ratings);
-  }
+  // Build a label map for ALL criteria, including the fixed 5
+  final labels = <String, String>{
+    'criterion_1': 'Communication Skills',
+    'criterion_2': 'Problem Solving',
+    'criterion_3': 'Teamwork',
+    'criterion_4': 'Punctuality',
+    'criterion_5': 'Adaptability',
+    ..._customCriteriaLabels,
+  };
+  await AssessmentService().submitAssessment(internId, _ratings, labels);
+}
 
-  Future<void> loadAssessmentData(int internId) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
+Future<void> loadAssessmentData(int internId) async {
+  _isLoading = true;
+  _errorMessage = null;
+  notifyListeners();
 
-    try {
-      final data = await AssessmentService().getAssessmentData(internId);
-      if (data != null) {
-        _ratings = data;
-        _errorMessage = null;
-      } else {
-        _errorMessage = 'No assessment data found';
-        _ratings = {}; // ← clear so 0.0 score card is hidden
-      }
-    } catch (e) {
-      _errorMessage = 'Failed to load assessment data: $e';
-      _ratings = {}; // ← clear on error too
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+  try {
+    final data = await AssessmentService().getAssessmentData(internId);
+    if (data != null) {
+      _ratings = Map<String, int>.from(data['ratings']);
+      _customCriteriaLabels = Map<String, String>.from(data['labels']);
+      _errorMessage = null;
+    } else {
+      _errorMessage = 'No assessment data found';
+      _ratings = {};
+      _customCriteriaLabels = {};
     }
+  } catch (e) {
+    _errorMessage = 'Failed to load assessment data: $e';
+    _ratings = {};
+    _customCriteriaLabels = {};
+  } finally {
+    _isLoading = false;
+    notifyListeners();
   }
+}
 }
