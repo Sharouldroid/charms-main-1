@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:provider/provider.dart';
 import 'package:charms/internshipmodels/activity.dart';
+import 'package:charms/internshipmodels/schedule.dart';
 import 'package:charms/internshipservices/activity_service.dart';
 import 'package:charms/internshipproviders/register_provider.dart';
 import 'package:charms/internshipmodels/InternAttendanceRecord.dart';
 import 'package:charms/internshipservices/InternAttendanceService.dart';
+import 'package:charms/internshipservices/schedule_service.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -45,6 +48,7 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
   int? _selectedInternId;
   String _selectedInternName = '';
   String _internDisplayName = '';
+  String _internTeam = '';
 
   InternAttendanceRecord? _todayAttendance;
   List<InternAttendanceRecord> _attendanceHistory = [];
@@ -67,7 +71,7 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
   }
 
   Future<void> _loadAll() async {
-    // Fetch intern's own name for the report header
+    // Fetch intern's own name and team for the report header
     try {
       final details = await Provider.of<RegisterProvider>(context, listen: false)
           .getInternDetails(widget.userId);
@@ -76,6 +80,7 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
           _internDisplayName = '${details.firstName} ${details.lastName}'.trim();
         });
       }
+      await _loadInternTeam(details.scheduleId);
     } catch (_) {}
 
     await Future.wait([
@@ -83,6 +88,18 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
       _loadMilestones(widget.userId),
       _loadAttendance(widget.userId),
     ]);
+  }
+
+  Future<void> _loadInternTeam(int? scheduleId) async {
+    if (scheduleId == null) return;
+    try {
+      final schedules = await ScheduleService().fetchSchedules();
+      Schedule? s;
+      try {
+        s = schedules.firstWhere((sc) => sc.id == scheduleId);
+      } catch (_) {}
+      if (mounted && s != null) setState(() => _internTeam = s!.description);
+    } catch (_) {}
   }
 
   Future<void> _loadInterns() async {
@@ -178,10 +195,15 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
       _todayAttendance = null;
       _attendanceHistory = [];
       _milestones = [];
+      _internTeam = '';
     });
     _loadActivities();
     _loadMilestones(internId);
     _loadAttendance(internId);
+    final rawScheduleId = selected['schedule_id'];
+    if (rawScheduleId != null) {
+      _loadInternTeam((rawScheduleId as num).toInt());
+    }
   }
 
   bool _isEditableToday(Activity activity) {
@@ -458,6 +480,9 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
 
   // ── Report ───────────────────────────────────────────────────────────────
 
+  bool _isFaizahTeam(String team) =>
+      team == 'Administration Team' || team == 'Digital Team';
+
   Future<void> _generateReport() async {
     setState(() => _isGeneratingReport = true);
     try {
@@ -472,6 +497,15 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
           0, (sum, r) => sum + (r.shiftDuration?.inMinutes ?? 0));
       final totalHours = totalMinutes ~/ 60;
       final remainMin = totalMinutes % 60;
+
+      // Load supervisor signature based on intern's team
+      final sigAsset = _isFaizahTeam(_internTeam)
+          ? 'assets/Signature Dr Faizah.jpeg'
+          : 'assets/Signature Dr Uzair.png';
+      final sigName =
+          _isFaizahTeam(_internTeam) ? 'Dr. Faizah' : 'Dr. Uzair';
+      final sigBytes = await rootBundle.load(sigAsset);
+      final sigImage = pw.MemoryImage(sigBytes.buffer.asUint8List());
 
       final pdf = pw.Document();
       pdf.addPage(
@@ -636,6 +670,35 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
                     const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                 border: pw.TableBorder.all(color: PdfColors.grey300),
               ),
+
+            // ── Supervisor Signature ─────────────────────────────────────
+            pw.SizedBox(height: 40),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.end,
+              children: [
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.center,
+                  children: [
+                    pw.Text('Company Supervisor',
+                        style: const pw.TextStyle(
+                            fontSize: 10, color: PdfColors.grey700)),
+                    pw.SizedBox(height: 6),
+                    pw.Image(sigImage, height: 60),
+                    pw.Container(
+                      width: 160,
+                      decoration: const pw.BoxDecoration(
+                        border: pw.Border(
+                            top: pw.BorderSide(color: PdfColors.grey500)),
+                      ),
+                    ),
+                    pw.SizedBox(height: 4),
+                    pw.Text(sigName,
+                        style: pw.TextStyle(
+                            fontWeight: pw.FontWeight.bold, fontSize: 11)),
+                  ],
+                ),
+              ],
+            ),
           ],
         ),
       );
