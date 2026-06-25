@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import 'dart:convert';
 import 'package:charms/main.dart';
 import 'package:charms/internshipproviders/register_provider.dart';
@@ -114,6 +115,16 @@ class _InternListPageState extends State<InternListPage> {
     final match = RegExp(r'(\d{4})').firstMatch(raw.toString());
     if (match != null) return int.tryParse(match.group(1)!);
     return null;
+  }
+
+  String? _getRegisteredDate(dynamic intern) {
+    final raw = intern['created_at'] ?? intern['registration_date'];
+    if (raw == null) return null;
+    try {
+      return DateFormat('dd MMM yyyy').format(DateTime.parse(raw.toString()).toLocal());
+    } catch (_) {
+      return null;
+    }
   }
 
   // Returns 'active' or 'completed' based on end_date or status field.
@@ -521,7 +532,8 @@ class _InternListPageState extends State<InternListPage> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                        "Age: ${intern['age']} - Gender: ${intern['gender']}"),
+                                        "Age: ${intern['age']} - Gender: ${intern['gender']}"
+                                        "${_getRegisteredDate(intern) != null ? ' - Registered: ${_getRegisteredDate(intern)}' : ''}"),
                                     if ((intern['slot_count'] ?? 1) > 1)
                                       Container(
                                         margin:
