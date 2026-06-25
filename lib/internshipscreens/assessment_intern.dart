@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -219,6 +220,9 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
 
   // ── Generate & share the assessment PDF ──────────────────────────────────
 
+  bool _isFaizahTeam(String? team) =>
+      team == 'Administration Team' || team == 'Digital Team';
+
   Future<void> _downloadReport(
     Map<String, int> ratings,
     Map<String, String> customLabels,
@@ -234,6 +238,15 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
     final schedulePeriod = _internSchedule != null
         ? '${df.format(_internSchedule!.startDate)} to ${df.format(_internSchedule!.endDate)}'
         : '-';
+
+    // Load supervisor signature based on intern's team
+    final teamName = _internSchedule?.description;
+    final sigAsset = _isFaizahTeam(teamName)
+        ? 'assets/Signature Dr Faizah.jpeg'
+        : 'assets/Signature Dr Uzair.png';
+    final sigName = _isFaizahTeam(teamName) ? 'Dr. Faizah' : 'Dr. Uzair';
+    final sigBytes = await rootBundle.load(sigAsset);
+    final sigImage = pw.MemoryImage(sigBytes.buffer.asUint8List());
 
     final pdf = pw.Document();
 
@@ -382,6 +395,39 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
                 ),
               ],
             ),
+          ),
+
+          // ── Supervisor Signature ────────────────────────────────────
+          pw.SizedBox(height: 40),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.end,
+            children: [
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.center,
+                children: [
+                  pw.Text(
+                    'Company Supervisor',
+                    style: const pw.TextStyle(
+                        fontSize: 10, color: PdfColors.grey700),
+                  ),
+                  pw.SizedBox(height: 6),
+                  pw.Image(sigImage, height: 60),
+                  pw.Container(
+                    width: 160,
+                    decoration: const pw.BoxDecoration(
+                      border: pw.Border(
+                          top: pw.BorderSide(color: PdfColors.grey500)),
+                    ),
+                  ),
+                  pw.SizedBox(height: 4),
+                  pw.Text(
+                    sigName,
+                    style: pw.TextStyle(
+                        fontWeight: pw.FontWeight.bold, fontSize: 11),
+                  ),
+                ],
+              ),
+            ],
           ),
         ],
       ),
