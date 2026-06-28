@@ -808,9 +808,9 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
                           SizedBox(
                             width: double.infinity,
                             child: OutlinedButton.icon(
-                              icon: Icon(Icons.lock_outline_rounded,
+                              icon: Icon(Icons.manage_accounts_rounded,
                                   color: staffPrimary),
-                              label: Text('Change Password',
+                              label: Text('Account Settings',
                                   style: TextStyle(
                                       color: staffPrimary,
                                       fontWeight: FontWeight.w700)),
