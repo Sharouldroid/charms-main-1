@@ -99,10 +99,17 @@ class _InternListPageState extends State<InternListPage> {
     _applyFilters();
   }
 
-  // ── Helpers to read team/year, with fallback keys in case your API uses
-  //    a different field name — adjust here if needed ─────────────────────
-  String? _getTeam(dynamic intern) {
-    return intern['team'] ?? intern['internship_team'] ?? intern['department'];
+  // ── Helper to read team(s) for an intern. Backend now returns:
+  //    'teams' -> List<String> (all teams this intern is registered under)
+  //    'team'  -> String? (first team, convenience field)
+  //    Falls back to legacy single-field keys if 'teams' isn't present ──────
+  List<String> _getTeams(dynamic intern) {
+    final raw = intern['teams'];
+    if (raw is List) {
+      return raw.map((e) => e.toString()).toList();
+    }
+    final single = intern['team'] ?? intern['internship_team'] ?? intern['department'];
+    return single != null ? [single.toString()] : [];
   }
 
   int? _getYear(dynamic intern) {
@@ -159,7 +166,7 @@ class _InternListPageState extends State<InternListPage> {
     }
 
     if (_selectedTeam != null) {
-      result = result.where((i) => _getTeam(i) == _selectedTeam).toList();
+      result = result.where((i) => _getTeams(i).contains(_selectedTeam)).toList();
     }
 
     if (_selectedYear != null) {
