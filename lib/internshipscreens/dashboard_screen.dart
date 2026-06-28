@@ -27,6 +27,7 @@ import 'package:charms/internshipproviders/schedule_provider.dart';
 import 'package:charms/internshipmodels/schedule.dart';
 import 'package:charms/internshipservices/schedule_service.dart';
 import 'package:charms/internshipscreens/offer_letter_screen.dart';
+import 'package:charms/internshipscreens/intern_history_screen.dart';
 import 'package:charms/main.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -766,6 +767,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
             builder: (_) => const InternListPage(canAssess: true),
           ));
         }),
+        _buildDashboardButton(context, 'Intern History', Icons.history_rounded, () {
+          Navigator.push(context, MaterialPageRoute(
+            builder: (_) => InternHistoryScreen(
+              role: widget.role,
+              userId: widget.userId,
+            ),
+          ));
+        }),
         // _buildDashboardButton(context, 'Activity Logs', Icons.monitor_rounded, () {
         //   Navigator.push(context, MaterialPageRoute(
         //     builder: (_) => MonitorPerformancePage(
@@ -817,6 +826,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
             () {
           Navigator.push(context, MaterialPageRoute(
             builder: (_) => const AdminInternAttendanceScreen(),
+          ));
+        }),
+        _buildDashboardButton(context, 'Intern History', Icons.history_rounded,
+            () {
+          Navigator.push(context, MaterialPageRoute(
+            builder: (_) => InternHistoryScreen(
+              role: widget.role,
+              userId: widget.userId,
+            ),
           ));
         }),
       ]);
@@ -1433,6 +1451,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
               builder: (_) => AdminSubmissionsPage(adminId: widget.userId),
             )),
           ),
+          const SizedBox(height: 12),
+          _buildSupervisorCard(
+            title: 'Intern History',
+            subtitle: 'View past batches and historical document submissions',
+            icon: Icons.history_rounded,
+            iconColor: const Color(0xFF0891B2),
+            iconBg: const Color(0xFFCFFAFE),
+            tag: 'History',
+            tagColor: const Color(0xFF0891B2),
+            tagBg: const Color(0xFFECFEFF),
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => InternHistoryScreen(
+                role: widget.role,
+                userId: widget.userId,
+              ),
+            )),
+          ),
         ],
       ),
     );
@@ -1750,6 +1785,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
             tagBg: const Color(0xFFECFDF5),
             onTap: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) => const AdminInternAttendanceScreen(),
+            )),
+          ),
+          const SizedBox(height: 12),
+          _buildSupervisorCard(
+            title: 'Intern History',
+            subtitle: 'View past batches and historical document submissions',
+            icon: Icons.history_rounded,
+            iconColor: const Color(0xFF0891B2),
+            iconBg: const Color(0xFFCFFAFE),
+            tag: 'History',
+            tagColor: const Color(0xFF0891B2),
+            tagBg: const Color(0xFFECFEFF),
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => InternHistoryScreen(
+                role: widget.role,
+                userId: widget.userId,
+              ),
             )),
           ),
         ],
