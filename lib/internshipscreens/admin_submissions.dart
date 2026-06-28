@@ -20,7 +20,8 @@ class AdminSubmissionsPage extends StatefulWidget {
 class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
   List<Map<String, dynamic>> _submissions = [];
   bool _isLoading = false;
-  String _filterStatus = 'all';
+  String _filterStatus = 'all';             // pending/approved/rejected/resubmit
+  String _filterInternshipStatus = 'all';   // active/completed
 
   @override
   void initState() {
@@ -319,10 +320,19 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
   // ─── Filter ──────────────────────────────────────────────────────────────────
 
   List<Map<String, dynamic>> get filteredSubmissions {
-    if (_filterStatus == 'all') return _submissions;
-    return _submissions
-        .where((sub) => sub['status'] == _filterStatus)
-        .toList();
+    var result = _submissions;
+
+    if (_filterStatus != 'all') {
+      result = result.where((sub) => sub['status'] == _filterStatus).toList();
+    }
+
+    if (_filterInternshipStatus != 'all') {
+      result = result
+          .where((sub) => sub['internship_status'] == _filterInternshipStatus)
+          .toList();
+    }
+
+    return result;
   }
 
   // ─── Submission Card ─────────────────────────────────────────────────────────
@@ -358,6 +368,12 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
     final documentLink = submission['document_link'];
     final hasLink = documentLink != null && documentLink.toString().isNotEmpty;
 
+    // Internship Active/Completed badge (only shown if backend provided it)
+    final internshipStatus = submission['internship_status'];
+    final hasInternshipStatus =
+        internshipStatus != null && internshipStatus.toString().isNotEmpty;
+    final isInternshipActive = internshipStatus == 'active';
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       elevation: 3,
@@ -367,7 +383,7 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Header: student info + status badge ──
+            // ── Header: student info + status badges ──
             Row(
               children: [
                 Expanded(
@@ -389,31 +405,65 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
                     ],
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: statusColor),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(statusIcon, size: 16, color: statusColor),
-                      const SizedBox(width: 4),
-                      Text(
-                        (submission['status'] ?? 'unknown')
-                            .toString()
-                            .toUpperCase(),
-                        style: TextStyle(
-                          color: statusColor,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: statusColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: statusColor),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(statusIcon, size: 16, color: statusColor),
+                          const SizedBox(width: 4),
+                          Text(
+                            (submission['status'] ?? 'unknown')
+                                .toString()
+                                .toUpperCase(),
+                            style: TextStyle(
+                              color: statusColor,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (hasInternshipStatus) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: (isInternshipActive
+                                  ? Colors.teal
+                                  : Colors.grey)
+                              .withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isInternshipActive
+                                ? Colors.teal
+                                : Colors.grey,
+                          ),
+                        ),
+                        child: Text(
+                          isInternshipActive ? 'ACTIVE' : 'COMPLETED',
+                          style: TextStyle(
+                            color: isInternshipActive
+                                ? Colors.teal[700]
+                                : Colors.grey[700],
+                            fontWeight: FontWeight.w600,
+                            fontSize: 10,
+                          ),
                         ),
                       ),
                     ],
-                  ),
+                  ],
                 ),
               ],
             ),
@@ -575,7 +625,7 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
     );
   }
 
-  // ─── Filter Chip ─────────────────────────────────────────────────────────────
+  // ─── Filter Chips ────────────────────────────────────────────────────────────
 
   Widget _buildFilterChip(String value, String label) {
     return Padding(
@@ -588,6 +638,21 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
         },
         selectedColor: Colors.blueAccent.withOpacity(0.2),
         checkmarkColor: Colors.blueAccent,
+      ),
+    );
+  }
+
+  Widget _buildInternshipFilterChip(String value, String label) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: FilterChip(
+        label: Text(label),
+        selected: _filterInternshipStatus == value,
+        onSelected: (selected) {
+          setState(() => _filterInternshipStatus = value);
+        },
+        selectedColor: Colors.teal.withOpacity(0.2),
+        checkmarkColor: Colors.teal,
       ),
     );
   }
@@ -610,9 +675,9 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
       ),
       body: Column(
         children: [
-          // Filter bar
+          // Document status filter bar
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Row(
               children: [
                 const Text('Filter: ',
@@ -635,6 +700,29 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
             ),
           ),
 
+          // Internship status filter bar
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Row(
+              children: [
+                const Text('Internship: ',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildInternshipFilterChip('all', 'All'),
+                        _buildInternshipFilterChip('active', 'Active'),
+                        _buildInternshipFilterChip('completed', 'Completed'),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
           // Submissions list
           Expanded(
             child: _isLoading
@@ -648,9 +736,10 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
                                 size: 64, color: Colors.grey[400]),
                             const SizedBox(height: 16),
                             Text(
-                              _filterStatus == 'all'
+                              _filterStatus == 'all' &&
+                                      _filterInternshipStatus == 'all'
                                   ? 'No submissions yet'
-                                  : 'No $_filterStatus submissions',
+                                  : 'No matching submissions',
                               style: TextStyle(
                                   color: Colors.grey[600], fontSize: 16),
                             ),
