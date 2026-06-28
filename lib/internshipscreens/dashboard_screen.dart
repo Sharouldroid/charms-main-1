@@ -500,6 +500,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
     }
 
+    if (widget.role == 'Supervisor') return _buildSupervisorScaffold();
+    if (widget.role == 'Admin') return _buildAdminScaffold();
+    if (widget.role == 'Intern') return _buildInternScaffold();
+
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FB),
       appBar: AppBar(
@@ -1160,6 +1164,1036 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ]),
         ),
+      ),
+    );
+  }
+
+  // ── Supervisor Dashboard ───────────────────────────────────────────────
+
+  Widget _buildSupervisorScaffold() {
+    final now = DateTime.now();
+    final hour = now.hour;
+    final greeting = hour < 12
+        ? 'Good Morning'
+        : hour < 17
+            ? 'Good Afternoon'
+            : 'Good Evening';
+    final dateStr = DateFormat('EEEE, d MMMM yyyy').format(now);
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            expandedHeight: 180,
+            pinned: true,
+            stretch: true,
+            backgroundColor: const Color(0xFF1E3A8A),
+            surfaceTintColor: Colors.transparent,
+            iconTheme: const IconThemeData(color: Colors.white),
+            title: const Text('Dashboard',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600)),
+            actions: [
+              _buildSupervisorNotifBell(),
+              IconButton(
+                icon: const Icon(Icons.logout_rounded,
+                    color: Colors.white70, size: 22),
+                tooltip: 'Logout',
+                onPressed: () => _logout(context),
+              ),
+              const SizedBox(width: 8),
+            ],
+            flexibleSpace: FlexibleSpaceBar(
+              background: _buildSupervisorHero(greeting, dateStr),
+            ),
+          ),
+          SliverToBoxAdapter(child: _buildSupervisorBody()),
+        ],
+      ),
+      bottomNavigationBar: _buildSupervisorBottomNav(),
+    );
+  }
+
+  Widget _buildSupervisorNotifBell() {
+    return Consumer<InternshipNotificationProvider>(
+      builder: (context, notifProvider, _) {
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.notifications_outlined, color: Colors.white),
+              tooltip: 'Notifications',
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => InternshipNotificationScreen(
+                      userId: widget.userId,
+                      isAdmin: true,
+                    ),
+                  ),
+                );
+                if (mounted) {
+                  context
+                      .read<InternshipNotificationProvider>()
+                      .fetchUnreadCount(widget.userId, true);
+                }
+              },
+            ),
+            if (notifProvider.unreadCount > 0)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: const BoxDecoration(
+                      color: Colors.redAccent, shape: BoxShape.circle),
+                  constraints:
+                      const BoxConstraints(minWidth: 16, minHeight: 16),
+                  child: Text(
+                    notifProvider.unreadCount > 99
+                        ? '99+'
+                        : '${notifProvider.unreadCount}',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildSupervisorHero(String greeting, String dateStr) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF1E3A8A), Color(0xFF4338CA)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 80, 20, 24),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            (_currentStaff?.filepath != null &&
+                    _currentStaff!.filepath!.isNotEmpty)
+                ? CircleAvatar(
+                    radius: 30,
+                    backgroundImage: NetworkImage(
+                        'https://devcms.com.my/charmsAPI/public/storage/${_currentStaff!.filepath}'),
+                  )
+                : Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                          color: Colors.white.withOpacity(0.3), width: 2),
+                    ),
+                    child: const Icon(Icons.person_rounded,
+                        color: Colors.white, size: 30),
+                  ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(greeting,
+                      style: const TextStyle(
+                          color: Colors.white60, fontSize: 12)),
+                  const SizedBox(height: 2),
+                  Text(widget.username,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          height: 1.2),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                              color: Colors.white.withOpacity(0.2)),
+                        ),
+                        child: const Text('Supervisor',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600)),
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(dateStr,
+                            style: const TextStyle(
+                                color: Colors.white54, fontSize: 11),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSupervisorBody() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              width: 4,
+              height: 20,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF2563EB), Color(0xFF7C3AED)],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Text('Management Tools',
+                style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F172A))),
+          ]),
+          const SizedBox(height: 4),
+          const Padding(
+            padding: EdgeInsets.only(left: 14),
+            child: Text('Tap a card to get started',
+                style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
+          ),
+          const SizedBox(height: 20),
+          _buildSupervisorCard(
+            title: 'Intern List',
+            subtitle: 'View, manage and assess your intern roster',
+            icon: Icons.people_alt_rounded,
+            iconColor: const Color(0xFF2563EB),
+            iconBg: const Color(0xFFDBEAFE),
+            tag: 'Roster',
+            tagColor: const Color(0xFF2563EB),
+            tagBg: const Color(0xFFEFF6FF),
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const InternListPage(canAssess: true),
+            )),
+          ),
+          const SizedBox(height: 12),
+          _buildSupervisorCard(
+            title: 'Attendance',
+            subtitle: 'Track and monitor daily intern attendance records',
+            icon: Icons.fingerprint_rounded,
+            iconColor: const Color(0xFF059669),
+            iconBg: const Color(0xFFD1FAE5),
+            tag: 'Records',
+            tagColor: const Color(0xFF059669),
+            tagBg: const Color(0xFFECFDF5),
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const AdminInternAttendanceScreen(),
+            )),
+          ),
+          const SizedBox(height: 12),
+          _buildSupervisorCard(
+            title: 'Submissions',
+            subtitle: 'Review and evaluate intern document submissions',
+            icon: Icons.assignment_turned_in_rounded,
+            iconColor: const Color(0xFF7C3AED),
+            iconBg: const Color(0xFFEDE9FE),
+            tag: 'Documents',
+            tagColor: const Color(0xFF7C3AED),
+            tagBg: const Color(0xFFF5F3FF),
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => AdminSubmissionsPage(adminId: widget.userId),
+            )),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSupervisorCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color iconColor,
+    required Color iconBg,
+    required String tag,
+    required Color tagColor,
+    required Color tagBg,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Row(children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: iconBg,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: iconColor, size: 26),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(title,
+                              style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF0F172A))),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: tagBg,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(tag,
+                              style: TextStyle(
+                                  color: tagColor,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    Text(subtitle,
+                        style: const TextStyle(
+                            color: Color(0xFF64748B),
+                            fontSize: 12,
+                            height: 1.4)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.chevron_right_rounded,
+                  color: Color(0xFFCBD5E1), size: 22),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Admin Dashboard ───────────────────────────────────────────────────
+
+  Widget _buildAdminScaffold() {
+    final now = DateTime.now();
+    final hour = now.hour;
+    final greeting = hour < 12
+        ? 'Good Morning'
+        : hour < 17
+            ? 'Good Afternoon'
+            : 'Good Evening';
+    final dateStr = DateFormat('EEEE, d MMMM yyyy').format(now);
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            expandedHeight: 180,
+            pinned: true,
+            stretch: true,
+            backgroundColor: const Color(0xFF1E3A8A),
+            surfaceTintColor: Colors.transparent,
+            iconTheme: const IconThemeData(color: Colors.white),
+            title: const Text('Dashboard',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600)),
+            actions: [
+              _buildSupervisorNotifBell(),
+              IconButton(
+                icon: const Icon(Icons.logout_rounded,
+                    color: Colors.white70, size: 22),
+                tooltip: 'Logout',
+                onPressed: () => _logout(context),
+              ),
+              const SizedBox(width: 8),
+            ],
+            flexibleSpace: FlexibleSpaceBar(
+              background: _buildAdminHero(greeting, dateStr),
+            ),
+          ),
+          SliverToBoxAdapter(child: _buildAdminBody()),
+        ],
+      ),
+      bottomNavigationBar: _buildSupervisorBottomNav(),
+    );
+  }
+
+  Widget _buildAdminHero(String greeting, String dateStr) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF1E3A8A), Color(0xFF4338CA)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 80, 20, 24),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            (_currentStaff?.filepath != null &&
+                    _currentStaff!.filepath!.isNotEmpty)
+                ? CircleAvatar(
+                    radius: 30,
+                    backgroundImage: NetworkImage(
+                        'https://devcms.com.my/charmsAPI/public/storage/${_currentStaff!.filepath}'),
+                  )
+                : Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                          color: Colors.white.withOpacity(0.3), width: 2),
+                    ),
+                    child: const Icon(Icons.person_rounded,
+                        color: Colors.white, size: 30),
+                  ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(greeting,
+                      style: const TextStyle(
+                          color: Colors.white60, fontSize: 12)),
+                  const SizedBox(height: 2),
+                  Text(widget.username,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          height: 1.2),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 6),
+                  Row(children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(20),
+                        border:
+                            Border.all(color: Colors.white.withOpacity(0.2)),
+                      ),
+                      child: const Text('Admin',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600)),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(dateStr,
+                          style: const TextStyle(
+                              color: Colors.white54, fontSize: 11),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                  ]),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAdminBody() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              width: 4,
+              height: 20,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF2563EB), Color(0xFF7C3AED)],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Text('Management Tools',
+                style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F172A))),
+          ]),
+          const SizedBox(height: 4),
+          const Padding(
+            padding: EdgeInsets.only(left: 14),
+            child: Text('Tap a card to get started',
+                style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
+          ),
+          const SizedBox(height: 20),
+          _buildSupervisorCard(
+            title: 'Create Schedule',
+            subtitle: 'Set up and manage internship schedules',
+            icon: Icons.calendar_month_rounded,
+            iconColor: const Color(0xFF2563EB),
+            iconBg: const Color(0xFFDBEAFE),
+            tag: 'Calendar',
+            tagColor: const Color(0xFF2563EB),
+            tagBg: const Color(0xFFEFF6FF),
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) =>
+                  ScheduleCalendar(isAdmin: true, userId: widget.userId),
+            )),
+          ),
+          const SizedBox(height: 12),
+          _buildSupervisorCard(
+            title: 'Intern List',
+            subtitle: 'View and manage all registered interns',
+            icon: Icons.people_alt_rounded,
+            iconColor: const Color(0xFF7C3AED),
+            iconBg: const Color(0xFFEDE9FE),
+            tag: 'Roster',
+            tagColor: const Color(0xFF7C3AED),
+            tagBg: const Color(0xFFF5F3FF),
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const InternListPage(canAssess: false),
+            )),
+          ),
+          const SizedBox(height: 12),
+          _buildSupervisorCard(
+            title: 'Intern Submissions',
+            subtitle: 'Review and evaluate intern document submissions',
+            icon: Icons.assignment_turned_in_rounded,
+            iconColor: const Color(0xFFD97706),
+            iconBg: const Color(0xFFFEF3C7),
+            tag: 'Documents',
+            tagColor: const Color(0xFFD97706),
+            tagBg: const Color(0xFFFFFBEB),
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => AdminSubmissionsPage(adminId: widget.userId),
+            )),
+          ),
+          const SizedBox(height: 12),
+          _buildSupervisorCard(
+            title: 'Attendance',
+            subtitle: 'Track and monitor daily intern attendance records',
+            icon: Icons.fingerprint_rounded,
+            iconColor: const Color(0xFF059669),
+            iconBg: const Color(0xFFD1FAE5),
+            tag: 'Records',
+            tagColor: const Color(0xFF059669),
+            tagBg: const Color(0xFFECFDF5),
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const AdminInternAttendanceScreen(),
+            )),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Intern Dashboard ───────────────────────────────────────────────────
+
+  Widget _buildInternScaffold() {
+    final now = DateTime.now();
+    final hour = now.hour;
+    final greeting = hour < 12
+        ? 'Good Morning'
+        : hour < 17
+            ? 'Good Afternoon'
+            : 'Good Evening';
+    final dateStr = DateFormat('EEEE, d MMMM yyyy').format(now);
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            expandedHeight: 180,
+            pinned: true,
+            stretch: true,
+            backgroundColor: const Color(0xFF0F766E),
+            surfaceTintColor: Colors.transparent,
+            iconTheme: const IconThemeData(color: Colors.white),
+            title: const Text('Dashboard',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600)),
+            actions: [
+              _buildInternNotifBell(),
+              IconButton(
+                icon: const Icon(Icons.logout_rounded,
+                    color: Colors.white70, size: 22),
+                tooltip: 'Logout',
+                onPressed: () => _logout(context),
+              ),
+              const SizedBox(width: 8),
+            ],
+            flexibleSpace: FlexibleSpaceBar(
+              background: _buildInternHero(greeting, dateStr),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Column(
+              children: [
+                _buildInternBody(),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                  child: _buildAvailableSchedulesCard(),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      bottomNavigationBar: _buildInternBottomNav(),
+    );
+  }
+
+  Widget _buildInternNotifBell() {
+    return Consumer<InternshipNotificationProvider>(
+      builder: (context, notifProvider, _) {
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.notifications_outlined,
+                  color: Colors.white),
+              tooltip: 'Notifications',
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => InternshipNotificationScreen(
+                      userId: widget.userId,
+                      isAdmin: false,
+                    ),
+                  ),
+                );
+                if (mounted) {
+                  context
+                      .read<InternshipNotificationProvider>()
+                      .fetchUnreadCount(widget.userId, false);
+                }
+              },
+            ),
+            if (notifProvider.unreadCount > 0)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: const BoxDecoration(
+                      color: Colors.redAccent, shape: BoxShape.circle),
+                  constraints:
+                      const BoxConstraints(minWidth: 16, minHeight: 16),
+                  child: Text(
+                    notifProvider.unreadCount > 99
+                        ? '99+'
+                        : '${notifProvider.unreadCount}',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildInternHero(String greeting, String dateStr) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF0F766E), Color(0xFF0284C7)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 80, 20, 24),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            (_currentStaff?.filepath != null &&
+                    _currentStaff!.filepath!.isNotEmpty)
+                ? CircleAvatar(
+                    radius: 30,
+                    backgroundImage: NetworkImage(
+                        'https://devcms.com.my/charmsAPI/public/storage/${_currentStaff!.filepath}'),
+                  )
+                : Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                          color: Colors.white.withOpacity(0.3), width: 2),
+                    ),
+                    child: const Icon(Icons.person_rounded,
+                        color: Colors.white, size: 30),
+                  ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(greeting,
+                      style: const TextStyle(
+                          color: Colors.white60, fontSize: 12)),
+                  const SizedBox(height: 2),
+                  Text(widget.username,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          height: 1.2),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 6),
+                  Row(children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(20),
+                        border:
+                            Border.all(color: Colors.white.withOpacity(0.2)),
+                      ),
+                      child: const Text('Intern',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600)),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(dateStr,
+                          style: const TextStyle(
+                              color: Colors.white54, fontSize: 11),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                  ]),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInternBody() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 28, 20, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              width: 4,
+              height: 20,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF0F766E), Color(0xFF0284C7)],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Text('Quick Actions',
+                style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F172A))),
+          ]),
+          const SizedBox(height: 4),
+          const Padding(
+            padding: EdgeInsets.only(left: 14),
+            child: Text('Tap a card to get started',
+                style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
+          ),
+          const SizedBox(height: 20),
+          _buildSupervisorCard(
+            title: 'Register',
+            subtitle: 'Register for an available internship schedule',
+            icon: Icons.calendar_month_rounded,
+            iconColor: const Color(0xFF0891B2),
+            iconBg: const Color(0xFFE0F2FE),
+            tag: 'Schedule',
+            tagColor: const Color(0xFF0891B2),
+            tagBg: const Color(0xFFF0F9FF),
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) =>
+                  ScheduleCalendar(isAdmin: false, userId: widget.userId),
+            )),
+          ),
+          const SizedBox(height: 12),
+          _buildSupervisorCard(
+            title: 'Activity Logs',
+            subtitle: 'View your daily internship activity records',
+            icon: Icons.bar_chart_rounded,
+            iconColor: const Color(0xFF2563EB),
+            iconBg: const Color(0xFFDBEAFE),
+            tag: 'Logs',
+            tagColor: const Color(0xFF2563EB),
+            tagBg: const Color(0xFFEFF6FF),
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => MonitorPerformancePage(
+                  role: widget.role, userId: widget.userId),
+            )),
+          ),
+          const SizedBox(height: 12),
+          _buildSupervisorCard(
+            title: 'Check Status',
+            subtitle: 'View your current internship registration status',
+            icon: Icons.verified_rounded,
+            iconColor: const Color(0xFF059669),
+            iconBg: const Color(0xFFD1FAE5),
+            tag: 'Status',
+            tagColor: const Color(0xFF059669),
+            tagBg: const Color(0xFFECFDF5),
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => RegistrationStatusPage(userId: widget.userId),
+            )),
+          ),
+          const SizedBox(height: 12),
+          _buildSupervisorCard(
+            title: 'Upload Documents',
+            subtitle: 'Submit required internship documents',
+            icon: Icons.cloud_upload_rounded,
+            iconColor: const Color(0xFF7C3AED),
+            iconBg: const Color(0xFFEDE9FE),
+            tag: 'Upload',
+            tagColor: const Color(0xFF7C3AED),
+            tagBg: const Color(0xFFF5F3FF),
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) =>
+                  DocsUpload(userId: widget.userId, scheduleId: null),
+            )),
+          ),
+          const SizedBox(height: 12),
+          _buildSupervisorCard(
+            title: 'My Profile',
+            subtitle: 'View and update your personal information',
+            icon: Icons.manage_accounts_rounded,
+            iconColor: const Color(0xFFDB2777),
+            iconBg: const Color(0xFFFCE7F3),
+            tag: 'Profile',
+            tagColor: const Color(0xFFDB2777),
+            tagBg: const Color(0xFFFDF2F8),
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => InternMySelfScreen(
+                userId: widget.userId,
+                username: widget.username,
+              ),
+            )),
+          ),
+          const SizedBox(height: 12),
+          _buildSupervisorCard(
+            title: 'Offer Letter',
+            subtitle: 'View and download your internship offer letter',
+            icon: Icons.description_rounded,
+            iconColor: const Color(0xFFD97706),
+            iconBg: const Color(0xFFFEF3C7),
+            tag: 'Letter',
+            tagColor: const Color(0xFFD97706),
+            tagBg: const Color(0xFFFFFBEB),
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) =>
+                  OfferLetterScreen(userId: widget.userId, role: widget.role),
+            )),
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInternBottomNav() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: Colors.white,
+        selectedItemColor: const Color(0xFF0F766E),
+        unselectedItemColor: const Color(0xFF94A3B8),
+        selectedLabelStyle:
+            const TextStyle(fontWeight: FontWeight.w600, fontSize: 11),
+        unselectedLabelStyle: const TextStyle(fontSize: 11),
+        elevation: 0,
+        items: [
+          const BottomNavigationBarItem(
+              icon: Icon(Icons.home_rounded), label: 'Home'),
+          BottomNavigationBarItem(
+            icon: Icon(
+              _isClockOut
+                  ? Icons.check_circle_rounded
+                  : _isClockIn
+                      ? Icons.logout_rounded
+                      : Icons.login_rounded,
+            ),
+            label: _isClockOut
+                ? 'Completed'
+                : _isClockIn
+                    ? 'Clock Out'
+                    : 'Clock In',
+          ),
+          const BottomNavigationBarItem(
+              icon: Icon(Icons.timeline_rounded), label: 'Timeline'),
+        ],
+        onTap: (index) {
+          switch (index) {
+            case 0:
+              Navigator.pop(context);
+              break;
+            case 1:
+              _showAttendanceSheet();
+              break;
+            case 2:
+              Navigator.push(context, MaterialPageRoute(
+                builder: (_) =>
+                    InternTimelineScreen(userId: widget.userId),
+              ));
+              break;
+          }
+        },
+      ),
+    );
+  }
+
+  Widget _buildSupervisorBottomNav() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: Colors.white,
+        selectedItemColor: const Color(0xFF2563EB),
+        unselectedItemColor: const Color(0xFF94A3B8),
+        selectedLabelStyle:
+            const TextStyle(fontWeight: FontWeight.w600, fontSize: 11),
+        unselectedLabelStyle: const TextStyle(fontSize: 11),
+        elevation: 0,
+        items: const [
+          BottomNavigationBarItem(
+              icon: Icon(Icons.home_rounded), label: 'Home'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.calendar_month_rounded), label: 'Schedule'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.grid_view_rounded), label: 'Slot Details'),
+        ],
+        onTap: (index) {
+          switch (index) {
+            case 0:
+              Navigator.pop(context);
+              break;
+            case 1:
+              Navigator.push(context, MaterialPageRoute(
+                builder: (_) =>
+                    ScheduleCalendar(isAdmin: true, userId: widget.userId),
+              ));
+              break;
+            case 2:
+              Navigator.push(context, MaterialPageRoute(
+                builder: (_) => const SlotDetailsScreen(),
+              ));
+              break;
+          }
+        },
       ),
     );
   }
