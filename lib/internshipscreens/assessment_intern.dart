@@ -66,10 +66,8 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
         Provider.of<AssessmentProvider>(context, listen: false)
             .loadAssessmentData(widget.internId),
         _loadPhoto(),
+        _loadInternDetails(),
       ];
-      if (widget.canAssess) {
-        futures.add(_loadInternDetails());
-      }
       await Future.wait(futures);
       _animController.forward();
     });
@@ -547,7 +545,7 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
                                   ),
                                 ),
                                 Text(
-                                  'Internship performance',
+                                  _internSchedule?.description ?? 'Internship performance',
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Colors.grey[500],
