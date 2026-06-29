@@ -160,11 +160,9 @@ class _InternHistoryScreenState extends State<InternHistoryScreen>
 
   List<Map<String, dynamic>> _internsForSchedule(int scheduleId) =>
     _allInterns.where((i) {
-      final ids = i['schedule_ids'];
-      if (ids is List) {
-        return ids.any((id) => (id as num).toInt() == scheduleId);
-      }
-      return false;
+      final sid = i['schedule_id'];
+      if (sid == null) return false;
+      return (sid as num).toInt() == scheduleId;
     }).toList();
 
   List<Map<String, dynamic>> get _filteredSubmissions {
