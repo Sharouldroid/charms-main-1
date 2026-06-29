@@ -92,6 +92,48 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
     }
   }
 
+  Future<void> _viewFile(int submissionId, String fileName) async {
+  try {
+    _showLoadingDialog('Opening file...');
+
+    final response = await http.get(
+      Uri.parse('${AppConfig.hostname}/api/internship/documents/download/$submissionId'),
+    );
+
+    if (mounted) Navigator.of(context).pop();
+
+    if (response.statusCode == 200) {
+      final bytes = response.bodyBytes;
+
+      String mimeType = 'application/octet-stream';
+      final lower = fileName.toLowerCase();
+      if (lower.endsWith('.pdf')) {
+        mimeType = 'application/pdf';
+      } else if (lower.endsWith('.png')) {
+        mimeType = 'image/png';
+      } else if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) {
+        mimeType = 'image/jpeg';
+      } else if (lower.endsWith('.webp')) {
+        mimeType = 'image/webp';
+      }
+
+      final blob = html.Blob([bytes], mimeType);
+      final url = html.Url.createObjectUrlFromBlob(blob);
+
+      html.window.open(url, '_blank');
+
+      Future.delayed(const Duration(seconds: 10), () {
+        html.Url.revokeObjectUrl(url);
+      });
+    } else {
+      _showErrorMessage('Failed to open file: ${response.statusCode}');
+    }
+  } catch (e) {
+    if (mounted) Navigator.of(context).pop();
+    _showErrorMessage('Error opening file: $e');
+  }
+}
+
   // ─── Open Link ───────────────────────────────────────────────────────────────
 
   Future<void> _openLink(String url) async {
@@ -573,8 +615,26 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
             const SizedBox(height: 16),
 
             // ── Action buttons ──
+            // ── Action buttons ──
             Row(
               children: [
+                // View (only when a file exists)
+                if (hasFile)
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _viewFile(
+                        submission['id'],
+                        submission['file_name'] ?? 'file',
+                      ),
+                      icon: const Icon(Icons.visibility, size: 16),
+                      label: const Text('View'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.teal,
+                      ),
+                    ),
+                  ),
+                if (hasFile) const SizedBox(width: 8),
+
                 // Download (only when a file exists)
                 if (hasFile)
                   Expanded(

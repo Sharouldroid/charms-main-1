@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:intl/intl.dart';
@@ -37,6 +38,9 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
   String? _resolvedPhotoUrl;
   Register? _internDetails;
   Schedule? _internSchedule;
+  Uint8List? _cachedUmtLogo;
+  Uint8List? _cachedSecondLogo;
+  Uint8List? _cachedSigBytes;
 
   final Map<String, String> _criterionLabels = {
     'criterion_1': 'Communication Skills',
@@ -116,10 +120,29 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
           _internDetails = register;
           _internSchedule = schedule;
         });
+        if (schedule != null) _preloadPdfAssets(schedule.description);
       }
     } catch (e) {
       // fail silently – PDF will show placeholders
     }
+  }
+
+  Future<void> _preloadPdfAssets(String teamName) async {
+    final isFaizah = _isFaizahTeam(teamName);
+    try {
+      final results = await Future.wait([
+        rootBundle.load('assets/images/logo/logoumt.png'),
+        rootBundle.load(isFaizah
+            ? 'assets/logos/seatrulogo1.png'
+            : 'assets/images/logo/cmslogo.png'),
+        rootBundle.load(isFaizah
+            ? 'assets/Signature Dr Faizah.jpeg'
+            : 'assets/Signature Dr Uzair.png'),
+      ]);
+      _cachedUmtLogo = results[0].buffer.asUint8List();
+      _cachedSecondLogo = results[1].buffer.asUint8List();
+      _cachedSigBytes = results[2].buffer.asUint8List();
+    } catch (_) {}
   }
 
   @override
@@ -237,14 +260,38 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
         ? '${df.format(_internSchedule!.startDate)} to ${df.format(_internSchedule!.endDate)}'
         : '-';
 
-    // Load supervisor signature based on intern's team
-    final teamName = _internSchedule?.description;
-    final sigAsset = _isFaizahTeam(teamName)
-        ? 'assets/Signature Dr Faizah.jpeg'
-        : 'assets/Signature Dr Uzair.png';
-    final sigName = _isFaizahTeam(teamName) ? 'Dr. Faizah' : 'Dr. Uzair';
-    final sigBytes = await rootBundle.load(sigAsset);
-    final sigImage = pw.MemoryImage(sigBytes.buffer.asUint8List());
+    // Use pre-cached assets or load all three in parallel
+    final isFaizah = _isFaizahTeam(_internSchedule?.description);
+    final sigName = isFaizah ? 'Dr. Faizah' : 'Dr. Uzair';
+
+    final Uint8List umtLogoBytes;
+    final Uint8List secondLogoBytes;
+    final Uint8List sigBytes;
+
+    if (_cachedUmtLogo != null &&
+        _cachedSecondLogo != null &&
+        _cachedSigBytes != null) {
+      umtLogoBytes = _cachedUmtLogo!;
+      secondLogoBytes = _cachedSecondLogo!;
+      sigBytes = _cachedSigBytes!;
+    } else {
+      final results = await Future.wait([
+        rootBundle.load('assets/images/logo/logoumt.png'),
+        rootBundle.load(isFaizah
+            ? 'assets/logos/seatrulogo1.png'
+            : 'assets/images/logo/cmslogo.png'),
+        rootBundle.load(isFaizah
+            ? 'assets/Signature Dr Faizah.jpeg'
+            : 'assets/Signature Dr Uzair.png'),
+      ]);
+      umtLogoBytes = results[0].buffer.asUint8List();
+      secondLogoBytes = results[1].buffer.asUint8List();
+      sigBytes = results[2].buffer.asUint8List();
+    }
+
+    final umtLogo = pw.MemoryImage(umtLogoBytes);
+    final secondLogo = pw.MemoryImage(secondLogoBytes);
+    final sigImage = pw.MemoryImage(sigBytes);
 
     final pdf = pw.Document();
 
@@ -253,6 +300,16 @@ class _AssessmentInternPageState extends State<AssessmentInternPage>
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(36),
         build: (pw.Context ctx) => [
+          // ── Logo row ───────────────────────────────────────────────
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Image(umtLogo, height: 48),
+              pw.Image(secondLogo, height: 48),
+            ],
+          ),
+          pw.SizedBox(height: 12),
+
           // ── Header ─────────────────────────────────────────────────
           pw.Container(
             padding:

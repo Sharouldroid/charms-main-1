@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:provider/provider.dart';
@@ -49,6 +50,9 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
   String _selectedInternName = '';
   String _internDisplayName = '';
   String _internTeam = '';
+  Uint8List? _cachedUmtLogo;
+  Uint8List? _cachedSecondLogo;
+  Uint8List? _cachedSigBytes;
 
   InternAttendanceRecord? _todayAttendance;
   List<InternAttendanceRecord> _attendanceHistory = [];
@@ -98,7 +102,29 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
       try {
         s = schedules.firstWhere((sc) => sc.id == scheduleId);
       } catch (_) {}
-      if (mounted && s != null) setState(() => _internTeam = s!.description);
+      if (mounted && s != null) {
+        final teamName = s.description;
+        setState(() => _internTeam = teamName);
+        _preloadPdfAssets(teamName);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _preloadPdfAssets(String teamName) async {
+    final isFaizah = _isFaizahTeam(teamName);
+    try {
+      final results = await Future.wait([
+        rootBundle.load('assets/images/logo/logoumt.png'),
+        rootBundle.load(isFaizah
+            ? 'assets/logos/seatrulogo1.png'
+            : 'assets/images/logo/cmslogo.png'),
+        rootBundle.load(isFaizah
+            ? 'assets/Signature Dr Faizah.jpeg'
+            : 'assets/Signature Dr Uzair.png'),
+      ]);
+      _cachedUmtLogo = results[0].buffer.asUint8List();
+      _cachedSecondLogo = results[1].buffer.asUint8List();
+      _cachedSigBytes = results[2].buffer.asUint8List();
     } catch (_) {}
   }
 
@@ -196,6 +222,9 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
       _attendanceHistory = [];
       _milestones = [];
       _internTeam = '';
+      _cachedUmtLogo = null;
+      _cachedSecondLogo = null;
+      _cachedSigBytes = null;
     });
     _loadActivities();
     _loadMilestones(internId);
@@ -498,14 +527,38 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
       final totalHours = totalMinutes ~/ 60;
       final remainMin = totalMinutes % 60;
 
-      // Load supervisor signature based on intern's team
-      final sigAsset = _isFaizahTeam(_internTeam)
-          ? 'assets/Signature Dr Faizah.jpeg'
-          : 'assets/Signature Dr Uzair.png';
-      final sigName =
-          _isFaizahTeam(_internTeam) ? 'Dr. Faizah' : 'Dr. Uzair';
-      final sigBytes = await rootBundle.load(sigAsset);
-      final sigImage = pw.MemoryImage(sigBytes.buffer.asUint8List());
+      // Use pre-cached assets or load all three in parallel
+      final isFaizah = _isFaizahTeam(_internTeam);
+      final sigName = isFaizah ? 'Dr. Faizah' : 'Dr. Uzair';
+
+      final Uint8List umtLogoBytes;
+      final Uint8List secondLogoBytes;
+      final Uint8List sigBytes;
+
+      if (_cachedUmtLogo != null &&
+          _cachedSecondLogo != null &&
+          _cachedSigBytes != null) {
+        umtLogoBytes = _cachedUmtLogo!;
+        secondLogoBytes = _cachedSecondLogo!;
+        sigBytes = _cachedSigBytes!;
+      } else {
+        final results = await Future.wait([
+          rootBundle.load('assets/images/logo/logoumt.png'),
+          rootBundle.load(isFaizah
+              ? 'assets/logos/seatrulogo1.png'
+              : 'assets/images/logo/cmslogo.png'),
+          rootBundle.load(isFaizah
+              ? 'assets/Signature Dr Faizah.jpeg'
+              : 'assets/Signature Dr Uzair.png'),
+        ]);
+        umtLogoBytes = results[0].buffer.asUint8List();
+        secondLogoBytes = results[1].buffer.asUint8List();
+        sigBytes = results[2].buffer.asUint8List();
+      }
+
+      final umtLogo = pw.MemoryImage(umtLogoBytes);
+      final secondLogo = pw.MemoryImage(secondLogoBytes);
+      final sigImage = pw.MemoryImage(sigBytes);
 
       final pdf = pw.Document();
       pdf.addPage(
@@ -513,6 +566,16 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
           pageFormat: PdfPageFormat.a4,
           margin: const pw.EdgeInsets.all(32),
           build: (ctx) => [
+            // ── Logo row ─────────────────────────────────────────────────
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Image(umtLogo, height: 48),
+                pw.Image(secondLogo, height: 48),
+              ],
+            ),
+            pw.SizedBox(height: 12),
+
             // ── Report header ────────────────────────────────────────────
             pw.Container(
               padding: const pw.EdgeInsets.all(16),
