@@ -29,6 +29,7 @@ class _StaffNotificationScreenState
   Set<String> _dismissedClaims    = {};
   Set<String> _dismissedSchedules = {};
   Set<String> _dismissedExchanges = {};
+  DateTime?   _lastClearedAt;
 
   bool _isLoadingPrefs = true;
 
@@ -36,63 +37,118 @@ class _StaffNotificationScreenState
   final Color staffBg         = const Color(0xFFF8FAFC);
   final Color staffCardBorder = const Color(0xFFE2E8F0);
 
-  String get _leaveKey    => 'dismissed_leaves_${widget.staffId}';
-  String get _claimKey    => 'dismissed_claims_${widget.staffId}';
-  String get _scheduleKey => 'dismissed_schedules_${widget.staffId}';
-  String get _exchangeKey => 'dismissed_exchanges_${widget.staffId}';
+  String get _leaveKey       => 'dismissed_leaves_${widget.staffId}';
+  String get _claimKey       => 'dismissed_claims_${widget.staffId}';
+  String get _scheduleKey    => 'dismissed_schedules_${widget.staffId}';
+  String get _exchangeKey    => 'dismissed_exchanges_${widget.staffId}';
+  String get _clearedAtKey   => 'notif_cleared_at_${widget.staffId}';
 
   @override
   void initState() {
     super.initState();
+
+    // 🔍 DEBUG: confirm staffId is consistent across logins/sessions
+    debugPrint('🔍 [NotifScreen] initState -> staffId=${widget.staffId} '
+        '(isPartTimer=${widget.isPartTimer})');
+    debugPrint('🔍 [NotifScreen] prefs keys -> '
+        'leave=$_leaveKey | claim=$_claimKey | '
+        'schedule=$_scheduleKey | exchange=$_exchangeKey | '
+        'clearedAt=$_clearedAtKey');
+
     _loadDismissed();
     Future.microtask(() =>
         Provider.of<ScheduleExchanges>(context, listen: false)
             .fetchExchangesByStaff(widget.staffId));
   }
 
-  // ✅ FIXED — removed kIsWeb guard, works on mobile + PWA
   Future<void> _loadDismissed() async {
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    final clearedStr = prefs.getString(_clearedAtKey);
+
+    final loadedLeaves    = prefs.getStringList(_leaveKey)    ?? [];
+    final loadedClaims    = prefs.getStringList(_claimKey)    ?? [];
+    final loadedSchedules = prefs.getStringList(_scheduleKey) ?? [];
+    final loadedExchanges = prefs.getStringList(_exchangeKey) ?? [];
+
+    // 🔍 DEBUG: see exactly what was read back from SharedPreferences
+    debugPrint('🔍 [NotifScreen] _loadDismissed -> staffId=${widget.staffId}');
+    debugPrint('🔍 [NotifScreen] loaded dismissedLeaves=$loadedLeaves');
+    debugPrint('🔍 [NotifScreen] loaded dismissedClaims=$loadedClaims');
+    debugPrint('🔍 [NotifScreen] loaded dismissedSchedules=$loadedSchedules');
+    debugPrint('🔍 [NotifScreen] loaded dismissedExchanges=$loadedExchanges');
+    debugPrint('🔍 [NotifScreen] loaded clearedAt(raw)=$clearedStr');
+
     setState(() {
-      _dismissedLeaves    = (prefs.getStringList(_leaveKey)    ?? []).toSet();
-      _dismissedClaims    = (prefs.getStringList(_claimKey)    ?? []).toSet();
-      _dismissedSchedules = (prefs.getStringList(_scheduleKey) ?? []).toSet();
-      _dismissedExchanges = (prefs.getStringList(_exchangeKey) ?? []).toSet();
+      _dismissedLeaves    = loadedLeaves.toSet();
+      _dismissedClaims    = loadedClaims.toSet();
+      _dismissedSchedules = loadedSchedules.toSet();
+      _dismissedExchanges = loadedExchanges.toSet();
+      _lastClearedAt      = clearedStr != null ? DateTime.tryParse(clearedStr) : null;
       _isLoadingPrefs     = false;
     });
+
+    // 🔍 DEBUG: confirm parsed clearedAt and final in-memory sets
+    debugPrint('🔍 [NotifScreen] parsed _lastClearedAt=$_lastClearedAt');
+    debugPrint('🔍 [NotifScreen] in-memory dismissedLeaves=$_dismissedLeaves');
   }
 
-  // ✅ FIXED — removed kIsWeb guard, works on mobile + PWA
   Future<void> _saveDismissed() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(_leaveKey,    _dismissedLeaves.toList());
     await prefs.setStringList(_claimKey,    _dismissedClaims.toList());
     await prefs.setStringList(_scheduleKey, _dismissedSchedules.toList());
     await prefs.setStringList(_exchangeKey, _dismissedExchanges.toList());
+    if (_lastClearedAt != null) {
+      await prefs.setString(_clearedAtKey, _lastClearedAt!.toIso8601String());
+    }
+
+    // 🔍 DEBUG: confirm what was just written to disk, and read it back
+    debugPrint('🔍 [NotifScreen] _saveDismissed -> staffId=${widget.staffId}');
+    debugPrint('🔍 [NotifScreen] saved dismissedLeaves=$_dismissedLeaves');
+    debugPrint('🔍 [NotifScreen] saved dismissedClaims=$_dismissedClaims');
+    debugPrint('🔍 [NotifScreen] saved dismissedSchedules=$_dismissedSchedules');
+    debugPrint('🔍 [NotifScreen] saved dismissedExchanges=$_dismissedExchanges');
+    debugPrint('🔍 [NotifScreen] saved _lastClearedAt=$_lastClearedAt');
+
+    // Read-back sanity check (helps catch silent write failures, esp. on web)
+    final verifyLeaves = prefs.getStringList(_leaveKey);
+    debugPrint('🔍 [NotifScreen] verify read-back dismissedLeaves=$verifyLeaves');
   }
 
-  void _dismissLeave(String id) {
+  Future<void> _dismissLeave(String id) async {
     setState(() => _dismissedLeaves.add(id));
-    _saveDismissed();
+    await _saveDismissed();
   }
 
-  void _dismissClaim(String id) {
+  Future<void> _dismissClaim(String id) async {
     setState(() => _dismissedClaims.add(id));
-    _saveDismissed();
+    await _saveDismissed();
   }
 
-  void _dismissSchedule(String id) {
+  Future<void> _dismissSchedule(String id) async {
     setState(() => _dismissedSchedules.add(id));
-    _saveDismissed();
+    await _saveDismissed();
   }
 
-  void _dismissExchange(String id) {
+  Future<void> _dismissExchange(String id) async {
     setState(() => _dismissedExchanges.add(id));
-    _saveDismissed();
+    await _saveDismissed();
   }
 
   void _dismissAll(List leaves, List claims, List schedules,
       List exchanges) {
+    // 🔍 DEBUG: snapshot exactly which IDs are about to be cleared
+    debugPrint('🔍 [NotifScreen] _dismissAll called -> staffId=${widget.staffId}');
+    debugPrint('🔍 [NotifScreen] about to clear leaves='
+        '${leaves.map((l) => l.leaveId).toList()}');
+    debugPrint('🔍 [NotifScreen] about to clear claims='
+        '${claims.map((c) => c.claimId).toList()}');
+    debugPrint('🔍 [NotifScreen] about to clear schedules='
+        '${schedules.map((s) => s.schedId).toList()}');
+    debugPrint('🔍 [NotifScreen] about to clear exchanges='
+        '${exchanges.map((e) => e.exchangeId).toList()}');
+
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -127,9 +183,16 @@ class _StaffNotificationScreenState
                     fontWeight: FontWeight.w600)),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
+
+              final now = DateTime.now();
+              // 🔍 DEBUG: confirm the exact timestamp being stored as the cutoff
+              debugPrint('🔍 [NotifScreen] Clear All confirmed -> '
+                  'setting _lastClearedAt=$now');
+
               setState(() {
+                _lastClearedAt = now;
                 for (final l in leaves)
                   _dismissedLeaves.add(l.leaveId.toString());
                 for (final c in claims)
@@ -139,7 +202,11 @@ class _StaffNotificationScreenState
                 for (final e in exchanges)
                   _dismissedExchanges.add(e.exchangeId.toString());
               });
-              _saveDismissed();
+              await _saveDismissed();
+
+              debugPrint('🔍 [NotifScreen] Clear All -> save complete. '
+                  'Re-open the app/screen now and check the '
+                  '_loadDismissed logs above to confirm persistence.');
             },
             child: const Text('Clear All',
                 style: TextStyle(
@@ -492,14 +559,16 @@ class _StaffNotificationScreenState
       body: Consumer4<Leaves, Claims, Schedules, ScheduleExchanges>(
         builder: (context, leavesProvider, claimsProvider,
             schedulesProvider, exchangesProvider, child) {
+          final clearedAt = _lastClearedAt;
+
           final myLeaves = widget.isPartTimer
               ? []
               : leavesProvider.leaves
                   .where((l) =>
                       l.staffId == widget.staffId &&
                       l.status != 'Pending' &&
-                      !_dismissedLeaves
-                          .contains(l.leaveId.toString()))
+                      !_dismissedLeaves.contains(l.leaveId.toString()) &&
+                      (clearedAt == null || l.updatedAt.isAfter(clearedAt)))
                   .toList();
 
           final myClaims = widget.isPartTimer
@@ -508,8 +577,8 @@ class _StaffNotificationScreenState
                   .where((c) =>
                       c.staffId == widget.staffId &&
                       c.status != 'Pending' &&
-                      !_dismissedClaims
-                          .contains(c.claimId.toString()))
+                      !_dismissedClaims.contains(c.claimId.toString()) &&
+                      (clearedAt == null || c.updatedAt.isAfter(clearedAt)))
                   .toList();
 
           final mySchedules = widget.isPartTimer
@@ -548,6 +617,20 @@ class _StaffNotificationScreenState
               mySchedules.length +
               incomingExchanges.length +
               myExchanges.length;
+
+          // 🔍 DEBUG: per-build snapshot — compare this across app restarts
+          debugPrint('🔍 [NotifScreen] build() -> staffId=${widget.staffId} '
+              'clearedAt=$clearedAt totalCount=$totalCount '
+              '(leaves=${myLeaves.length}, claims=${myClaims.length}, '
+              'schedules=${mySchedules.length}, '
+              'incomingExch=${incomingExchanges.length}, '
+              'myExch=${myExchanges.length})');
+          if (mySchedules.isNotEmpty) {
+            debugPrint('🔍 [NotifScreen] mySchedules ids='
+                '${mySchedules.map((s) => s.schedId).toList()} '
+                '(NOTE: schedules are not filtered by clearedAt time, '
+                'only by _dismissedSchedules)');
+          }
 
           return Column(children: [
             // ── Header banner ─────────────────────────────────────
