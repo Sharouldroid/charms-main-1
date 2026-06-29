@@ -119,10 +119,16 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
     return {'currentRegistrations': 0};
   }
 
+  // ── Rule: 1 intern = 1 schedule, system-wide ──────────────────
+  // If the user already has ANY registration, block registering for
+  // a different schedule, not just the same one.
   Future<void> _checkRegistrationLimit(int scheduleId, DateTime endDate) async {
-    if (_userRegisteredScheduleIds.contains(scheduleId)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('⚠️ You have already registered for this session!'),
+    if (_userRegisteredScheduleIds.isNotEmpty) {
+      final alreadyThisOne = _userRegisteredScheduleIds.contains(scheduleId);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(alreadyThisOne
+            ? '⚠️ You have already registered for this session!'
+            : '⚠️ You can only register for one internship session. You are already registered for a different slot.'),
         backgroundColor: Colors.orange,
       ));
       return;
@@ -563,6 +569,8 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
 
   Widget _buildScheduleCard(Schedule schedule) {
     final isRegistered = _userRegisteredScheduleIds.contains(schedule.id);
+    final hasAnyRegistration = _userRegisteredScheduleIds.isNotEmpty;
+    final isLockedByOtherSlot = hasAnyRegistration && !isRegistered;
     final isAvailable = _isScheduleAvailable(schedule.endDate);
     final countData = _registrationCounts[schedule.id];
     final current = (countData?['currentRegistrations'] as num?)?.toInt() ?? 0;
@@ -592,11 +600,13 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
           borderRadius: BorderRadius.circular(16),
           onTap: widget.isAdmin
               ? null
-              : (isAvailable
-                  ? () => _checkRegistrationLimit(schedule.id, schedule.endDate)
-                  : () => _checkRegistrationLimit(schedule.id, schedule.endDate)),
+              : () => _checkRegistrationLimit(schedule.id, schedule.endDate),
           child: Opacity(
-            opacity: (!widget.isAdmin && !isAvailable && !isRegistered) ? 0.6 : 1.0,
+            // Dim the card if it's closed, OR if the user is already
+            // locked into a different schedule.
+            opacity: (!widget.isAdmin && !isRegistered && (!isAvailable || isLockedByOtherSlot))
+                ? 0.55
+                : 1.0,
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -646,6 +656,23 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
                           Text('REGISTERED',
                               style: TextStyle(
                                   color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold)),
+                        ]),
+                      )
+                    else if (isLockedByOtherSlot)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(Icons.lock_outline, size: 14, color: Colors.grey[700]),
+                          const SizedBox(width: 4),
+                          Text('LOCKED',
+                              style: TextStyle(
+                                  color: Colors.grey[700],
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold)),
                         ]),
@@ -709,6 +736,13 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
                                 color: Colors.green,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600)),
+                      ])
+                    else if (isLockedByOtherSlot)
+                      Row(children: [
+                        Icon(Icons.lock_outline, color: Colors.grey[500], size: 14),
+                        const SizedBox(width: 6),
+                        Text('Already registered for another session',
+                            style: TextStyle(color: Colors.grey[500], fontSize: 12)),
                       ])
                     else if (isAvailable)
                       const Row(children: [
