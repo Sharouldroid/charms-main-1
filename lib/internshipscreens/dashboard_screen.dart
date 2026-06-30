@@ -237,14 +237,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      isDismissible: !_isAttendanceLoading,
+      enableDrag: !_isAttendanceLoading,
       builder: (ctx) => _AttendanceBottomSheet(
         userId: widget.userId,
         isClockIn: _isClockIn,
         isClockOut: _isClockOut,
         clockInLocationStr: _clockInLocationStr,
         clockOutTimeStr: _clockOutTimeStr,
-        onClockIn: _handleClockIn,
-        onClockOut: _handleClockOut,
+        onClockIn: () => _handleClockIn(ctx),
+        onClockOut: () => _handleClockOut(ctx),
         onViewHistory: () {
           Navigator.pop(ctx);
           Navigator.push(
@@ -260,7 +262,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Future<void> _handleClockIn() async {
+  Future<void> _handleClockIn(BuildContext sheetCtx) async {
     setState(() => _isAttendanceLoading = true);
 
     try {
@@ -303,7 +305,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _activeScheduleId = reg.scheduleId;
         });
         _showSnack('✅ Clocked in successfully!', Colors.green);
-        if (mounted) Navigator.pop(context);
+        if (sheetCtx.mounted) Navigator.pop(sheetCtx);
       } else {
         _showSnack('❌ ${result['message'] ?? 'Failed to clock in.'}', Colors.red);
       }
@@ -314,7 +316,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  Future<void> _handleClockOut() async {
+  Future<void> _handleClockOut(BuildContext sheetCtx) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -361,7 +363,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _clockOutTimeStr = DateFormat('hh:mm a').format(now.toLocal());
         });
         _showSnack('✅ Clocked out successfully!', Colors.green);
-        if (mounted) Navigator.pop(context);
+        if (sheetCtx.mounted) Navigator.pop(sheetCtx);
       } else {
         _showSnack('❌ ${result['message'] ?? 'Failed to clock out.'}', Colors.red);
       }
