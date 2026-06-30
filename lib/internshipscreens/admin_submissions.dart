@@ -621,7 +621,6 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
             const SizedBox(height: 16),
 
             // ── Action buttons ──
-            // ── Action buttons ──
             Row(
               children: [
                 // View (only when a file exists)
@@ -632,14 +631,17 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
                         submission['id'],
                         submission['file_name'] ?? 'file',
                       ),
-                      icon: const Icon(Icons.visibility, size: 16),
+                      icon: const Icon(Icons.visibility, size: 14),
                       label: const Text('View'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.teal,
+                        textStyle: const TextStyle(fontSize: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                     ),
                   ),
-                if (hasFile) const SizedBox(width: 8),
+                if (hasFile) const SizedBox(width: 6),
 
                 // Download (only when a file exists)
                 if (hasFile)
@@ -649,38 +651,49 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
                         submission['id'],
                         submission['file_name'] ?? 'file',
                       ),
-                      icon: const Icon(Icons.download, size: 16),
+                      icon: const Icon(Icons.download, size: 14),
                       label: const Text('Download'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.blue,
+                        textStyle: const TextStyle(fontSize: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                     ),
                   ),
-                if (hasFile) const SizedBox(width: 8),
+                if (hasFile) const SizedBox(width: 6),
 
                 // Review
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () => _showStatusDialog(submission),
-                    icon: const Icon(Icons.edit, size: 16),
+                    icon: const Icon(Icons.edit, size: 14),
                     label: const Text('Review'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blueAccent,
                       foregroundColor: Colors.white,
+                      textStyle: const TextStyle(fontSize: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
 
                 // Delete
-                IconButton(
-                  onPressed: () => _deleteSubmission(submission['id']),
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  tooltip: 'Delete Submission',
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.red.withOpacity(0.1),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
+                SizedBox(
+                  width: 36,
+                  height: 36,
+                  child: IconButton(
+                    onPressed: () => _deleteSubmission(submission['id']),
+                    icon: const Icon(Icons.delete, color: Colors.red, size: 18),
+                    tooltip: 'Delete Submission',
+                    padding: EdgeInsets.zero,
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.red.withValues(alpha: 0.1),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                    ),
                   ),
                 ),
               ],
