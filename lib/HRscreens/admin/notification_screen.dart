@@ -93,6 +93,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
     await flutterLocalNotificationsPlugin!.show(0, title, body, details);
   }
 
+  String _staffName(List<Staff> staffList, int staffId) {
+    final staff = staffList.where((s) => s.staffId == staffId).firstOrNull;
+    return staff != null
+        ? '${staff.firstname} ${staff.lastname}'.trim()
+        : 'Staff ID: $staffId';
+  }
+
   // ── Format a raw API timestamp into hh:mm a, or '—' if missing/invalid ─────
   String _formatClaimTime(String? raw) {
     if (raw == null || raw.isEmpty) return '—';
@@ -982,7 +989,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   ...pendingLeaves.map((leave) => NotificationItem(
                         title: 'Leave Request Pending',
                         subtitle:
-                            'Staff ID: ${leave.staffId} • Type: ${leave.leaveType}',
+                            '${_staffName(staffs.staffList, leave.staffId)} • Type: ${leave.leaveType}',
                         iconData: Icons.beach_access_rounded,
                         iconColor: Colors.redAccent,
                         onTap: () async {
@@ -998,7 +1005,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   // ── Payroll ───────────────────────────────────────
                   ...pendingPayrolls.map((payroll) => NotificationItem(
                         title: 'Payment Report Pending',
-                        subtitle: 'Staff ID: ${payroll.staffId}',
+                        subtitle: _staffName(staffs.staffList, payroll.staffId),
                         iconData: Icons.receipt_long_rounded,
                         iconColor: Colors.teal,
                         onTap: () async {
@@ -1015,7 +1022,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   ...pendingClaims.map((claim) => NotificationItem(
                         title: 'Claim Request Pending',
                         subtitle:
-                            'Staff ID: ${claim.staffId} • Amount: RM${claim.amount}',
+                            '${_staffName(staffs.staffList, claim.staffId)} • Amount: RM${claim.amount}',
                         iconData: Icons.request_page_rounded,
                         iconColor: Colors.orange,
                         onTap: () async {

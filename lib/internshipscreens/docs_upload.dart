@@ -464,7 +464,7 @@ class _DocsUploadState extends State<DocsUpload> {
                                       : const Icon(Icons.upload),
                                   label: Text(_isUploading ? 'Uploading...' : 'Submit'),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.blueAccent,
+                                    backgroundColor: const Color.fromARGB(255, 255, 255, 255),
                                   ),
                                 ),
                               ),
