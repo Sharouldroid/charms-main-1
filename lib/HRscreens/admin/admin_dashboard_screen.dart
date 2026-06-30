@@ -106,7 +106,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         todayAttendance = attendances.where((attendance) {
           final clockIn = attendance['clock_in_time'];
           if (clockIn == null) return false;
-          return DateTime.parse(clockIn.toString()).day == currentDate.day;
+          return DateFormat('yyyy-MM-dd').format(DateTime.parse(clockIn.toString())) == formattedDate;
         }).length;
 
         final fullTimeStaffIds = staffsProvider.staffList

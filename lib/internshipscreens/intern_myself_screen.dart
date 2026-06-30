@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -31,6 +32,7 @@ class _InternMySelfScreenState extends State<InternMySelfScreen> {
   bool _isUploadingImage = false;
   bool _notRegistered = false;
   XFile? _profileImage;
+  Uint8List? _profileImageBytes;
   String? _error;
 
   final _formKey = GlobalKey<FormState>();
@@ -174,8 +176,10 @@ class _InternMySelfScreenState extends State<InternMySelfScreen> {
 
       if (picked == null) return;
 
+      final bytes = kIsWeb ? await picked.readAsBytes() : null;
       setState(() {
         _profileImage = picked;
+        _profileImageBytes = bytes;
         _isUploadingImage = true;
       });
 
@@ -204,6 +208,7 @@ class _InternMySelfScreenState extends State<InternMySelfScreen> {
         setState(() {
           _isUploadingImage = false;
           _profileImage = null;
+          _profileImageBytes = null;
         });
       }
     }
@@ -423,7 +428,7 @@ class _InternMySelfScreenState extends State<InternMySelfScreen> {
                           backgroundColor: Colors.white.withOpacity(0.3),
                           backgroundImage: _profileImage != null
                               ? (kIsWeb
-                                  ? NetworkImage(_profileImage!.path)
+                                  ? MemoryImage(_profileImageBytes!)
                                       as ImageProvider
                                   : FileImage(File(_profileImage!.path)))
                               : (_photoUrl != null

@@ -224,6 +224,83 @@ class _DocsUploadState extends State<DocsUpload> {
     }
   }
 
+  // ✅ Only pending / rejected / resubmit documents may be deleted.
+  // Approved documents are locked and cannot be removed by the intern.
+  bool _canDelete(String status) {
+    final s = status.toLowerCase();
+    return s == 'pending' || s == 'rejected' || s == 'resubmit';
+  }
+
+  Future<void> _confirmAndDelete(dynamic submissionId, String label) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Submission'),
+        content: Text('Are you sure you want to delete "$label"? This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Normalize id to int regardless of whether the API returned int or string
+    final id = submissionId is int
+        ? submissionId
+        : int.tryParse(submissionId.toString());
+
+    if (id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('❌ Invalid submission id'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final response = await http.delete(
+        Uri.parse('${AppConfig.hostname}/api/internship/documents/submissions/$id'),
+        headers: {'Accept': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('🗑️ Submission deleted'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _loadUserSubmissions();
+      } else {
+        final errorData = jsonDecode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ ${errorData['error'] ?? 'Delete failed'}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Delete error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'pending':
@@ -449,6 +526,9 @@ class _DocsUploadState extends State<DocsUpload> {
                             final status = submission['status'] ?? 'pending';
                             final adminComment = submission['admin_comments'];
                             final documentLink = submission['document_link'];
+                            final label = submission['file_name'] ??
+                                submission['details'] ??
+                                'Document';
 
                             return Card(
                               margin: const EdgeInsets.only(bottom: 10),
@@ -463,7 +543,7 @@ class _DocsUploadState extends State<DocsUpload> {
                                         const SizedBox(width: 8),
                                         Expanded(
                                           child: Text(
-                                            submission['file_name'] ?? submission['details'] ?? 'Document',
+                                            label,
                                             style: const TextStyle(fontWeight: FontWeight.w600),
                                           ),
                                         ),
@@ -474,6 +554,20 @@ class _DocsUploadState extends State<DocsUpload> {
                                           ),
                                           backgroundColor: _getStatusColor(status).withOpacity(0.2),
                                         ),
+                                        // ✅ Delete button — only shown for
+                                        // pending / rejected / resubmit submissions
+                                        if (_canDelete(status)) ...[
+                                          const SizedBox(width: 4),
+                                          IconButton(
+                                            icon: const Icon(Icons.delete_outline,
+                                                color: Colors.red, size: 20),
+                                            tooltip: 'Delete submission',
+                                            onPressed: () => _confirmAndDelete(
+                                              submission['id'],
+                                              label,
+                                            ),
+                                          ),
+                                        ],
                                       ],
                                     ),
                                     Text(

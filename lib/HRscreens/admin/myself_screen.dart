@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:intl/intl.dart'; // ← NEW
 
@@ -31,6 +32,7 @@ class _MySelfScreenState extends State<MySelfScreen> {
   bool _isLoading = true;
   bool _isEditing = false;
   XFile? _profileImage;
+  Uint8List? _profileImageBytes;
 
   final _formKey = GlobalKey<FormState>();
 
@@ -197,7 +199,13 @@ class _MySelfScreenState extends State<MySelfScreen> {
     try {
       final picked = await ImagePicker()
           .pickImage(source: ImageSource.gallery, imageQuality: 70);
-      if (picked != null) setState(() => _profileImage = picked);
+      if (picked != null) {
+        final bytes = kIsWeb ? await picked.readAsBytes() : null;
+        setState(() {
+          _profileImage = picked;
+          _profileImageBytes = bytes;
+        });
+      }
     } catch (e) {
       debugPrint('Error picking image: $e');
       if (mounted) {
@@ -551,7 +559,7 @@ class _MySelfScreenState extends State<MySelfScreen> {
                                         _primaryBlue.withOpacity(0.12),
                                     backgroundImage: _profileImage != null
                                         ? (kIsWeb
-                                            ? NetworkImage(_profileImage!.path)
+                                            ? MemoryImage(_profileImageBytes!)
                                                 as ImageProvider
                                             : FileImage(
                                                 File(_profileImage!.path)))

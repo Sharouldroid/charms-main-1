@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -84,6 +85,7 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
   bool _isPartTimer    = false;
   DateTime? _selectedDate;
   XFile? _profileImage;
+  Uint8List? _profileImageBytes;
   final ImagePicker _picker = ImagePicker();
   final TextEditingController _dayRateController = TextEditingController();
 
@@ -115,7 +117,13 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
       source: ImageSource.gallery,
       imageQuality: 70,
     );
-    if (picked != null) setState(() => _profileImage = picked);
+    if (picked != null) {
+      final bytes = kIsWeb ? await picked.readAsBytes() : null;
+      setState(() {
+        _profileImage = picked;
+        _profileImageBytes = bytes;
+      });
+    }
   }
 
   Future<void> _submit() async {
@@ -296,7 +304,7 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
                           backgroundColor: Colors.blue.shade50,
                           backgroundImage: _profileImage != null
                               ? (kIsWeb
-                                  ? NetworkImage(_profileImage!.path)
+                                  ? MemoryImage(_profileImageBytes!)
                                       as ImageProvider
                                   : FileImage(File(_profileImage!.path)))
                               : null,
