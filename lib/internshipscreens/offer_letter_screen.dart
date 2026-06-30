@@ -113,7 +113,7 @@ class _OfferLetterScreenState extends State<OfferLetterScreen> {
           .timeout(timeout);
 
       if (regResp.statusCode != 200) {
-        _setError('Tiada rekod pendaftaran ditemui untuk pengguna ini.');
+        _setError('No registration record found.\nPlease register for a schedule first.');
         return;
       }
 
@@ -134,7 +134,7 @@ class _OfferLetterScreenState extends State<OfferLetterScreen> {
 
       if (raw.isEmpty) {
         _setError(
-            'Tiada rekod pendaftaran ditemui.\nSila daftar jadual terlebih dahulu.');
+            'No registration record found.\nPlease register for a schedule first.');
         return;
       }
 
@@ -181,7 +181,7 @@ class _OfferLetterScreenState extends State<OfferLetterScreen> {
                 d['status']?.toString().toLowerCase() == 'approved');
             if (!hasApproved) {
               _setError(
-                  'Surat tawaran anda belum tersedia.\n\nSila tunggu sehingga dokumen anda disahkan (approved) oleh Admin atau Penyelia.');
+                  'Your offer letter is not available yet.\n\nPlease wait until your documents have been verified (approved) by the Admin or Supervisor.');
               return;
             }
           }
@@ -222,7 +222,7 @@ class _OfferLetterScreenState extends State<OfferLetterScreen> {
       if (mounted) setState(() => _isLoading = false);
     } on TimeoutException {
       _setError(
-          'Masa tamat. Sila semak sambungan internet dan cuba lagi.');
+          'Request timed out. Please check your internet connection and try again.');
     } catch (e) {
       _setError('Ralat: $e');
     }
