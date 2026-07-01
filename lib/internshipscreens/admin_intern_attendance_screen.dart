@@ -206,6 +206,21 @@ class _AdminInternAttendanceScreenState
   List<InternSummaryRow> _interns = [];
   Map<String, dynamic> _internSummary = {};
   bool _loadingInterns = true;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  String _statusFilter = 'all';
+
+  List<InternSummaryRow> get _filteredInterns {
+    return _interns.where((intern) {
+      final q = _searchQuery.toLowerCase();
+      final matchesSearch = q.isEmpty ||
+          intern.internName.toLowerCase().contains(q) ||
+          intern.institution.toLowerCase().contains(q);
+      final matchesStatus =
+          _statusFilter == 'all' || intern.todayStatus == _statusFilter;
+      return matchesSearch && matchesStatus;
+    }).toList();
+  }
  
   // Tab 2: By Date
   List<AdminByDateRecord> _byDateRecords = [];
@@ -228,6 +243,7 @@ class _AdminInternAttendanceScreenState
   @override
   void dispose() {
     _tabController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
  
@@ -352,10 +368,16 @@ class _AdminInternAttendanceScreenState
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: _buildInternSummaryCards(),
+              child: Column(
+                children: [
+                  _buildInternSummaryCards(),
+                  const SizedBox(height: 12),
+                  _buildSearchAndFilter(),
+                ],
+              ),
             ),
           ),
-          if (_interns.isEmpty)
+          if (_filteredInterns.isEmpty)
             SliverFillRemaining(
               child: Center(
                 child: Column(
@@ -363,8 +385,12 @@ class _AdminInternAttendanceScreenState
                   children: [
                     Icon(Icons.people_outline, size: 64, color: Colors.grey.shade300),
                     const SizedBox(height: 12),
-                    Text('No attendance records yet.',
-                        style: TextStyle(color: Colors.grey.shade500, fontSize: 15)),
+                    Text(
+                      _interns.isEmpty
+                          ? 'No attendance records yet.'
+                          : 'No results match your search.',
+                      style: TextStyle(color: Colors.grey.shade500, fontSize: 15),
+                    ),
                   ],
                 ),
               ),
@@ -375,11 +401,11 @@ class _AdminInternAttendanceScreenState
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (_, i) => _InternSummaryCard(
-                    row: _interns[i],
+                    row: _filteredInterns[i],
                     baseUrl: _base,
                     onOpenMap: _openMap,
                   ),
-                  childCount: _interns.length,
+                  childCount: _filteredInterns.length,
                 ),
               ),
             ),
@@ -388,6 +414,74 @@ class _AdminInternAttendanceScreenState
     );
   }
  
+  Widget _buildSearchAndFilter() {
+    return Column(
+      children: [
+        TextField(
+          controller: _searchController,
+          onChanged: (v) => setState(() => _searchQuery = v),
+          decoration: InputDecoration(
+            hintText: 'Search by name or institution...',
+            hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+            prefixIcon: const Icon(Icons.search_rounded, color: Colors.grey, size: 20),
+            suffixIcon: _searchQuery.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear_rounded, color: Colors.grey, size: 18),
+                    onPressed: () {
+                      _searchController.clear();
+                      setState(() => _searchQuery = '');
+                    },
+                  )
+                : null,
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _StatusFilterChip(
+                label: 'All',
+                selected: _statusFilter == 'all',
+                color: _primaryBlue,
+                onTap: () => setState(() => _statusFilter = 'all'),
+              ),
+              const SizedBox(width: 8),
+              _StatusFilterChip(
+                label: 'Active',
+                selected: _statusFilter == 'in_progress',
+                color: Colors.orange,
+                onTap: () => setState(() => _statusFilter = 'in_progress'),
+              ),
+              const SizedBox(width: 8),
+              _StatusFilterChip(
+                label: 'Done',
+                selected: _statusFilter == 'completed',
+                color: Colors.green,
+                onTap: () => setState(() => _statusFilter = 'completed'),
+              ),
+              const SizedBox(width: 8),
+              _StatusFilterChip(
+                label: 'Absent',
+                selected: _statusFilter == 'absent',
+                color: Colors.red,
+                onTap: () => setState(() => _statusFilter = 'absent'),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildInternSummaryCards() {
     final total     = _internSummary['total_interns'] ?? 0;
     final present   = _internSummary['present_today'] ?? 0;
@@ -689,11 +783,15 @@ class _InternSummaryCardState extends State<_InternSummaryCard> {
                     Icon(Icons.bar_chart_rounded,
                         size: 13, color: Colors.grey.shade400),
                     const SizedBox(width: 4),
-                    Text('${row.totalDays} day${row.totalDays != 1 ? 's' : ''} total  ·  '
+                    Flexible(
+                      child: Text(
+                        '${row.totalDays} day${row.totalDays != 1 ? 's' : ''} total  ·  '
                         '${row.completedDays} completed',
-                        style: TextStyle(
-                            fontSize: 12, color: Colors.grey.shade600)),
-                    const Spacer(),
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     Icon(_expanded
                         ? Icons.keyboard_arrow_up_rounded
                         : Icons.keyboard_arrow_down_rounded,
@@ -1034,4 +1132,45 @@ class _MiniTimeChip extends StatelessWidget {
                   fontSize: 13, fontWeight: FontWeight.bold, color: color)),
         ]),
       );
+}
+
+class _StatusFilterChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _StatusFilterChip({
+    required this.label,
+    required this.selected,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? color : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: selected ? color : Colors.grey.shade300),
+          boxShadow: selected
+              ? [BoxShadow(color: color.withValues(alpha: 0.25), blurRadius: 6, offset: const Offset(0, 2))]
+              : [],
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: selected ? Colors.white : Colors.grey.shade600,
+          ),
+        ),
+      ),
+    );
+  }
 }

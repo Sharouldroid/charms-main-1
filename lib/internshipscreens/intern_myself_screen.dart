@@ -805,16 +805,20 @@ class _InternMySelfScreenState extends State<InternMySelfScreen> {
       padding: const EdgeInsets.only(bottom: 14),
       child: DropdownButtonFormField<String>(
         value: _selectedAreaCode ?? '+60',
+        isExpanded: true,
         items: [
           ..._countryCodes.map(
             (c) => DropdownMenuItem(
               value: c['code'],
-              child: Text('${c['code']}  ${c['name']}'),
+              child: Text(
+                '${c['code']}  ${c['name']}',
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ),
           const DropdownMenuItem(
             value: _otherCodeOption,
-            child: Text('Other (enter manually)'),
+            child: Text('Other (enter manually)', overflow: TextOverflow.ellipsis),
           ),
         ],
         onChanged: enabled

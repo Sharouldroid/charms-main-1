@@ -372,8 +372,11 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
                                     : Colors.grey,
                                 size: 18),
                             const SizedBox(width: 8),
-                            const Text('Mark as Milestone',
-                                style: TextStyle(fontSize: 14)),
+                            const Flexible(
+                              child: Text('Mark as Milestone',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 14)),
+                            ),
                           ],
                         ),
                         subtitle: isMilestone
@@ -1388,10 +1391,13 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
                                   Icon(Icons.login,
                                       size: 13, color: Colors.blue[600]),
                                   const SizedBox(width: 4),
-                                  Text('Clock In',
-                                      style: TextStyle(
-                                          fontSize: 11,
-                                          color: Colors.blue[600])),
+                                  Flexible(
+                                    child: Text('Clock In',
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.blue[600])),
+                                  ),
                                 ],
                               ),
                               const SizedBox(height: 2),
@@ -1432,12 +1438,15 @@ class _MonitorPerformancePageState extends State<MonitorPerformancePage> {
                                           ? Colors.green[600]
                                           : Colors.grey[500]),
                                   const SizedBox(width: 4),
-                                  Text('Clock Out',
-                                      style: TextStyle(
-                                          fontSize: 11,
-                                          color: attendance.hasClockOut
-                                              ? Colors.green[600]
-                                              : Colors.grey[500])),
+                                  Flexible(
+                                    child: Text('Clock Out',
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                            fontSize: 11,
+                                            color: attendance.hasClockOut
+                                                ? Colors.green[600]
+                                                : Colors.grey[500])),
+                                  ),
                                 ],
                               ),
                               const SizedBox(height: 2),

@@ -325,11 +325,14 @@ class _SlotDetailsScreenState extends State<SlotDetailsScreen> {
                                                       children: [
                                                         Icon(Icons.calendar_today, size: 13, color: Colors.grey[400]),
                                                         const SizedBox(width: 5),
-                                                        Text(
-                                                          '${_formatDate(schedule['start_date'])} → ${_formatDate(schedule['end_date'])}',
-                                                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                                        Flexible(
+                                                          child: Text(
+                                                            '${_formatDate(schedule['start_date'])} → ${_formatDate(schedule['end_date'])}',
+                                                            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                                            overflow: TextOverflow.ellipsis,
+                                                          ),
                                                         ),
-                                                        const Spacer(),
+                                                        const SizedBox(width: 8),
                                                         Icon(Icons.schedule, size: 13, color: Colors.grey[400]),
                                                         const SizedBox(width: 4),
                                                         Text(

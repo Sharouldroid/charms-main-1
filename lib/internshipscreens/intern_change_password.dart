@@ -252,16 +252,18 @@ class _InternChangePasswordScreenState
         elevation: 0,
         backgroundColor: _primary,
         centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'Account Settings',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
+          'ACCOUNT SETTINGS',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.2,
+          ),
         ),
       ),
       body: _isLoading
@@ -272,38 +274,45 @@ class _InternChangePasswordScreenState
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.only(
-                      top: 20, bottom: 16, left: 24, right: 24),
+                      top: 24, bottom: 20, left: 24, right: 24),
                   decoration: BoxDecoration(
                     color: _primary,
                     borderRadius: const BorderRadius.vertical(
-                        bottom: Radius.circular(28)),
+                        bottom: Radius.circular(30)),
                   ),
                   child: Column(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(18),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.15),
                           shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.3),
+                            width: 1.5,
+                          ),
                         ),
                         child: const Icon(Icons.manage_accounts_rounded,
-                            size: 34, color: Colors.white),
+                            size: 36, color: Colors.white),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 14),
                       const Text(
                         'Manage Your Account',
                         style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
                             color: Colors.white),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 6),
                       Text(
                         'Update your username or password',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.8), fontSize: 13),
+                            color: Colors.indigo.shade200,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
 
                       // ── Tab bar ──────────────────────────────────────────
                       Container(
