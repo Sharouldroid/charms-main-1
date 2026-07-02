@@ -254,7 +254,7 @@ class _InternHistoryScreenState extends State<InternHistoryScreen>
           unselectedLabelColor: Colors.white60,
           tabs: const [
             Tab(icon: Icon(Icons.groups_rounded), text: 'Batches'),
-            Tab(icon: Icon(Icons.description_rounded), text: 'Documents'),
+            Tab(icon: Icon(Icons.description_rounded), text: 'Resumes'),
           ],
         ),
       ),
@@ -582,7 +582,7 @@ class _InternHistoryScreenState extends State<InternHistoryScreen>
             ],
           ),
           const SizedBox(height: 10),
-          Text('Document Status',
+          Text('Resume Status',
               style: TextStyle(
                   fontSize: 11,
                   color: Colors.grey[600],

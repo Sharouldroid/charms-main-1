@@ -58,6 +58,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String? _clockInLocationStr;
   String? _clockOutTimeStr;
   int? _activeScheduleId;
+  bool _needsScheduleRegistration = false;
 
   // ── Available Schedules card state (Intern only) ────────────────────────
   List<Schedule> _availableSchedules = [];
@@ -88,6 +89,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _checkAttendanceState() async {
     try {
       final reg = await InternHelper.getActiveRegistration(widget.userId);
+      if (mounted) {
+        setState(() {
+          _needsScheduleRegistration = reg == null || reg.scheduleId == null;
+        });
+      }
       if (reg == null || reg.scheduleId == null) return;
 
       final provider = context.read<InternAttendanceProvider>();
@@ -861,7 +867,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             builder: (_) => RegistrationStatusPage(userId: widget.userId),
           ));
         }),
-        _buildDashboardButton(context, 'Upload Documents', Icons.upload_file, () {
+        _buildDashboardButton(context, 'Upload Resume', Icons.upload_file, () {
           Navigator.push(context, MaterialPageRoute(
             builder: (context) => DocsUpload(
               userId: widget.userId,
@@ -1446,7 +1452,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             icon: Icons.assignment_turned_in_rounded,
             iconColor: const Color(0xFF7C3AED),
             iconBg: const Color(0xFFEDE9FE),
-            tag: 'Documents',
+            tag: 'Resumes',
             tagColor: const Color(0xFF7C3AED),
             tagBg: const Color(0xFFF5F3FF),
             onTap: () => Navigator.push(context, MaterialPageRoute(
@@ -1485,11 +1491,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required Color tagColor,
     required Color tagBg,
     required VoidCallback onTap,
+    bool showAlert = false,
   }) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        border: showAlert
+            ? Border.all(color: Colors.redAccent.withOpacity(0.3), width: 1.2)
+            : null,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -1507,14 +1517,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Padding(
             padding: const EdgeInsets.all(18),
             child: Row(children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: iconBg,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(icon, color: iconColor, size: 26),
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: iconBg,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(icon, color: iconColor, size: 26),
+                  ),
+                  if (showAlert)
+                    Positioned(
+                      top: -5,
+                      right: -5,
+                      child: Container(
+                        width: 18,
+                        height: 18,
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: const Icon(Icons.priority_high_rounded,
+                            color: Colors.white, size: 11),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -1763,12 +1794,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           const SizedBox(height: 12),
           _buildSupervisorCard(
-            title: 'Intern Submissions',
-            subtitle: 'Review and evaluate intern document submissions',
+            title: 'Intern Resume Submissions',
+            subtitle: 'Review and evaluate intern resume submissions',
             icon: Icons.assignment_turned_in_rounded,
             iconColor: const Color(0xFFD97706),
             iconBg: const Color(0xFFFEF3C7),
-            tag: 'Documents',
+            tag: 'Resumes',
             tagColor: const Color(0xFFD97706),
             tagBg: const Color(0xFFFFFBEB),
             onTap: () => Navigator.push(context, MaterialPageRoute(
@@ -2053,6 +2084,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             tag: 'Schedule',
             tagColor: const Color(0xFF0891B2),
             tagBg: const Color(0xFFF0F9FF),
+            showAlert: _needsScheduleRegistration,
             onTap: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) =>
                   ScheduleCalendar(isAdmin: false, userId: widget.userId),
@@ -2089,8 +2121,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           const SizedBox(height: 12),
           _buildSupervisorCard(
-            title: 'Upload Documents',
-            subtitle: 'Submit required internship documents',
+            title: 'Upload Resume',
+            subtitle: 'Submit your resume for consideration',
             icon: Icons.cloud_upload_rounded,
             iconColor: const Color(0xFF7C3AED),
             iconBg: const Color(0xFFEDE9FE),

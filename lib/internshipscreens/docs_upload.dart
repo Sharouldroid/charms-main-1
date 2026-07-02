@@ -335,7 +335,7 @@ class _DocsUploadState extends State<DocsUpload> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Document Upload'),
+        title: const Text('Resume Upload'),
         backgroundColor: Colors.blueAccent,
       ),
       body: _isLoadingSubmissions

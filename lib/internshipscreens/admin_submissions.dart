@@ -742,7 +742,7 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Student Submissions'),
+        title: const Text('Student Resume Submissions'),
         backgroundColor: Colors.blueAccent,
         foregroundColor: Colors.white,
         actions: [
