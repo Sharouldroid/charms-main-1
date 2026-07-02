@@ -6,6 +6,7 @@ import 'package:charms/internshipproviders/register_provider.dart';
 import 'package:charms/internshipmodels/register.dart';
 import 'package:country_list_pick/country_list_pick.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:charms/widgets/auth/auth_constants.dart';
 
 class RegistrationForm extends StatefulWidget {
   final int scheduleId;
@@ -47,24 +48,8 @@ class _RegistrationFormState extends State<RegistrationForm> {
   String? _countryCode;
   String? _selectedState;
 
-  final List<String> _malaysianStates = [
-    'Johor',
-    'Kedah',
-    'Kelantan',
-    'Melaka',
-    'Negeri Sembilan',
-    'Pahang',
-    'Penang',
-    'Perak',
-    'Perlis',
-    'Sabah',
-    'Sarawak',
-    'Selangor',
-    'Terengganu',
-    'Kuala Lumpur',
-    'Labuan',
-    'Putrajaya',
-  ];
+  // ✅ NEW: tracks whether we're still fetching the email from HR_userlogin
+  bool _isLoadingEmail = true;
 
   final List<String> _levelsOfStudy = [
     'Diploma',
@@ -115,6 +100,36 @@ class _RegistrationFormState extends State<RegistrationForm> {
 
   // ✅ NEW: Malaysian IC format XXXXXX-XX-XXXX
   final RegExp _icRegExp = RegExp(r'^\d{6}-\d{2}-\d{4}$');
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEmail();
+  }
+
+  // ✅ NEW: Pulls the intern's existing email from HR_userlogin (via userid)
+  // and pre-fills the Email field so they don't have to retype it.
+  // Still editable in case it's outdated or they want a different contact email.
+  Future<void> _loadEmail() async {
+    try {
+      final provider = Provider.of<RegisterProvider>(context, listen: false);
+      final email = await provider.fetchEmailByUserId(widget.userId);
+
+      if (mounted && email != null && email.isNotEmpty) {
+        setState(() {
+          _emailController.text = email;
+        });
+      }
+    } catch (e) {
+      print('⚠️ Could not auto-fill email: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingEmail = false;
+        });
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -356,12 +371,7 @@ class _RegistrationFormState extends State<RegistrationForm> {
 
     if (_formKey.currentState!.validate()) {
       // Ensure state is set correctly
-      String finalState = '';
-      if (_selectedCountry == 'Malaysia') {
-        finalState = _selectedState ?? '';
-      } else {
-        finalState = _stateController.text;
-      }
+      String finalState = _selectedState ?? '';
 
       final register = Register(
         userId: widget.userId,
@@ -952,40 +962,32 @@ class _RegistrationFormState extends State<RegistrationForm> {
               ),
               const SizedBox(height: 16),
 
-              // State Field
-              _selectedCountry == 'Malaysia'
-                  ? DropdownButtonFormField<String>(
-                      value: _selectedState,
-                      items: _malaysianStates.map((state) {
-                        return DropdownMenuItem<String>(
-                          value: state,
-                          child: Text(state),
-                        );
-                      }).toList(),
-                      decoration: const InputDecoration(labelText: 'State'),
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedState = value;
-                          _stateController.text = value ?? '';
-                        });
-                      },
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please select a state';
-                        }
-                        return null;
-                      },
-                    )
-                  : TextFormField(
-                      controller: _stateController,
-                      decoration: const InputDecoration(labelText: 'State'),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter your state';
-                        }
-                        return null;
-                      },
-                    ),
+              // ✅ State Field — always a dropdown now (was previously
+              // conditional on _selectedCountry == 'Malaysia', which showed
+              // a plain text field because the CountryListPick widget above
+              // silently overwrites _selectedCountry too — see note below).
+              DropdownButtonFormField<String>(
+                value: _selectedState,
+                items: AuthConstants.statesOfMalaysia.map((state) {
+                  return DropdownMenuItem<String>(
+                    value: state,
+                    child: Text(state),
+                  );
+                }).toList(),
+                decoration: const InputDecoration(labelText: 'State'),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedState = value;
+                    _stateController.text = value ?? '';
+                  });
+                },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please select a state';
+                  }
+                  return null;
+                },
+              ),
               const SizedBox(height: 16),
 
               // City
@@ -1038,10 +1040,25 @@ class _RegistrationFormState extends State<RegistrationForm> {
               ),
               const SizedBox(height: 16),
 
-              // Email
+              // ✅ Email — auto-filled from HR_userlogin, still editable
               TextFormField(
                 controller: _emailController,
-                decoration: const InputDecoration(labelText: 'Email'),
+                decoration: InputDecoration(
+                  labelText: 'Email',
+                  helperText: _isLoadingEmail
+                      ? 'Fetching your registered email...'
+                      : 'Auto-filled from your account — edit if needed',
+                  suffixIcon: _isLoadingEmail
+                      ? const Padding(
+                          padding: EdgeInsets.all(14),
+                          child: SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : null,
+                ),
                 keyboardType: TextInputType.emailAddress,
                 validator: (value) {
                   if (value!.isEmpty) return 'Please enter your email';

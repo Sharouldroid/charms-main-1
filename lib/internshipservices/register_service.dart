@@ -184,4 +184,22 @@ Future<List<Map<String, dynamic>>> fetchInterns() async {
     return null;
   }
 
+  // GET /api/user/by-userid/{userid}
+  // Looks up HR_userlogin by HR_userdata.id (userid) — used to auto-fill
+  // the Email field on the intern registration form.
+  Future<String?> fetchEmailByUserId(int userId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/user/by-userid/$userId'),
+      headers: _headers(),
+    );
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      if (body['success'] == true && body['data'] != null) {
+        return body['data']['email'] as String?;
+      }
+    }
+    return null;
+  }
+
 }

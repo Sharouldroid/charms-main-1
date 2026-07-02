@@ -57,4 +57,10 @@ class RegisterProvider with ChangeNotifier {
   Future<Register> getInternDetails(int internId) {
     return _registerService.getInternDetails(internId);
   }
+
+  // ✅ NEW: Used by the intern registration form to auto-fill Email
+  // from HR_userlogin (looked up via HR_userdata.id / userid).
+  Future<String?> fetchEmailByUserId(int userId) {
+    return _registerService.fetchEmailByUserId(userId);
+  }
 }
