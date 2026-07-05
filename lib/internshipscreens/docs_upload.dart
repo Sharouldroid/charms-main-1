@@ -28,6 +28,9 @@ class _DocsUploadState extends State<DocsUpload> {
   List<Map<String, dynamic>> _submissions = [];
   bool _isLoadingSubmissions = false;
 
+  // ✅ NEW: consent checkbox state (Terms & Conditions / Data Privacy)
+  bool _consentGiven = false;
+
   static const List<String> _documentTypes = [
     'Resume',
     'Academic Transcript',
@@ -106,6 +109,19 @@ class _DocsUploadState extends State<DocsUpload> {
       return;
     }
 
+    // NEW: block submission until the intern agrees to T&C / Data Privacy
+    if (!_consentGiven) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            '⚠️ Please agree to the Terms & Conditions and Data Privacy Notice before submitting',
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isUploading = true;
       _uploadMessage = null;
@@ -119,7 +135,7 @@ class _DocsUploadState extends State<DocsUpload> {
 
       request.headers['Accept'] = 'application/json';
 
-      // ✅ Web vs Mobile file handling (only if a file was picked)
+      // Web vs Mobile file handling (only if a file was picked)
       if (_selectedFile != null) {
         if (kIsWeb) {
           final bytes = _selectedFile!.bytes;
@@ -169,6 +185,9 @@ class _DocsUploadState extends State<DocsUpload> {
       // Add form fields
       request.fields['userId'] = widget.userId.toString();
       request.fields['documentType'] = _selectedDocumentType;
+      // NEW: consent fields sent to backend for persistence
+      request.fields['consentGiven'] = '1';
+      request.fields['consentTimestamp'] = DateTime.now().toIso8601String();
       if (widget.scheduleId != null) {
         request.fields['scheduleId'] = widget.scheduleId.toString();
       }
@@ -191,6 +210,7 @@ class _DocsUploadState extends State<DocsUpload> {
           _uploadMessage = 'Submitted successfully! Awaiting admin review.';
           _selectedFile = null;
           _linkController.clear();
+          _consentGiven = false; // ✅ reset for next submission
         });
 
         _loadUserSubmissions();
@@ -233,7 +253,7 @@ class _DocsUploadState extends State<DocsUpload> {
     }
   }
 
-  // ✅ Only pending / rejected / resubmit documents may be deleted.
+  // Only pending / rejected / resubmit documents may be deleted.
   // Approved documents are locked and cannot be removed by the intern.
   bool _canDelete(String status) {
     final s = status.toLowerCase();
@@ -338,6 +358,62 @@ class _DocsUploadState extends State<DocsUpload> {
       default:
         return Icons.help;
     }
+  }
+
+  // NEW: Terms & Conditions / Data Privacy consent notice + checkbox.
+  // Shown above the Submit button; the Submit button is disabled until
+  // this is checked (see _buildActionButtons / _uploadFile guard).
+  Widget _buildConsentNotice() {
+    return Card(
+      elevation: 0,
+      color: Colors.blue.shade50,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: Colors.blue.shade200),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.privacy_tip_outlined, color: Colors.blue.shade700, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  'Terms & Data Privacy',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue.shade900,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'By submitting these documents, you agree that your details and photos '
+              'may be used by SEATRU/UMT for internship administration and promotional '
+              'purposes (e.g. social media, website, campaigns). Your data will be '
+              'handled in accordance with the Personal Data Protection Act 2010 (PDPA) '
+              'and our Terms & Conditions.',
+              style: TextStyle(fontSize: 12.5, color: Colors.grey[800], height: 1.4),
+            ),
+            const SizedBox(height: 4),
+            CheckboxListTile(
+              value: _consentGiven,
+              onChanged: (value) => setState(() => _consentGiven = value ?? false),
+              controlAffinity: ListTileControlAffinity.leading,
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              title: const Text(
+                'I have read and agree to the Terms & Conditions and Data Privacy Notice.',
+                style: TextStyle(fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -455,7 +531,7 @@ class _DocsUploadState extends State<DocsUpload> {
 
                           const SizedBox(height: 16),
 
-                          // ✅ Link input field
+                          //Link input field
                           TextField(
                             controller: _linkController,
                             keyboardType: TextInputType.url,
@@ -468,6 +544,11 @@ class _DocsUploadState extends State<DocsUpload> {
                               ),
                             ),
                           ),
+
+                          const SizedBox(height: 16),
+
+                          // ✅ NEW: Terms & Conditions / Data Privacy consent notice
+                          _buildConsentNotice(),
 
                           const SizedBox(height: 16),
 
@@ -484,7 +565,8 @@ class _DocsUploadState extends State<DocsUpload> {
                               const SizedBox(width: 16),
                               Expanded(
                                 child: ElevatedButton.icon(
-                                  onPressed: _isUploading
+                                  // ✅ Submit disabled until consent is given
+                                  onPressed: (_isUploading || !_consentGiven)
                                       ? null
                                       : _uploadFile,
                                   icon: _isUploading
