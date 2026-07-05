@@ -6,6 +6,7 @@ import 'package:charms/main.dart';
 import 'package:charms/internshipproviders/internship_notification_provider.dart';
 import 'package:charms/internshipscreens/admin_submissions.dart';
 import 'package:charms/internshipscreens/intern_list_assesstment.dart';
+import 'package:charms/internshipscreens/interview_session_admin_screen.dart';
 
 class InternshipNotificationScreen extends StatefulWidget {
   final int userId;
@@ -181,6 +182,10 @@ class _InternshipNotificationScreenState
     } else if (type == 'new_registration') {
       Navigator.push(context, MaterialPageRoute(
         builder: (_) => const InternListPage(),
+      ));
+    } else if (type == 'interview_booked') {
+      Navigator.push(context, MaterialPageRoute(
+        builder: (_) => const InterviewSessionAdminScreen(),
       ));
     }
   }
@@ -453,6 +458,22 @@ class _InternshipNotificationScreenState
         icon = Icons.person_add_rounded; iconColor = Colors.purple;
         title = notification['title'] ?? 'New Intern Registered';
         subtitle = notification['message'] ?? 'A new intern has registered';
+        isTappable = widget.isAdmin;
+        break;
+      case 'interview_booked_confirmation':
+        icon = Icons.event_available_rounded; iconColor = Colors.blueAccent;
+        title = notification['title'] ?? 'Interview Session Booked ✅';
+        subtitle = notification['message'] ?? 'Your interview session has been scheduled';
+        break;
+      case 'interview_link_ready':
+        icon = Icons.videocam_rounded; iconColor = Colors.teal;
+        title = notification['title'] ?? 'Interview Link Ready 🔗';
+        subtitle = notification['message'] ?? 'Your interview meeting link is now available';
+        break;
+      case 'interview_booked':
+        icon = Icons.event_note_rounded; iconColor = Colors.purple;
+        title = notification['title'] ?? 'Interview Slot Booked';
+        subtitle = notification['message'] ?? 'An intern has booked an interview slot';
         isTappable = widget.isAdmin;
         break;
       default:

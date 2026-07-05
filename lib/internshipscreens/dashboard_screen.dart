@@ -29,6 +29,11 @@ import 'package:charms/internshipservices/schedule_service.dart';
 import 'package:charms/internshipscreens/offer_letter_screen.dart';
 import 'package:charms/internshipscreens/intern_history_screen.dart';
 import 'package:charms/main.dart';
+import 'package:charms/internshipproviders/interview_session_provider.dart';
+import 'package:charms/internshipmodels/interview_session.dart';
+import 'package:charms/internshipscreens/interview_session_picker_screen.dart';
+import 'package:charms/internshipscreens/interview_session_admin_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String username;
@@ -65,6 +70,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Map<int, Map<String, dynamic>> _scheduleRegCounts = {};
   bool _schedulesLoading = true;
 
+  // ── Interview session state (Intern only) ───────────────────────────────
+  InterviewSession? _mySession;
+  bool _needsInterviewBooking = false;
+  bool _interviewLoading = true;
+
+  // ── Interview session overview (Admin/Supervisor only) ──────────────────
+  int _upcomingInterviewCount = 0;
+  int _awaitingLinkCount = 0;
+  bool _interviewOverviewLoading = true;
+
   // ── Design tokens ───────────────────────────────────────────────────────
   static const Color _gradientStart = Colors.blueAccent;
   static const Color _gradientEnd = Color(0xFF7B40FB);
@@ -81,8 +96,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (widget.role == 'Intern') {
         _checkAttendanceState();
         _loadAvailableSchedules();
+        _loadMyInterviewSession();
+      }
+      if (widget.role == 'Admin' || widget.role == 'Supervisor') {
+        _loadInterviewOverview();
       }
     });
+  }
+
+  // ── Load the intern's own interview session (Intern only) ──────────────
+  Future<void> _loadMyInterviewSession() async {
+    try {
+      final provider = context.read<InterviewSessionProvider>();
+      await provider.loadMySession(widget.userId);
+      if (mounted) {
+        setState(() {
+          _mySession = provider.mySession;
+          _needsInterviewBooking = _mySession == null;
+          _interviewLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading interview session: $e');
+      if (mounted) setState(() => _interviewLoading = false);
+    }
+  }
+
+  // ── Load interview session overview counts (Admin/Supervisor only) ─────
+  Future<void> _loadInterviewOverview() async {
+    try {
+      final provider = context.read<InterviewSessionProvider>();
+      await provider.loadAllSessions();
+      final booked = provider.allSessions.where((s) => s.isBooked).toList();
+      if (mounted) {
+        setState(() {
+          _upcomingInterviewCount = booked.length;
+          _awaitingLinkCount = booked
+              .where((s) => s.meetingLink == null || s.meetingLink!.isEmpty)
+              .length;
+          _interviewOverviewLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading interview overview: $e');
+      if (mounted) setState(() => _interviewOverviewLoading = false);
+    }
   }
 
   // ── Check existing attendance state from backend ───────────────────────
@@ -1194,6 +1252,311 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  // ── Interview Session info card (Intern only) ───────────────────────────
+  Future<void> _openInterviewLink(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      _showSnack('Could not open link', Colors.red);
+    }
+  }
+
+  Widget _buildInterviewInfoCard() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [_gradientStart, _gradientEnd],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.event_note_rounded,
+                    color: Colors.white, size: 16),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Interview Session',
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A2E)),
+                ),
+              ),
+              TextButton(
+                onPressed: () async {
+                  await Navigator.push(context, MaterialPageRoute(
+                    builder: (_) =>
+                        InterviewSessionPickerScreen(userId: widget.userId),
+                  ));
+                  _loadMyInterviewSession();
+                },
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.blueAccent,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Text(_mySession == null ? 'Book Now' : 'View',
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600)),
+                  const SizedBox(width: 2),
+                  const Icon(Icons.chevron_right_rounded, size: 16),
+                ]),
+              ),
+            ]),
+            const Divider(height: 20, thickness: 0.8),
+            if (_interviewLoading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2.5)),
+              )
+            else if (_mySession == null)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Column(children: [
+                  Icon(Icons.event_busy_rounded, size: 36, color: Colors.grey.shade300),
+                  const SizedBox(height: 8),
+                  Text(
+                    'You haven\'t booked an interview session yet.',
+                    style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'This is required before your resume can be approved.',
+                    style: TextStyle(color: Colors.grey.shade400, fontSize: 11),
+                    textAlign: TextAlign.center,
+                  ),
+                ]),
+              )
+            else
+              Builder(builder: (context) {
+                final session = _mySession!;
+                final hasLink =
+                    session.meetingLink != null && session.meetingLink!.isNotEmpty;
+                final statusColor =
+                    session.isCompleted ? Colors.green : Colors.blueAccent;
+                final dateFmt =
+                    DateFormat('EEE, dd MMM yyyy').format(session.date.toLocal());
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      Icon(Icons.calendar_month, size: 15, color: Colors.grey.shade600),
+                      const SizedBox(width: 6),
+                      Text(dateFmt, style: const TextStyle(fontSize: 13)),
+                      const SizedBox(width: 10),
+                      Icon(Icons.access_time, size: 15, color: Colors.grey.shade600),
+                      const SizedBox(width: 6),
+                      Text('${session.startTime}–${session.endTime}',
+                          style: const TextStyle(fontSize: 13)),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: statusColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          session.isCompleted ? 'COMPLETED' : 'BOOKED',
+                          style: TextStyle(
+                              color: statusColor,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ]),
+                    const SizedBox(height: 12),
+                    if (hasLink)
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () => _openInterviewLink(session.meetingLink!),
+                          icon: const Icon(Icons.videocam_rounded, size: 16),
+                          label: const Text('Join Interview'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blueAccent,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      )
+                    else
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.orange.shade200),
+                        ),
+                        child: Row(children: [
+                          Icon(Icons.info_outline, size: 14, color: Colors.orange.shade700),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Meeting link will appear here once your interviewer adds it.',
+                              style: TextStyle(fontSize: 11, color: Colors.orange.shade800),
+                            ),
+                          ),
+                        ]),
+                      ),
+                  ],
+                );
+              }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Interview Session overview card (Admin/Supervisor only) ─────────────
+  Widget _buildInterviewOverviewCard() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF2563EB), Color(0xFF7C3AED)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.event_note_rounded,
+                    color: Colors.white, size: 16),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Interview Sessions',
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A2E)),
+                ),
+              ),
+              TextButton(
+                onPressed: () async {
+                  await Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => const InterviewSessionAdminScreen(),
+                  ));
+                  _loadInterviewOverview();
+                },
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.blueAccent,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                  Text('Manage',
+                      style: TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600)),
+                  SizedBox(width: 2),
+                  Icon(Icons.chevron_right_rounded, size: 16),
+                ]),
+              ),
+            ]),
+            const Divider(height: 20, thickness: 0.8),
+            if (_interviewOverviewLoading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2.5)),
+              )
+            else
+              Row(children: [
+                Expanded(
+                  child: _overviewStat(
+                    'Booked',
+                    _upcomingInterviewCount.toString(),
+                    Icons.event_available_rounded,
+                    Colors.blueAccent,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _overviewStat(
+                    'Awaiting Link',
+                    _awaitingLinkCount.toString(),
+                    Icons.link_off_rounded,
+                    Colors.orange,
+                  ),
+                ),
+              ]),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _overviewStat(String label, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(children: [
+        Icon(icon, color: color, size: 20),
+        const SizedBox(width: 8),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(value,
+                style: TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+            Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+          ],
+        ),
+      ]),
+    );
+  }
+
   // ── Supervisor Dashboard ───────────────────────────────────────────────
 
   Widget _buildSupervisorScaffold() {
@@ -1236,7 +1599,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
               background: _buildSupervisorHero(greeting, dateStr),
             ),
           ),
-          SliverToBoxAdapter(child: _buildSupervisorBody()),
+          SliverToBoxAdapter(
+            child: Column(
+              children: [
+                _buildSupervisorBody(),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                  child: _buildInterviewOverviewCard(),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
       bottomNavigationBar: _buildSupervisorBottomNav(),
@@ -1461,6 +1834,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           const SizedBox(height: 12),
           _buildSupervisorCard(
+            title: 'Interview Sessions',
+            subtitle: 'Create interview slots and manage bookings',
+            icon: Icons.event_note_rounded,
+            iconColor: const Color(0xFF7C3AED),
+            iconBg: const Color(0xFFEDE9FE),
+            tag: 'Interview',
+            tagColor: const Color(0xFF7C3AED),
+            tagBg: const Color(0xFFF5F3FF),
+            onTap: () async {
+              await Navigator.push(context, MaterialPageRoute(
+                builder: (_) => const InterviewSessionAdminScreen(),
+              ));
+              _loadInterviewOverview();
+            },
+          ),
+          const SizedBox(height: 12),
+          _buildSupervisorCard(
             title: 'Intern History',
             subtitle: 'View past batches and historical document submissions',
             icon: Icons.history_rounded,
@@ -1638,7 +2028,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
               background: _buildAdminHero(greeting, dateStr),
             ),
           ),
-          SliverToBoxAdapter(child: _buildAdminBody()),
+          SliverToBoxAdapter(
+            child: Column(
+              children: [
+                _buildAdminBody(),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                  child: _buildInterviewOverviewCard(),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
       bottomNavigationBar: _buildSupervisorBottomNav(),
@@ -1808,6 +2208,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           const SizedBox(height: 12),
           _buildSupervisorCard(
+            title: 'Interview Sessions',
+            subtitle: 'Create interview slots and manage bookings',
+            icon: Icons.event_note_rounded,
+            iconColor: const Color(0xFF7C3AED),
+            iconBg: const Color(0xFFEDE9FE),
+            tag: 'Interview',
+            tagColor: const Color(0xFF7C3AED),
+            tagBg: const Color(0xFFF5F3FF),
+            onTap: () async {
+              await Navigator.push(context, MaterialPageRoute(
+                builder: (_) => const InterviewSessionAdminScreen(),
+              ));
+              _loadInterviewOverview();
+            },
+          ),
+          const SizedBox(height: 12),
+          _buildSupervisorCard(
             title: 'Attendance',
             subtitle: 'Track and monitor daily intern attendance records',
             icon: Icons.fingerprint_rounded,
@@ -1888,6 +2305,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Column(
               children: [
                 _buildInternBody(),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                  child: _buildInterviewInfoCard(),
+                ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
                   child: _buildAvailableSchedulesCard(),
@@ -2089,6 +2510,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
               builder: (_) =>
                   ScheduleCalendar(isAdmin: false, userId: widget.userId),
             )),
+          ),
+          const SizedBox(height: 12),
+          _buildSupervisorCard(
+            title: 'Book Interview',
+            subtitle: _mySession == null
+                ? 'Select an interview session set up by admin'
+                : 'View your booked interview session',
+            icon: Icons.event_available_rounded,
+            iconColor: const Color(0xFF7C3AED),
+            iconBg: const Color(0xFFEDE9FE),
+            tag: 'Interview',
+            tagColor: const Color(0xFF7C3AED),
+            tagBg: const Color(0xFFF5F3FF),
+            showAlert: _needsInterviewBooking,
+            onTap: () async {
+              await Navigator.push(context, MaterialPageRoute(
+                builder: (_) =>
+                    InterviewSessionPickerScreen(userId: widget.userId),
+              ));
+              _loadMyInterviewSession();
+            },
           ),
           const SizedBox(height: 12),
           _buildSupervisorCard(

@@ -281,6 +281,8 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
               if (submission['document_type'] != null &&
                   submission['document_type'].toString().isNotEmpty)
                 Text('Document Type: ${submission['document_type']}'),
+              const SizedBox(height: 8),
+              _buildInterviewStatusRow(submission),
               const SizedBox(height: 16),
               const Text('Status:',
                   style: TextStyle(fontWeight: FontWeight.bold)),
@@ -328,6 +330,14 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
           ),
           ElevatedButton(
             onPressed: () {
+              if (selectedStatus == 'approved' &&
+                  !_hasBookedInterview(submission)) {
+                Navigator.of(context).pop();
+                _showErrorMessage(
+                  'This intern must book an interview session before their resume can be approved.',
+                );
+                return;
+              }
               Navigator.of(context).pop();
               _updateSubmissionStatus(
                 submission['id'],
@@ -339,6 +349,46 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
           ),
         ],
       ),
+    );
+  }
+
+  // ✅ Gate: resume can only be approved once the intern has booked
+  // (or completed) an interview session. See interview_status field
+  // expected from GET /api/internship/documents/admin/submissions.
+  bool _hasBookedInterview(Map<String, dynamic> submission) {
+    final status = submission['interview_status'];
+    return status == 'booked' || status == 'completed';
+  }
+
+  Widget _buildInterviewStatusRow(Map<String, dynamic> submission) {
+    final booked = _hasBookedInterview(submission);
+    final status = submission['interview_status'] ?? 'none';
+    final color = status == 'completed'
+        ? Colors.green
+        : status == 'booked'
+            ? Colors.blueAccent
+            : Colors.orange;
+    final label = status == 'completed'
+        ? 'Interview Completed'
+        : status == 'booked'
+            ? 'Interview Booked'
+            : 'Interview Not Booked';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(
+          booked ? Icons.event_available_rounded : Icons.event_busy_rounded,
+          size: 14,
+          color: color,
+        ),
+        const SizedBox(width: 6),
+        Text(label, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600)),
+      ]),
     );
   }
 
@@ -467,6 +517,8 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
                           ),
                         ),
                       ],
+                      const SizedBox(height: 6),
+                      _buildInterviewStatusRow(submission),
                     ],
                   ),
                 ),
