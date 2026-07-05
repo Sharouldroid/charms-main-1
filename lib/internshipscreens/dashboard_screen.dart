@@ -1365,16 +1365,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(children: [
-                      Icon(Icons.calendar_month, size: 15, color: Colors.grey.shade600),
-                      const SizedBox(width: 6),
-                      Text(dateFmt, style: const TextStyle(fontSize: 13)),
-                      const SizedBox(width: 10),
-                      Icon(Icons.access_time, size: 15, color: Colors.grey.shade600),
-                      const SizedBox(width: 6),
-                      Text('${session.startTime}–${session.endTime}',
-                          style: const TextStyle(fontSize: 13)),
-                      const Spacer(),
+                    Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Expanded(
+                        child: Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 10,
+                          runSpacing: 4,
+                          children: [
+                            Row(mainAxisSize: MainAxisSize.min, children: [
+                              Icon(Icons.calendar_month, size: 15, color: Colors.grey.shade600),
+                              const SizedBox(width: 6),
+                              Text(dateFmt, style: const TextStyle(fontSize: 13)),
+                            ]),
+                            Row(mainAxisSize: MainAxisSize.min, children: [
+                              Icon(Icons.access_time, size: 15, color: Colors.grey.shade600),
+                              const SizedBox(width: 6),
+                              Text('${session.startTime}–${session.endTime}',
+                                  style: const TextStyle(fontSize: 13)),
+                            ]),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
