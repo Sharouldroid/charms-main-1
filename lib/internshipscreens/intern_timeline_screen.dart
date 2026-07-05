@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:charms/main.dart';
 import 'package:charms/internshipservices/schedule_service.dart';
 import 'package:charms/internshipservices/milestone_service.dart';
+import 'package:charms/internshipscreens/alumni_update_screen.dart';
 
 class InternTimelineScreen extends StatefulWidget {
   final int userId;
@@ -569,6 +570,10 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
               _buildDateInfoCard(),
               const SizedBox(height: 16),
               _buildMilestonesCard(),
+              if (_internshipStatus == 'Completed') ...[
+                const SizedBox(height: 16),
+                _buildAlumniCard(),
+              ],
               const SizedBox(height: 16),
               _buildInternInfoCard(),
               const SizedBox(height: 24),
@@ -1047,6 +1052,58 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
       child: Text(label,
           style: TextStyle(
               color: color, fontSize: 10, fontWeight: FontWeight.bold)),
+    );
+  }
+
+  // ── Alumni card ───────────────────────────────────────────────
+
+  Widget _buildAlumniCard() {
+    return _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.school_outlined, color: Colors.blueAccent, size: 18),
+              SizedBox(width: 8),
+              Text('Alumni', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            widget.isAdminView
+                ? 'This internship has ended. View this alumnus\' career updates.'
+                : 'Your internship has ended — share a quick career update with us.',
+            style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AlumniUpdateScreen(
+                      userId: widget.userId,
+                      isAdminView: widget.isAdminView,
+                      internName: widget.internName,
+                    ),
+                  ),
+                );
+              },
+              icon: Icon(widget.isAdminView ? Icons.visibility_outlined : Icons.send_rounded, size: 18),
+              label: Text(widget.isAdminView ? 'View Alumni Updates' : 'Share Career Update'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blueAccent,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

@@ -19,6 +19,8 @@ import 'intern_myself_screen.dart';
 import 'package:charms/internshipproviders/internship_notification_provider.dart';
 import 'package:charms/internshipscreens/internship_notification_screen.dart';
 import 'intern_timeline_screen.dart';
+import 'package:charms/internshipscreens/alumni_update_screen.dart';
+import 'package:charms/internshipscreens/alumni_list_screen.dart';
 import 'package:charms/internshipscreens/slot_details_screen.dart';
 import 'package:charms/internshipproviders/InternAttendanceProvider.dart';
 import 'package:charms/internshipscreens/InternAttendanceHistoryScreen.dart';
@@ -867,6 +869,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
             builder: (_) => AdminSubmissionsPage(adminId: widget.userId),
           ));
         }),
+        _buildDashboardButton(context, 'Alumni', Icons.groups_rounded, () {
+          Navigator.push(context, MaterialPageRoute(
+            builder: (_) => const AlumniListScreen(),
+          ));
+        }),
       ]);
     } else if (widget.role == 'Admin') {
       buttons.addAll([
@@ -901,6 +908,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               role: widget.role,
               userId: widget.userId,
             ),
+          ));
+        }),
+        _buildDashboardButton(context, 'Alumni', Icons.groups_rounded, () {
+          Navigator.push(context, MaterialPageRoute(
+            builder: (_) => const AlumniListScreen(),
           ));
         }),
       ]);
@@ -947,6 +959,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               userId: widget.userId,
               role: widget.role,
             ),
+          ));
+        }),
+        _buildDashboardButton(context, 'Alumni Update', Icons.school_rounded, () {
+          Navigator.push(context, MaterialPageRoute(
+            builder: (_) => AlumniUpdateScreen(userId: widget.userId),
           ));
         }),
       ]);
@@ -1878,6 +1895,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             )),
           ),
+          const SizedBox(height: 12),
+          _buildSupervisorCard(
+            title: 'Alumni',
+            subtitle: 'Review career updates from past interns',
+            icon: Icons.groups_rounded,
+            iconColor: const Color(0xFF0891B2),
+            iconBg: const Color(0xFFCFFAFE),
+            tag: 'Alumni',
+            tagColor: const Color(0xFF0891B2),
+            tagBg: const Color(0xFFECFEFF),
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const AlumniListScreen(),
+            )),
+          ),
         ],
       ),
     );
@@ -2266,6 +2297,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             )),
           ),
+          const SizedBox(height: 12),
+          _buildSupervisorCard(
+            title: 'Alumni',
+            subtitle: 'Review career updates from past interns',
+            icon: Icons.groups_rounded,
+            iconColor: const Color(0xFF0891B2),
+            iconBg: const Color(0xFFCFFAFE),
+            tag: 'Alumni',
+            tagColor: const Color(0xFF0891B2),
+            tagBg: const Color(0xFFECFEFF),
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const AlumniListScreen(),
+            )),
+          ),
         ],
       ),
     );
@@ -2618,6 +2663,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
             onTap: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) =>
                   OfferLetterScreen(userId: widget.userId, role: widget.role),
+            )),
+          ),
+          const SizedBox(height: 12),
+          _buildSupervisorCard(
+            title: 'Alumni Update',
+            subtitle: 'Share a career update once your internship ends',
+            icon: Icons.school_rounded,
+            iconColor: const Color(0xFF0F766E),
+            iconBg: const Color(0xFFCCFBF1),
+            tag: 'Alumni',
+            tagColor: const Color(0xFF0F766E),
+            tagBg: const Color(0xFFF0FDFA),
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => AlumniUpdateScreen(userId: widget.userId),
             )),
           ),
           const SizedBox(height: 24),

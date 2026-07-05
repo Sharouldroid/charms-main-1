@@ -7,6 +7,7 @@ import 'package:charms/internshipproviders/internship_notification_provider.dart
 import 'package:charms/internshipscreens/admin_submissions.dart';
 import 'package:charms/internshipscreens/intern_list_assesstment.dart';
 import 'package:charms/internshipscreens/interview_session_admin_screen.dart';
+import 'package:charms/internshipscreens/alumni_update_screen.dart';
 
 class InternshipNotificationScreen extends StatefulWidget {
   final int userId;
@@ -171,7 +172,15 @@ class _InternshipNotificationScreenState
     // Mark as read first
     if (notification['is_read'] == 0) _markAsRead(id);
 
-    if (!widget.isAdmin) return; // Intern taps do nothing extra
+    if (!widget.isAdmin) {
+      // Intern-facing notification types.
+      if (type == 'career_update_due') {
+        Navigator.push(context, MaterialPageRoute(
+          builder: (_) => AlumniUpdateScreen(userId: widget.userId),
+        ));
+      }
+      return;
+    }
 
     // Admin navigation based on type
     if (['new_document', 'document_approved', 'document_rejected',
