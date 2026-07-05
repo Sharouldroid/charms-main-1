@@ -1,11 +1,9 @@
-import 'dart:convert';
 import 'package:charms/HRmodels/schedule.dart';
 import 'package:charms/HRproviders/attendances.dart';
 import 'package:charms/HRproviders/schedules.dart';
 import 'package:charms/HRscreens/staff/schedule_exchange_screen.dart';
+import 'package:charms/HRutils/attendance_location_helper.dart';
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -232,22 +230,8 @@ class _StaffScheduleDetailsScreenState
         backgroundColor: Colors.blueGrey,
       ));
 
-      final locationStr = await _getCurrentLocation();
-      if (locationStr == null) { setState(() => _isLoading = false); return; }
-
-      // Try to resolve coordinates to a human-readable place name
-      String displayLocation = locationStr;
-      final parts = locationStr.split(', ');
-      if (parts.length == 2) {
-        final lat = double.tryParse(parts[0]);
-        final lng = double.tryParse(parts[1]);
-        if (lat != null && lng != null) {
-          final placeName = await _getPlaceName(lat, lng);
-          if (placeName != null) {
-            displayLocation = '$placeName\n($locationStr)';
-          }
-        }
-      }
+      final displayLocation = await resolveDisplayLocation();
+      if (displayLocation == null) { setState(() => _isLoading = false); return; }
 
       final ap = Provider.of<Attendances>(context, listen: false);
       final result = await ap.recordAttendance(
@@ -307,37 +291,6 @@ class _StaffScheduleDetailsScreenState
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  // ── Get GPS coordinates as string ──────────────────────────────────────────
-  Future<String?> _getCurrentLocation() async {
-    try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) return null;
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) return null;
-      }
-      if (permission == LocationPermission.deniedForever) return null;
-      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-      return '${pos.latitude.toStringAsFixed(6)}, ${pos.longitude.toStringAsFixed(6)}';
-    } catch (e) { return null; }
-  }
-
-  // ── Reverse geocode coordinates to place name (Nominatim) ─────────────────
-  Future<String?> _getPlaceName(double lat, double lng) async {
-    try {
-      final url = Uri.parse(
-        'https://nominatim.openstreetmap.org/reverse?lat=$lat&lon=$lng&format=json',
-      );
-      final response = await http.get(url, headers: {'User-Agent': 'charms-app'});
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return data['display_name'];
-      }
-    } catch (_) {}
-    return null;
   }
 
   Future<void> _openGoogleMaps(String coordinates) async {
@@ -428,6 +381,12 @@ class _StaffScheduleDetailsScreenState
 
                   // Accept / Reject buttons — only when Pending and not past
                   if (_acceptanceStatus == 0 && !isPast) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Optional — accepting just confirms this assignment for HR. '
+                      'You can clock in either way, unless you choose Not Accept.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    ),
                     const SizedBox(height: 12),
                     Row(children: [
                       Expanded(
@@ -543,15 +502,15 @@ class _StaffScheduleDetailsScreenState
               // ── Clock In / Out button ───────────────────────────────────────
               if (_isLoading)
                 const Center(child: CircularProgressIndicator())
-              else if (_acceptanceStatus == 1 || _acceptanceStatus == 0) ...[
+              else if (_acceptanceStatus != 2) ...[
                 if (!isClockIn)
                   ElevatedButton.icon(
-                    onPressed: _acceptanceStatus == 1 ? _handleClockIn : null,
+                    onPressed: _handleClockIn,
                     icon: const Icon(Icons.login_rounded),
                     label: const Text('Clock In',
                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _acceptanceStatus == 1 ? _primaryBlue : Colors.grey,
+                      backgroundColor: _primaryBlue,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),

@@ -73,8 +73,9 @@ class Schedules with ChangeNotifier {
     }
   }
 
-  // Add a new schedule
-  Future<void> addSchedule(Schedule schedule) async {
+  // Add a new schedule. Returns the created Schedule (with its real schedId)
+  // when it can be resolved, so callers (e.g. self clock-in) can use it right away.
+  Future<Schedule?> addSchedule(Schedule schedule) async {
     final url = Uri.parse('$_hostname/staff-schedule/create');
     final body = schedule.toJson();
     body['work_date'] = schedule.workDate.toIso8601String().split('T')[0]; // Format date to YYYY-MM-DD
@@ -87,14 +88,44 @@ class Schedules with ChangeNotifier {
       );
 
       if (response.statusCode == 201) {
+        Schedule? created;
+        try {
+          final decoded = json.decode(response.body);
+          final data = decoded is Map<String, dynamic> && decoded['data'] is Map
+              ? decoded['data'] as Map<String, dynamic>
+              : decoded as Map<String, dynamic>;
+          created = Schedule.fromJson(data);
+        } catch (_) {
+          created = null;
+        }
+
         await fetchSchedules();
         notifyListeners();
+
+        created ??= await _findCreatedSchedule(schedule.staffId, schedule.workDate);
+        return created;
       } else {
         throw Exception('Failed to add schedule: ${response.body}');
       }
     } catch (error) {
       debugPrint('Error adding schedule: $error');
       rethrow;
+    }
+  }
+
+  // Fallback when the create response doesn't carry a usable schedule payload:
+  // re-fetch and match on staffId + calendar day, picking the newest match.
+  Future<Schedule?> _findCreatedSchedule(int staffId, DateTime workDate) async {
+    try {
+      final schedules = await fetchSchedulesByStaffId(staffId);
+      final sameDay = schedules.where((s) =>
+          s.workDate.year == workDate.year &&
+          s.workDate.month == workDate.month &&
+          s.workDate.day == workDate.day);
+      if (sameDay.isEmpty) return null;
+      return sameDay.reduce((a, b) => a.schedId >= b.schedId ? a : b);
+    } catch (_) {
+      return null;
     }
   }
 

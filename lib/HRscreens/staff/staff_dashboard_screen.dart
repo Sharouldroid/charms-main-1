@@ -2,6 +2,7 @@ import 'package:charms/HRproviders/attendances.dart';
 import 'package:charms/HRproviders/leaves.dart';
 import 'package:charms/HRproviders/claims.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:charms/HRproviders/staffs.dart';
 import 'package:charms/HRproviders/schedules.dart';
@@ -12,6 +13,7 @@ import 'package:charms/HRscreens/staff/payroll_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/claim_dashboard.dart';
 import 'package:charms/HRscreens/staff/staff_myself_screen.dart';
 import 'package:charms/HRscreens/staff/staff_schedule_details_screen.dart';
+import 'package:charms/HRutils/attendance_location_helper.dart';
 import 'package:charms/HRwidgets/staff/bottom_nav_staff.dart';
 import 'package:charms/HRscreens/staff/staff_notification_screen.dart';
 import 'package:charms/HRscreens/admin/admin_dashboard_screen.dart';
@@ -20,7 +22,7 @@ import 'package:charms/constants/user_roles.dart';
 import 'package:charms/utils/logout_helper.dart';
 import 'package:charms/HRproviders/schedule_exchanges.dart';
 import 'package:charms/HRscreens/staff/staff_attendance_history_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart'; 
+import 'package:shared_preferences/shared_preferences.dart';
 
 class StaffDashboardScreen extends StatefulWidget {
   final String username;
@@ -39,6 +41,15 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
   int workLocation = 0;
   DateTime? lastLoginTime;
   bool _mounted = true;
+
+  // ── Today's attendance (clock in/out available every day) ────────────────
+  Schedule? _todaySchedule;
+  bool _isCheckingTodayAttendance = true;
+  bool _isClockActionLoading = false;
+  bool _isClockedInToday = false;
+  bool _isClockedOutToday = false;
+  String? _todayClockInTimeStr;
+  String? _todayClockOutTimeStr;
 
   final Color staffPrimary    = const Color(0xFF4F46E5);
   final Color staffBg         = const Color(0xFFF8FAFC);
@@ -127,20 +138,200 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
               workLocation = _staffSchedules[0].workLocation;
               branch       = getBranchName(workLocation);
             }
+            _todaySchedule = _findTodaySchedule(_staffSchedules);
             lastLoginTime = DateTime.now();
             _isLoading    = false;
           });
         }
+        await _checkTodayAttendance();
       } else {
         if (_mounted) {
           setState(() {
-            _isLoading    = false;
-            lastLoginTime = DateTime.now();
+            _isLoading                 = false;
+            _isCheckingTodayAttendance = false;
+            lastLoginTime              = DateTime.now();
           });
         }
       }
     } catch (error) {
-      if (_mounted) setState(() => _isLoading = false);
+      if (_mounted) {
+        setState(() {
+          _isLoading                 = false;
+          _isCheckingTodayAttendance = false;
+        });
+      }
+    }
+  }
+
+  // ── Resolve today's schedule (admin-assigned or previously self-created) ──
+  Schedule? _findTodaySchedule(List<Schedule> schedules) {
+    final now = DateTime.now();
+    for (final s in schedules) {
+      if (s.workDate.year == now.year &&
+          s.workDate.month == now.month &&
+          s.workDate.day == now.day) {
+        return s;
+      }
+    }
+    return null;
+  }
+
+  // ── Check today's clock in/out state ──────────────────────────────────────
+  Future<void> _checkTodayAttendance() async {
+    if (!_mounted) return;
+    if (_todaySchedule == null || _currentStaff == null) {
+      setState(() {
+        _isCheckingTodayAttendance = false;
+        _isClockedInToday          = false;
+        _isClockedOutToday         = false;
+      });
+      return;
+    }
+    try {
+      final ap = Provider.of<Attendances>(context, listen: false);
+      final hasAttendance = await ap.checkAttendance(
+        staffId:    _currentStaff!.staffId,
+        scheduleId: _todaySchedule!.schedId,
+      );
+      final clockOutTime = ap.lastCheckedClockOutTime;
+      final clockInTime  = ap.lastCheckedClockInTime;
+      if (!_mounted) return;
+      setState(() {
+        _isClockedInToday          = hasAttendance;
+        _isClockedOutToday         = clockOutTime != null && clockOutTime.isNotEmpty;
+        _todayClockInTimeStr       = clockInTime;
+        _todayClockOutTimeStr      = clockOutTime;
+        _isCheckingTodayAttendance = false;
+      });
+    } catch (_) {
+      if (_mounted) setState(() => _isCheckingTodayAttendance = false);
+    }
+  }
+
+  // ── Clock In — resolves today's schedule, self-creating one if HR hasn't
+  // assigned a shift, so staff can clock in every day like an intern ───────
+  Future<void> _handleDashboardClockIn() async {
+    if (_currentStaff == null) return;
+    setState(() => _isClockActionLoading = true);
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Row(children: [
+          SizedBox(width: 18, height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+          SizedBox(width: 12),
+          Text('Detecting your location...'),
+        ]),
+        duration: Duration(seconds: 3),
+        backgroundColor: Colors.blueGrey,
+      ));
+
+      final displayLocation = await resolveDisplayLocation();
+      if (displayLocation == null) {
+        if (_mounted) setState(() => _isClockActionLoading = false);
+        return;
+      }
+
+      int scheduleId;
+      if (_todaySchedule != null) {
+        scheduleId = _todaySchedule!.schedId;
+      } else {
+        final schedulesProvider = Provider.of<Schedules>(context, listen: false);
+        final defaultLocation = workLocation != 0 ? workLocation : 1;
+        final created = await schedulesProvider.addSchedule(Schedule(
+          schedId:          0,
+          staffId:          _currentStaff!.staffId,
+          workDate:         DateTime.now(),
+          workLocation:     defaultLocation,
+          staffType:        1,
+          acceptanceStatus: 1,
+        ));
+        if (created == null) {
+          if (_mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text("Couldn't start today's attendance. Please try again."),
+              backgroundColor: Colors.red,
+            ));
+            setState(() => _isClockActionLoading = false);
+          }
+          return;
+        }
+        scheduleId     = created.schedId;
+        _todaySchedule = created;
+      }
+
+      final ap = Provider.of<Attendances>(context, listen: false);
+      final result = await ap.recordAttendance(
+        staffId:          _currentStaff!.staffId,
+        scheduleId:       scheduleId,
+        clockInTime:      DateTime.now().toIso8601String(),
+        clockInLocation:  displayLocation,
+      );
+
+      if (result['success'] == true && _mounted) {
+        setState(() {
+          _isClockedInToday    = true;
+          _todayClockInTimeStr = DateFormat('hh:mm a').format(DateTime.now());
+        });
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Successfully clocked in!'), backgroundColor: Colors.green));
+      } else if (_mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Failed to clock in.'), backgroundColor: Colors.red));
+      }
+    } catch (error) {
+      if (_mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed to clock in: $error'), backgroundColor: Colors.red));
+      }
+    } finally {
+      if (_mounted) setState(() => _isClockActionLoading = false);
+    }
+  }
+
+  // ── Clock Out ──────────────────────────────────────────────────────────────
+  Future<void> _handleDashboardClockOut() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Clock Out'),
+        content: const Text('Are you sure you want to clock out?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Clock Out', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || _todaySchedule == null || _currentStaff == null) return;
+
+    setState(() => _isClockActionLoading = true);
+    try {
+      final ap  = Provider.of<Attendances>(context, listen: false);
+      final now = DateTime.now();
+      final result = await ap.clockOutAttendance(
+        staffId:      _currentStaff!.staffId,
+        scheduleId:   _todaySchedule!.schedId,
+        clockOutTime: now.toIso8601String(),
+      );
+      if (result['success'] == true && _mounted) {
+        setState(() {
+          _isClockedOutToday    = true;
+          _todayClockOutTimeStr = DateFormat('hh:mm a').format(now);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Successfully clocked out!'), backgroundColor: Colors.green));
+      }
+    } catch (error) {
+      if (_mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error: $error'), backgroundColor: Colors.red));
+      }
+    } finally {
+      if (_mounted) setState(() => _isClockActionLoading = false);
     }
   }
 
@@ -200,6 +391,13 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
         '${dateTime.hour.toString().padLeft(2, '0')}:'
         '${dateTime.minute.toString().padLeft(2, '0')} '
         '${dateTime.hour >= 12 ? 'PM' : 'AM'}';
+  }
+
+  String _formatShiftTimes(Schedule schedule) {
+    if (schedule.workStartTime == null || schedule.workEndTime == null) {
+      return 'Self clock-in';
+    }
+    return '${schedule.workStartTime} - ${schedule.workEndTime}';
   }
 
   String _getMonthName(int month) {
@@ -382,6 +580,9 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
           ),
         ),
 
+        // ── Today's attendance card — clock in/out every day ─────────────
+        _buildTodayAttendanceCard(),
+
         // ── Attendance history card ─────────────────────────────────────
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -439,6 +640,105 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
     );
   }
 
+  Widget _buildTodayAttendanceCard() {
+    Widget content;
+
+    if (_isCheckingTodayAttendance || _isClockActionLoading) {
+      content = const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    } else if (_todaySchedule != null && _todaySchedule!.acceptanceStatus == 2) {
+      content = Row(children: [
+        const Icon(Icons.block_rounded, color: Colors.redAccent),
+        const SizedBox(width: 10),
+        const Expanded(
+          child: Text('Schedule not accepted — contact HR to clock in today.',
+              style: TextStyle(
+                  color: Colors.redAccent,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13)),
+        ),
+      ]);
+    } else if (_isClockedOutToday) {
+      content = Row(children: [
+        const Icon(Icons.check_circle_rounded, color: Colors.green),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+              'Shift completed! Clocked out at ${_todayClockOutTimeStr ?? "Unknown"}',
+              style: const TextStyle(
+                  color: Colors.green,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14)),
+        ),
+      ]);
+    } else if (_isClockedInToday) {
+      content = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (_todayClockInTimeStr != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Text('Clocked in at $_todayClockInTimeStr',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+            ),
+          ElevatedButton.icon(
+            onPressed: _handleDashboardClockOut,
+            icon: const Icon(Icons.logout_rounded),
+            label: const Text('Clock Out',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
+      );
+    } else {
+      content = ElevatedButton.icon(
+        onPressed: _handleDashboardClockIn,
+        icon: const Icon(Icons.login_rounded),
+        label: const Text('Clock In',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: staffPrimary,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: staffCardBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Icon(Icons.today_rounded, color: staffPrimary, size: 20),
+              const SizedBox(width: 8),
+              const Text("Today's Attendance",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            ]),
+            const SizedBox(height: 12),
+            content,
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildSchedulesCards() {
     if (_isLoading) {
       return Center(
@@ -450,12 +750,19 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.only(
-              left: 24, right: 24, top: 20, bottom: 8),
-          child: Text('Your Upcoming Shifts',
+              left: 24, right: 24, top: 20, bottom: 4),
+          child: Text('Your Assigned Shifts',
               style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: const Color(0xFF1E293B))),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(
+              left: 24, right: 24, bottom: 8),
+          child: Text(
+              'Assigned by HR for outstation trips or schedule swaps — not required for daily clock-in.',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
         ),
         Expanded(
           child: _staffSchedules.isEmpty
@@ -466,7 +773,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                       Icon(Icons.event_available_rounded,
                           size: 64, color: Colors.grey.shade300),
                       const SizedBox(height: 16),
-                      Text('No upcoming schedules',
+                      Text('No assigned shifts',
                           style: TextStyle(
                               color: Colors.grey.shade500,
                               fontSize: 16,
@@ -512,10 +819,10 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                                 location:         currentBranch,
                                 workDate:         schedule.workDate,
                                 assignedStaff:    [_currentStaff?.firstname ?? ''],
-                                startTime:        schedule.workStartTime.toString(),
-                                endTime:          schedule.workEndTime.toString(),
-                                startBreak:       schedule.breakStartTime.toString(),
-                                endBreak:         schedule.breakEndTime.toString(),
+                                startTime:        schedule.workStartTime ?? '-',
+                                endTime:          schedule.workEndTime ?? '-',
+                                startBreak:       schedule.breakStartTime ?? '-',
+                                endBreak:         schedule.breakEndTime ?? '-',
                                 status:           isClockIn ? 'Clocked In' : 'Not clocked in',
                                 scheduleId:       schedule.schedId,
                                 staffId:          _currentStaff?.staffId ?? 0,
@@ -586,13 +893,17 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                                         color:
                                             Colors.grey.shade500),
                                     const SizedBox(width: 4),
-                                    Text(
-                                        '${schedule.workStartTime} - ${schedule.workEndTime}',
-                                        style: TextStyle(
-                                            color:
-                                                Colors.grey.shade600,
-                                            fontWeight:
-                                                FontWeight.w500)),
+                                    Flexible(
+                                      child: Text(
+                                          _formatShiftTimes(schedule),
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                              fontSize: 12,
+                                              color:
+                                                  Colors.grey.shade600,
+                                              fontWeight:
+                                                  FontWeight.w500)),
+                                    ),
                                   ]),
                                   const SizedBox(height: 4),
                                   Container(
