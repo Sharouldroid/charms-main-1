@@ -8,7 +8,20 @@ import 'package:charms/internshipservices/milestone_service.dart';
 class InternTimelineScreen extends StatefulWidget {
   final int userId;
 
-  const InternTimelineScreen({super.key, required this.userId});
+  /// True when an admin is viewing another intern's timeline (read-only:
+  /// no milestone add/edit/delete). False for the intern viewing their own.
+  final bool isAdminView;
+
+  /// Display name of the intern, used in the title/loading text when
+  /// [isAdminView] is true.
+  final String? internName;
+
+  const InternTimelineScreen({
+    super.key,
+    required this.userId,
+    this.isAdminView = false,
+    this.internName,
+  });
 
   @override
   State<InternTimelineScreen> createState() => _InternTimelineScreenState();
@@ -124,6 +137,12 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
   }
 
   // ── Computed helpers ──────────────────────────────────────────
+
+  String get _screenTitle {
+    if (!widget.isAdminView) return 'My Timeline';
+    final name = widget.internName?.trim();
+    return (name != null && name.isNotEmpty) ? '$name\'s Timeline' : 'Intern Timeline';
+  }
 
   int get _totalDays => _endDate != null && _startDate != null
       ? _endDate!.difference(_startDate!).inDays : 0;
@@ -497,17 +516,20 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
       return Scaffold(
         backgroundColor: Colors.grey[50],
         appBar: AppBar(
-          title: const Text('My Timeline'),
+          title: Text(_screenTitle),
           backgroundColor: Colors.blueAccent,
           foregroundColor: Colors.white,
         ),
-        body: const Center(
+        body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(color: Colors.blueAccent),
-              SizedBox(height: 16),
-              Text('Loading your timeline...', style: TextStyle(color: Colors.grey)),
+              const CircularProgressIndicator(color: Colors.blueAccent),
+              const SizedBox(height: 16),
+              Text(
+                widget.isAdminView ? 'Loading timeline...' : 'Loading your timeline...',
+                style: const TextStyle(color: Colors.grey),
+              ),
             ],
           ),
         ),
@@ -520,7 +542,7 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text('My Timeline'),
+        title: Text(_screenTitle),
         backgroundColor: Colors.blueAccent,
         foregroundColor: Colors.white,
         actions: [
@@ -832,28 +854,29 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
               const Text('Key Milestones',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
               const Spacer(),
-              GestureDetector(
-                onTap: _showAddMilestoneDialog,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: Colors.blueAccent.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.add, color: Colors.blueAccent, size: 14),
-                      SizedBox(width: 4),
-                      Text('Add',
-                          style: TextStyle(
-                              color: Colors.blueAccent,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600)),
-                    ],
+              if (!widget.isAdminView)
+                GestureDetector(
+                  onTap: _showAddMilestoneDialog,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.blueAccent.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.add, color: Colors.blueAccent, size: 14),
+                        SizedBox(width: 4),
+                        Text('Add',
+                            style: TextStyle(
+                                color: Colors.blueAccent,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600)),
+                      ],
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
           if (_milestonesLoading) ...[
@@ -985,7 +1008,7 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
                             _statusBadge('Done', Colors.green)
                           else if (isNext)
                             _statusBadge('Up next', Colors.blueAccent),
-                          if (!isAuto && internMilestone != null) ...[
+                          if (!widget.isAdminView && !isAuto && internMilestone != null) ...[
                             const SizedBox(width: 4),
                             GestureDetector(
                               onTap: () =>
@@ -1077,7 +1100,7 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text('My Timeline'),
+        title: Text(_screenTitle),
         backgroundColor: Colors.blueAccent,
         foregroundColor: Colors.white,
       ),
@@ -1089,11 +1112,15 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
             children: [
               Icon(Icons.event_busy, size: 72, color: Colors.grey[300]),
               const SizedBox(height: 16),
-              const Text('No internship registered yet',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+              Text(
+                widget.isAdminView ? 'No internship registered' : 'No internship registered yet',
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 8),
               Text(
-                'Register for an internship slot first to see your timeline here.',
+                widget.isAdminView
+                    ? 'This intern has not registered for an internship slot yet.'
+                    : 'Register for an internship slot first to see your timeline here.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 13, color: Colors.grey[500]),
               ),
@@ -1124,7 +1151,7 @@ class _InternTimelineScreenState extends State<InternTimelineScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text('My Timeline'),
+        title: Text(_screenTitle),
         backgroundColor: Colors.blueAccent,
         foregroundColor: Colors.white,
       ),

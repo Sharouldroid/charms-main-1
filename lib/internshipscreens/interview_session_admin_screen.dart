@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:charms/internshipmodels/interview_session.dart';
 import 'package:charms/internshipproviders/interview_session_provider.dart';
 
@@ -36,6 +37,19 @@ class _InterviewSessionAdminScreenState
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _openLink(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Could not open link'),
+          backgroundColor: Colors.red,
+        ));
+      }
     }
   }
 
@@ -426,16 +440,24 @@ class _InterviewSessionAdminScreenState
             ],
             if (hasLink) ...[
               const SizedBox(height: 8),
-              Row(children: [
-                Icon(Icons.link, size: 14, color: Colors.indigo.shade400),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(session.meetingLink!,
-                      style: TextStyle(color: Colors.indigo.shade400, fontSize: 12),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
-                ),
-              ]),
+              InkWell(
+                onTap: () => _openLink(session.meetingLink!),
+                borderRadius: BorderRadius.circular(6),
+                child: Row(children: [
+                  Icon(Icons.link, size: 14, color: Colors.indigo.shade400),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(session.meetingLink!,
+                        style: TextStyle(
+                            color: Colors.indigo.shade400,
+                            fontSize: 12,
+                            decoration: TextDecoration.underline),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                  ),
+                  Icon(Icons.open_in_new, size: 12, color: Colors.indigo.shade300),
+                ]),
+              ),
             ],
             const SizedBox(height: 12),
             Wrap(

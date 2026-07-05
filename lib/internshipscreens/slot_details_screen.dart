@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:charms/main.dart';
 import 'package:intl/intl.dart';
 import 'package:charms/internshipmodels/schedule.dart';
+import 'package:charms/internshipscreens/intern_timeline_screen.dart';
 
 class SlotDetailsScreen extends StatefulWidget {
   const SlotDetailsScreen({super.key});
@@ -104,6 +105,35 @@ class _SlotDetailsScreenState extends State<SlotDetailsScreen> {
   String? _buildPhotoUrl(String? filepath) {
     if (filepath == null || filepath.isEmpty) return null;
     return 'https://devcms.com.my/charmsAPI/public/storage/$filepath';
+  }
+
+  int? _participantUserId(Map<String, dynamic> p) {
+    final raw = p['user_id'] ?? p['id'];
+    if (raw is num) return raw.toInt();
+    return int.tryParse(raw?.toString() ?? '');
+  }
+
+  void _openInternTimeline(Map<String, dynamic> p) {
+    final userId = _participantUserId(p);
+    if (userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No timeline available for this intern')),
+      );
+      return;
+    }
+    final firstName = (p['first_name'] ?? '').toString();
+    final lastName = (p['last_name'] ?? '').toString();
+    final name = '$firstName $lastName'.trim();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => InternTimelineScreen(
+          userId: userId,
+          isAdminView: true,
+          internName: name.isEmpty ? null : name,
+        ),
+      ),
+    );
   }
 
   List<dynamic> get _filteredSchedules {
@@ -448,7 +478,11 @@ class _SlotDetailsScreenState extends State<SlotDetailsScreen> {
                                                         final name = '$firstName $lastName'.trim();
                                                         final photoUrl = _buildPhotoUrl(p['filepath']);
 
-                                                        return Padding(
+                                                        return InkWell(
+                                                          borderRadius: BorderRadius.circular(10),
+                                                          onTap: () => _openInternTimeline(
+                                                              p as Map<String, dynamic>),
+                                                          child: Padding(
                                                           padding: const EdgeInsets.symmetric(vertical: 10),
                                                           child: Row(
                                                             children: [
@@ -504,7 +538,10 @@ class _SlotDetailsScreenState extends State<SlotDetailsScreen> {
                                                                       fontSize: 10, color: Colors.green[700], fontWeight: FontWeight.w500),
                                                                 ),
                                                               ),
+                                                              const SizedBox(width: 6),
+                                                              Icon(Icons.chevron_right, size: 18, color: Colors.grey[400]),
                                                             ],
+                                                          ),
                                                           ),
                                                         );
                                                       },
