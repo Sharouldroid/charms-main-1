@@ -278,6 +278,9 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               Text('File: ${submission['file_name'] ?? 'Unnamed File'}'),
+              if (submission['document_type'] != null &&
+                  submission['document_type'].toString().isNotEmpty)
+                Text('Document Type: ${submission['document_type']}'),
               const SizedBox(height: 16),
               const Text('Status:',
                   style: TextStyle(fontWeight: FontWeight.bold)),
@@ -415,6 +418,9 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
         submission['file_name'].toString().isNotEmpty;
     final documentLink = submission['document_link'];
     final hasLink = documentLink != null && documentLink.toString().isNotEmpty;
+    final documentType = submission['document_type'];
+    final hasDocumentType =
+        documentType != null && documentType.toString().isNotEmpty;
 
     // Internship Active/Completed badge (only shown if backend provided it)
     final internshipStatus = submission['internship_status'];
@@ -450,6 +456,17 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
                         style:
                             TextStyle(color: Colors.grey[600], fontSize: 12),
                       ),
+                      if (hasDocumentType) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          documentType.toString(),
+                          style: const TextStyle(
+                            color: Colors.blueGrey,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

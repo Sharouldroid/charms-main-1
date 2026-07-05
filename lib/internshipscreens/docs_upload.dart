@@ -28,6 +28,14 @@ class _DocsUploadState extends State<DocsUpload> {
   List<Map<String, dynamic>> _submissions = [];
   bool _isLoadingSubmissions = false;
 
+  static const List<String> _documentTypes = [
+    'Resume',
+    'Academic Transcript',
+    'University Letter',
+    'Offer Letter',
+  ];
+  String _selectedDocumentType = _documentTypes.first;
+
   @override
   void initState() {
     super.initState();
@@ -160,6 +168,7 @@ class _DocsUploadState extends State<DocsUpload> {
 
       // Add form fields
       request.fields['userId'] = widget.userId.toString();
+      request.fields['documentType'] = _selectedDocumentType;
       if (widget.scheduleId != null) {
         request.fields['scheduleId'] = widget.scheduleId.toString();
       }
@@ -376,6 +385,32 @@ class _DocsUploadState extends State<DocsUpload> {
                           ),
                           const SizedBox(height: 20),
 
+                          // Document Type Selection
+                          DropdownButtonFormField<String>(
+                            value: _selectedDocumentType,
+                            decoration: InputDecoration(
+                              labelText: 'Document Type',
+                              prefixIcon: const Icon(Icons.category_outlined),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            items: _documentTypes
+                                .map((type) => DropdownMenuItem(
+                                      value: type,
+                                      child: Text(type),
+                                    ))
+                                .toList(),
+                            onChanged: (value) {
+                              if (value == null) return;
+                              setState(() {
+                                _selectedDocumentType = value;
+                              });
+                            },
+                          ),
+
+                          const SizedBox(height: 16),
+
                           // File Selection Display
                           Container(
                             width: double.infinity,
@@ -526,6 +561,7 @@ class _DocsUploadState extends State<DocsUpload> {
                             final status = submission['status'] ?? 'pending';
                             final adminComment = submission['admin_comments'];
                             final documentLink = submission['document_link'];
+                            final documentType = submission['document_type'];
                             final label = submission['file_name'] ??
                                 submission['details'] ??
                                 'Document';
@@ -570,6 +606,17 @@ class _DocsUploadState extends State<DocsUpload> {
                                         ],
                                       ],
                                     ),
+                                    if (documentType != null && documentType.toString().isNotEmpty) ...[
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Type: $documentType',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.blueGrey,
+                                        ),
+                                      ),
+                                    ],
                                     Text(
                                       'Submitted: ${submission['submitted_at'] ?? 'Unknown'}',
                                       style: const TextStyle(fontSize: 12, color: Colors.grey),
