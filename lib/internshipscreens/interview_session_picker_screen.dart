@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:charms/internshipmodels/interview_session.dart';
 import 'package:charms/internshipproviders/interview_session_provider.dart';
+import 'package:charms/internshipservices/interview_session_service.dart';
 
 class InterviewSessionPickerScreen extends StatefulWidget {
   final int userId;
@@ -87,6 +88,15 @@ class _InterviewSessionPickerScreenState
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('✅ Interview slot booked successfully!'),
           backgroundColor: Colors.green,
+        ));
+      }
+    } on SlotAlreadyBookedException {
+      // Someone else booked it first — refresh so the list reflects reality.
+      await context.read<InterviewSessionProvider>().loadAvailableSessions();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('⚠️ Sorry, someone already booked that slot. Please choose another.'),
+          backgroundColor: Colors.orange,
         ));
       }
     } catch (e) {

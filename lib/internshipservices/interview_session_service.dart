@@ -3,6 +3,12 @@ import 'package:http/http.dart' as http;
 import 'package:charms/main.dart';
 import '../internshipmodels/interview_session.dart';
 
+/// Thrown when booking fails because someone else booked the slot first.
+class SlotAlreadyBookedException implements Exception {
+  @override
+  String toString() => 'This slot has already been booked by someone else.';
+}
+
 class InterviewSessionService {
   final String baseUrl;
   final String? token;
@@ -100,6 +106,10 @@ class InterviewSessionService {
       headers: _headers(),
       body: jsonEncode({'user_id': userId}),
     );
+    // 409 = someone else booked this slot first (race condition).
+    if (response.statusCode == 409) {
+      throw SlotAlreadyBookedException();
+    }
     if (response.statusCode != 200 && response.statusCode != 201) {
       throw Exception(
         'Failed to book interview session: ${response.statusCode} ${response.body}',
