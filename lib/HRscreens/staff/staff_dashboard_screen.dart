@@ -9,6 +9,7 @@ import 'package:charms/HRproviders/schedules.dart';
 import 'package:charms/HRmodels/staff.dart';
 import 'package:charms/HRmodels/schedule.dart';
 import 'package:charms/HRscreens/staff/leave_dashboard_screen.dart';
+import 'package:charms/HRscreens/admin/staff_on_leave_screen.dart';
 import 'package:charms/HRscreens/staff/payroll_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/claim_dashboard.dart';
 import 'package:charms/HRscreens/staff/staff_myself_screen.dart';
@@ -635,8 +636,78 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
           ),
         ),
 
+        // ── Staff on leave today card ────────────────────────────────────
+        _buildStaffOnLeaveCard(),
+
         Expanded(child: _buildSchedulesCards()),
       ],
+    );
+  }
+
+  Widget _buildStaffOnLeaveCard() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Consumer<Leaves>(
+        builder: (context, leavesProvider, _) {
+          final today = DateTime.now();
+          final todayOnly = DateTime(today.year, today.month, today.day);
+          final onLeaveCount = leavesProvider.leaves.where((leave) {
+            if (leave.status.trim().toLowerCase() != 'approved') return false;
+            final start = DateTime(
+                leave.startDate.year, leave.startDate.month, leave.startDate.day);
+            final end = DateTime(
+                leave.endDate.year, leave.endDate.month, leave.endDate.day);
+            return !todayOnly.isBefore(start) && !todayOnly.isAfter(end);
+          }).length;
+
+          return GestureDetector(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => const StaffOnLeaveScreen(isAdmin: false)),
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: staffCardBorder),
+              ),
+              child: Row(children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                      color: Colors.redAccent.withOpacity(0.1),
+                      shape: BoxShape.circle),
+                  child: const Icon(Icons.beach_access_rounded,
+                      color: Colors.redAccent, size: 22),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Staff on Leave Today',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                              color: Color(0xFF1E293B))),
+                      Text(
+                        onLeaveCount == 0
+                            ? 'No one is on leave today'
+                            : '$onLeaveCount staff currently on leave',
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.arrow_forward_ios_rounded,
+                    size: 14, color: Colors.grey.shade400),
+              ]),
+            ),
+          );
+        },
+      ),
     );
   }
 

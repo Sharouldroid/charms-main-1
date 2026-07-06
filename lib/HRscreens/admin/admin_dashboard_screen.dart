@@ -10,6 +10,9 @@ import 'package:charms/HRscreens/admin/manage_staff_screen.dart';
 import 'package:charms/HRscreens/admin/notification_screen.dart';
 import 'package:charms/HRscreens/admin/schedule_list_screen.dart';
 import 'package:charms/HRscreens/admin/myself_screen.dart';
+import 'package:charms/HRscreens/admin/staff_on_leave_screen.dart';
+import 'package:charms/HRmodels/leave.dart';
+import 'package:charms/HRmodels/staff.dart';
 import 'package:charms/HRwidgets/admin/bottom_nav_bar.dart';
 import 'package:charms/screens/dashboard_screen.dart';
 import 'package:charms/providers/auth.dart' as app_auth;
@@ -48,6 +51,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   int pendingClaims   = 0;
   String lastLoginTime = '';
   bool isLoading = true;
+
+  List<Leave> staffOnLeaveToday = [];
+  List<Staff> _staffList = [];
 
   Map<String, int> locationStaffCounts = {
     'Chagar Hutang': 0,
@@ -98,10 +104,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       if (!mounted) return;
       setState(() {
         totalEmployees = staffsProvider.staffList.length;
+        _staffList = staffsProvider.staffList;
 
         onLeaveCount = leavesProvider.leaves
             .where((leave) => leave.status == 'Pending')
             .length;
+
+        final todayOnly = DateTime(currentDate.year, currentDate.month, currentDate.day);
+        staffOnLeaveToday = leavesProvider.leaves.where((leave) {
+          if (leave.status.trim().toLowerCase() != 'approved') return false;
+          final start = DateTime(leave.startDate.year, leave.startDate.month, leave.startDate.day);
+          final end   = DateTime(leave.endDate.year, leave.endDate.month, leave.endDate.day);
+          return !todayOnly.isBefore(start) && !todayOnly.isAfter(end);
+        }).toList()
+          ..sort((a, b) => a.startDate.compareTo(b.startDate));
 
         todayAttendance = attendances.where((attendance) {
           final clockIn = attendance['clock_in_time'];
@@ -526,12 +542,156 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ]),
 
               const SizedBox(height: 32),
+              _buildStaffOnLeaveSection(),
+              const SizedBox(height: 32),
               _buildMovementCards(),
               const SizedBox(height: 80),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Staff? _getStaff(int staffId) {
+    return _staffList.cast<Staff?>().firstWhere(
+          (s) => s?.staffId == staffId,
+          orElse: () => null,
+        );
+  }
+
+  Widget _buildStaffOnLeaveSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      "Staff on Leave Today",
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E293B)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                        color: Colors.redAccent.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(10)),
+                    child: Text('${staffOnLeaveToday.length}',
+                        style: const TextStyle(
+                            color: Colors.redAccent,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12)),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const StaffOnLeaveScreen(isAdmin: true)),
+              ),
+              child: const Text(
+                'View All',
+                style: TextStyle(
+                    fontSize: 14, fontWeight: FontWeight.w600, color: Colors.blue),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        if (staffOnLeaveToday.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4)),
+              ],
+            ),
+            child: Center(
+              child: Text('No staff on leave today',
+                  style: TextStyle(color: Colors.grey.shade500, fontWeight: FontWeight.w500)),
+            ),
+          )
+        else
+          ...staffOnLeaveToday.take(3).map((leave) {
+            final duration = leave.endDate.difference(leave.startDate).inDays + 1;
+            final staff = _getStaff(leave.staffId);
+            final staffName = staff != null
+                ? '${staff.firstname} ${staff.lastname}'
+                : 'Staff ID: ${leave.staffId}';
+            final photoPath = staff?.filepath;
+            final hasPhoto  = photoPath != null && photoPath.isNotEmpty;
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12.0),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                      color: Colors.black.withOpacity(0.03),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4)),
+                ],
+              ),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                leading: CircleAvatar(
+                  radius: 22,
+                  backgroundColor: Colors.redAccent.withOpacity(0.1),
+                  backgroundImage: hasPhoto
+                      ? NetworkImage(
+                          'https://devcms.com.my/charmsAPI/public/storage/$photoPath')
+                      : null,
+                  child: hasPhoto
+                      ? null
+                      : const Icon(Icons.beach_access_rounded, size: 22, color: Colors.redAccent),
+                ),
+                title: Text(
+                  staffName,
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
+                ),
+                subtitle: Padding(
+                  padding: const EdgeInsets.only(top: 4.0),
+                  child: Text(
+                    '${leave.leaveType} · ${DateFormat('dd MMM').format(leave.startDate)}–${DateFormat('dd MMM').format(leave.endDate)} · $duration day${duration > 1 ? 's' : ''}\n${leave.reason}',
+                    style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+                  ),
+                ),
+                isThreeLine: true,
+                trailing: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                      color: Colors.grey.shade100, borderRadius: BorderRadius.circular(10)),
+                  child: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.blue),
+                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const StaffOnLeaveScreen(isAdmin: true)),
+                ),
+              ),
+            );
+          }),
+      ],
     );
   }
 
