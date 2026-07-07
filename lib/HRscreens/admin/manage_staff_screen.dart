@@ -19,6 +19,8 @@ import 'package:charms/utils/logout_helper.dart';
 import 'package:charms/HRproviders/schedule_exchanges.dart';
 import 'package:charms/HRproviders/schedules.dart';
 import 'package:charms/HRproviders/staffs.dart';
+import 'package:charms/HRproviders/payment_claims.dart';
+import 'package:charms/HRproviders/staff_documents.dart';
 
 class ManageStaffScreen extends StatefulWidget {
   final String username;
@@ -124,9 +126,13 @@ class _ManageStaffScreenState extends State<ManageStaffScreen> {
         ),
         actions: [
           // ── Notification badge ─────────────────────────────────────────────
-          Consumer6<Leaves, Payments, Claims, ScheduleExchanges, Schedules, Staffs>(
+          Consumer<PaymentClaims>(
+            builder: (context, paymentClaims, _) {
+              return Consumer<StaffDocuments>(
+                builder: (context, staffDocuments, __) {
+          return Consumer6<Leaves, Payments, Claims, ScheduleExchanges, Schedules, Staffs>(
           builder: (context, leaves, payments, claims, exchanges, schedules, staffs, child) {
-            
+
             // ── Exact same logic as NotificationScreen ──────────────
             final pendingLeaves      = leaves.leaves.where((l) => l.status == 'Pending').length;
             final pendingPayrolls    = payments.payments.where((p) => p.status == 'Pending').length;
@@ -135,9 +141,12 @@ class _ManageStaffScreenState extends State<ManageStaffScreen> {
             final rejectedSchedules  = schedules.schedules
                 .where((s) => s.acceptanceStatus == 2 && !s.hrDismissed) // ← same filter
                 .length;
+            final pendingPaymentClaims = paymentClaims.pendingClaims.length;
+            final unviewedDocStaff    = staffDocuments.unviewedStaffIds.length;
 
             final totalPending = pendingLeaves + pendingPayrolls +
-                pendingClaims + pendingExchanges + rejectedSchedules;
+                pendingClaims + pendingExchanges + rejectedSchedules +
+                pendingPaymentClaims + unviewedDocStaff;
 
             return IconButton(
               icon: totalPending > 0
@@ -151,7 +160,11 @@ class _ManageStaffScreenState extends State<ManageStaffScreen> {
                   MaterialPageRoute(builder: (_) => const NotificationScreen())),
             );
           },
-        ),
+        );
+                },
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.logout_rounded),
             tooltip: 'Back to Login',

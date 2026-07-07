@@ -22,6 +22,7 @@ import 'package:intl/intl.dart';
 import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
 import 'package:charms/utils/logout_helper.dart';
 import 'package:charms/HRproviders/schedule_exchanges.dart';
+import 'package:charms/HRproviders/staff_documents.dart';
 
 class AdminDashboard extends StatelessWidget {
   final String username;
@@ -85,6 +86,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final claimsProvider        = Provider.of<Claims>(context, listen: false);
       final exchangesProvider     = Provider.of<ScheduleExchanges>(context, listen: false);
       final paymentClaimsProvider = Provider.of<PaymentClaims>(context, listen: false);
+      final staffDocumentsProvider = Provider.of<StaffDocuments>(context, listen: false);
 
       await Future.wait([
         staffsProvider.fetchStaff(),
@@ -93,6 +95,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         claimsProvider.fetchClaims(),
         exchangesProvider.fetchPendingForHR(),
         paymentClaimsProvider.fetchAllClaims(status: 'Pending'),
+        staffDocumentsProvider.fetchAdminSubmissions(),
       ]);
 
       final currentDate   = DateTime.now();
@@ -338,6 +341,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           // ── Bell badge ─────────────────────────────────────────────
           Consumer<PaymentClaims>(
             builder: (context, paymentClaims, _) {
+              return Consumer<StaffDocuments>(
+                builder: (context, staffDocuments, __) {
               return Consumer6<Leaves, Payments, Claims, ScheduleExchanges,
                   Schedules, Staffs>(
                 builder: (context, leaves, payments, claims, exchanges,
@@ -360,13 +365,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       .length;
                   final pendingPaymentClaims =
                       paymentClaims.pendingClaims.length;
+                  final unviewedDocStaff =
+                      staffDocuments.unviewedStaffIds.length;
 
                   final totalPending = pendingLeaves +
                       pendingPayrolls +
                       pendingClaims +
                       pendingExchanges +
                       rejectedSchedules +
-                      pendingPaymentClaims;
+                      pendingPaymentClaims +
+                      unviewedDocStaff;
 
                   return IconButton(
                     icon: totalPending > 0
@@ -387,6 +395,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       _loadDashboardData();
                     },
                   );
+                },
+              );
                 },
               );
             },

@@ -12,6 +12,8 @@ import 'package:charms/HRscreens/admin/manage_payroll_screen.dart';
 import 'package:charms/HRproviders/schedule_exchanges.dart';
 import 'package:charms/HRmodels/schedule_exchange.dart';
 import 'package:charms/HRmodels/schedule.dart';
+import 'package:charms/HRproviders/staff_documents.dart';
+import 'package:charms/HRscreens/admin/staff_documents_admin_screen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -57,6 +59,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
     final schedulesProvider     = Provider.of<Schedules>(context, listen: false);
     final staffsProvider        = Provider.of<Staffs>(context, listen: false);
     final paymentClaimsProvider = Provider.of<PaymentClaims>(context, listen: false);
+    final staffDocumentsProvider = Provider.of<StaffDocuments>(context, listen: false);
 
     await Future.wait([
       leavesProvider.fetchLeaves(),
@@ -66,6 +69,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
       schedulesProvider.fetchSchedules(),
       staffsProvider.fetchStaff(),
       paymentClaimsProvider.fetchAllClaims(status: 'Pending'),
+      staffDocumentsProvider.fetchAdminSubmissions(),
     ]);
 
     if (!kIsWeb) {
@@ -904,6 +908,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
       ),
       body: Consumer<PaymentClaims>(
         builder: (context, paymentClaims, _) {
+          return Consumer<StaffDocuments>(
+            builder: (context, staffDocuments, __) {
           return Consumer6<Leaves, Payments, Claims, ScheduleExchanges,
               Schedules, Staffs>(
             builder: (context, leaves, payments, claims, exchanges,
@@ -924,12 +930,16 @@ class _NotificationScreenState extends State<NotificationScreen> {
               // ✅ Part timer payment claims pending approval
               final pendingPaymentClaims = paymentClaims.pendingClaims;
 
+              // ✅ Part timers with unviewed document uploads
+              final unviewedDocStaffIds = staffDocuments.unviewedStaffIds;
+
               final hasAny = pendingLeaves.isNotEmpty ||
                   pendingPayrolls.isNotEmpty ||
                   pendingClaims.isNotEmpty ||
                   pendingExchanges.isNotEmpty ||
                   rejectedSchedules.isNotEmpty ||
-                  pendingPaymentClaims.isNotEmpty;
+                  pendingPaymentClaims.isNotEmpty ||
+                  unviewedDocStaffIds.isNotEmpty;
 
               if (!hasAny) {
                 return Center(
@@ -1074,8 +1084,52 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     ...pendingExchanges
                         .map((e) => _buildExchangeCard(e)),
                   ],
+
+                  // ── Document uploads ──────────────────────────────
+                  if (unviewedDocStaffIds.isNotEmpty) ...[
+                    const Padding(
+                      padding: EdgeInsets.only(
+                          left: 8.0, top: 8.0, bottom: 12.0),
+                      child: Row(children: [
+                        Icon(Icons.folder_shared_rounded,
+                            color: Colors.purple, size: 18),
+                        SizedBox(width: 8),
+                        Text('Document Uploads',
+                            style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1E293B))),
+                      ]),
+                    ),
+                    ...unviewedDocStaffIds.map((staffId) {
+                      final staffName =
+                          _staffName(staffs.staffList, staffId);
+                      final types = staffDocuments
+                          .unviewedDocumentTypesForStaff(staffId);
+                      return NotificationItem(
+                        title: 'Document Uploaded',
+                        subtitle: '$staffName • ${types.join(', ')}',
+                        iconData: Icons.folder_shared_rounded,
+                        iconColor: Colors.purple,
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => StaffDocumentsAdminScreen(
+                                staffId: staffId,
+                                staffName: staffName,
+                              ),
+                            ),
+                          );
+                          setState(() {});
+                        },
+                      );
+                    }),
+                  ],
                 ],
               );
+            },
+          );
             },
           );
         },

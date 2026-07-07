@@ -8,12 +8,15 @@ import 'package:charms/HRscreens/admin/manage_staff_screen.dart';
 import 'package:charms/HRscreens/admin/myself_screen.dart';
 import 'package:charms/HRscreens/admin/notification_screen.dart';
 import 'package:charms/HRscreens/admin/staff_details_screen.dart';
+import 'package:charms/HRscreens/admin/staff_documents_admin_screen.dart';
 import 'package:charms/HRwidgets/admin/bottom_nav_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:charms/utils/logout_helper.dart';
 import 'package:charms/HRproviders/schedule_exchanges.dart';
 import 'package:charms/HRproviders/schedules.dart';
+import 'package:charms/HRproviders/payment_claims.dart';
+import 'package:charms/HRproviders/staff_documents.dart';
 import 'package:intl/intl.dart';
 
 class AdminListScreen extends StatefulWidget {
@@ -305,6 +308,28 @@ class _AdminListScreenState extends State<AdminListScreen> {
             onPressed: () => Navigator.pop(context),
             child: Text('Close', style: TextStyle(color: _primaryBlue)),
           ),
+          if (staff.isPartTimer)
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _primaryBlue,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+              icon: const Icon(Icons.folder_shared_rounded, size: 16),
+              label: const Text('Documents'),
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => StaffDocumentsAdminScreen(
+                      staffId: staff.staffId,
+                      staffName: _getDisplayName(staff),
+                    ),
+                  ),
+                );
+              },
+            ),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
               backgroundColor: _primaryBlue,
@@ -380,7 +405,11 @@ class _AdminListScreenState extends State<AdminListScreen> {
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
         ),
         actions: [
-          Consumer6<Leaves, Payments, Claims, ScheduleExchanges, Schedules, Staffs>(
+          Consumer<PaymentClaims>(
+            builder: (context, paymentClaims, _) {
+              return Consumer<StaffDocuments>(
+                builder: (context, staffDocuments, __) {
+              return Consumer6<Leaves, Payments, Claims, ScheduleExchanges, Schedules, Staffs>(
             builder: (context, leaves, payments, claims, exchanges, schedules, staffs, child) {
               final pendingLeaves     = leaves.leaves.where((l) => l.status == 'Pending').length;
               final pendingPayrolls   = payments.payments.where((p) => p.status == 'Pending').length;
@@ -389,8 +418,12 @@ class _AdminListScreenState extends State<AdminListScreen> {
               final rejectedSchedules = schedules.schedules
                   .where((s) => s.acceptanceStatus == 2 && !s.hrDismissed)
                   .length;
+              final pendingPaymentClaims = paymentClaims.pendingClaims.length;
+              final unviewedDocStaff    = staffDocuments.unviewedStaffIds.length;
+
               final totalPending = pendingLeaves + pendingPayrolls +
-                  pendingClaims + pendingExchanges + rejectedSchedules;
+                  pendingClaims + pendingExchanges + rejectedSchedules +
+                  pendingPaymentClaims + unviewedDocStaff;
 
               return IconButton(
                 icon: totalPending > 0
@@ -402,6 +435,10 @@ class _AdminListScreenState extends State<AdminListScreen> {
                     : const Icon(Icons.notifications_none_rounded, size: 26),
                 onPressed: () => Navigator.push(context,
                     MaterialPageRoute(builder: (_) => const NotificationScreen())),
+              );
+            },
+              );
+                },
               );
             },
           ),

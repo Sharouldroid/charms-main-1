@@ -6,6 +6,8 @@ import 'package:charms/HRproviders/payment_claims.dart';
 import 'package:charms/HRproviders/schedule_exchanges.dart';
 import 'package:charms/HRproviders/schedules.dart';
 import 'package:charms/HRproviders/staffs.dart';
+import 'package:charms/HRproviders/staff_documents.dart';
+import 'package:charms/HRscreens/staff/part_timer_documents_screen.dart';
 import 'package:charms/HRscreens/staff/part_timer_notification_screen.dart';
 import 'package:charms/HRscreens/staff/part_timer_schedule_details_screen.dart';
 //import 'package:charms/HRscreens/staff/staff_myself_screen.dart';
@@ -36,6 +38,7 @@ class _PartTimerDashboardScreenState extends State<PartTimerDashboardScreen> {
   DateTime?                  _lastLogin;
   int                        _unreadNotifications  = 0;
   Map<String, dynamic>       _dashboardData        = {};
+  List<String>               _missingDocuments     = [];
 
   // ── Location helper ────────────────────────────────────────────────────────
   static String _locationName(int loc) {
@@ -77,6 +80,7 @@ class _PartTimerDashboardScreenState extends State<PartTimerDashboardScreen> {
       final payProv      = Provider.of<Payments>(context, listen: false);
       final exchangeProv = Provider.of<ScheduleExchanges>(context, listen: false);
       final claimProv    = Provider.of<PaymentClaims>(context, listen: false);
+      final docsProv     = Provider.of<StaffDocuments>(context, listen: false);
 
       // 1 — fetch staff list and find current user
       await staffsProv.fetchStaff();
@@ -123,6 +127,12 @@ class _PartTimerDashboardScreenState extends State<PartTimerDashboardScreen> {
       // 5 — payment claim dashboard (days worked, running total, claim status)
       final dashboard = await claimProv.fetchDashboard(staff.staffId);
 
+      // 6 — required document upload status (Resume / IC / Bank Statement)
+      await docsProv.fetchSubmissions(staff.staffId);
+      final missingDocs = StaffDocuments.documentTypes
+          .where((type) => docsProv.forType(type) == null)
+          .toList();
+
       debugPrint('=== Dashboard API result ===');
       debugPrint('  keys            : ${dashboard.keys.toList()}');
       debugPrint('  days_worked     : ${dashboard['days_worked_this_month']}');
@@ -148,6 +158,7 @@ class _PartTimerDashboardScreenState extends State<PartTimerDashboardScreen> {
         _dashboardData       = dashboard;
         _lastLogin           = DateTime.now();
         _unreadNotifications = unread;
+        _missingDocuments    = missingDocs;
         _isLoading           = false;
       });
 
@@ -456,6 +467,21 @@ class _PartTimerDashboardScreenState extends State<PartTimerDashboardScreen> {
               //   ),
               // ),
               IconButton(
+                icon: const Icon(Icons.folder_shared_rounded,
+                    color: Colors.white, size: 24),
+                tooltip: 'My Documents',
+                onPressed: () {
+                  if (_currentStaff == null) return;
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PartTimerDocumentsScreen(
+                          staffId: _currentStaff!.staffId),
+                    ),
+                  );
+                },
+              ),
+              IconButton(
                 icon: Stack(clipBehavior: Clip.none, children: [
                   const Icon(Icons.notifications_rounded,
                       color: Colors.white, size: 24),
@@ -518,6 +544,10 @@ class _PartTimerDashboardScreenState extends State<PartTimerDashboardScreen> {
                 child: Column(children: [
                   _buildHeader(),
                   const SizedBox(height: 16),
+                  if (_missingDocuments.isNotEmpty) ...[
+                    _buildDocumentsAlertBanner(),
+                    const SizedBox(height: 16),
+                  ],
                   _buildStatsRow(),
                   const SizedBox(height: 12),
                   _buildClaimBanner(),
@@ -782,6 +812,69 @@ class _PartTimerDashboardScreenState extends State<PartTimerDashboardScreen> {
                 color: Colors.grey.shade500,
                 fontWeight: FontWeight.w500)),
       ]),
+    );
+  }
+
+  // ── Documents alert banner ─────────────────────────────────────────────────
+  Widget _buildDocumentsAlertBanner() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.red.shade50,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.red.shade200),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Icon(Icons.warning_amber_rounded,
+                color: Colors.red.shade700, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text('Action Required: Upload Your Documents',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                      color: Colors.red.shade800)),
+            ),
+          ]),
+          const SizedBox(height: 8),
+          Text(
+            'Please upload the following before you continue: '
+            '${_missingDocuments.join(', ')}.',
+            style: TextStyle(fontSize: 12.5, color: Colors.red.shade700),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade700,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape:
+                    RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () async {
+                if (_currentStaff == null) return;
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PartTimerDocumentsScreen(
+                        staffId: _currentStaff!.staffId),
+                  ),
+                );
+                await _load();
+              },
+              icon: const Icon(Icons.upload_rounded, size: 16),
+              label: const Text('Upload Now'),
+            ),
+          ),
+        ]),
+      ),
     );
   }
 
