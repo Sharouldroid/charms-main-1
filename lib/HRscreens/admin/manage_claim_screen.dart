@@ -8,6 +8,8 @@ import 'package:charms/HRmodels/claim.dart';
 import 'package:charms/HRmodels/staff.dart';
 import 'package:charms/HRmodels/payment_claim.dart';
 import 'package:charms/HRwidgets/staff/proof_attachment.dart';
+import 'dart:typed_data';
+import 'package:file_picker/file_picker.dart';
 
 class ManageClaimScreen extends StatefulWidget {
   const ManageClaimScreen({super.key});
@@ -348,6 +350,149 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
     }
   }
 
+  Future<void> _pickAndSendReceipt(PaymentClaim claim) async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      withData: true, // required for Flutter Web — avoids dart:io path access
+    );
+
+    if (result == null || result.files.isEmpty) return;
+    final file = result.files.first;
+    if (file.bytes == null) return;
+
+    await _sendReceipt(claim, file.bytes!, file.name);
+  }
+
+  Future<void> _sendReceipt(
+      PaymentClaim claim, Uint8List bytes, String fileName) async {
+    setState(() => _processing = true);
+    try {
+      final success = await Provider.of<PaymentClaims>(context, listen: false)
+          .sendReceipt(claimId: claim.claimId, fileBytes: bytes, fileName: fileName);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(success
+            ? '✅ Receipt sent to ${claim.staffName ?? 'staff'}.'
+            : 'Failed to send receipt. Try again.'),
+        backgroundColor: success ? Colors.green : Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ));
+      if (success) await _fetchAll();
+    } finally {
+      if (mounted) setState(() => _processing = false);
+    }
+  }
+
+  Future<void> _bulkMarkAsPaid(List<PaymentClaim> claims) async {
+    final eligible = claims.where((c) => c.status == 'Approved' && c.paidAt == null).toList();
+    if (eligible.isEmpty) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(children: [
+          Icon(Icons.payments_rounded, color: Colors.green, size: 20),
+          SizedBox(width: 8),
+          Text('Mark as Paid', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        ]),
+        content: Text(
+          'Mark ${eligible.length} selected claim(s) totalling '
+          'RM ${eligible.fold<double>(0, (s, c) => s + c.totalAmount).toStringAsFixed(2)} as paid?',
+          style: const TextStyle(fontSize: 13),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Confirm Paid'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    setState(() => _processing = true);
+    try {
+      final ids = eligible.map((c) => c.claimId).toList();
+      final success = await Provider.of<PaymentClaims>(context, listen: false)
+          .markMultipleAsPaid(ids);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(success
+            ? '✅ ${ids.length} claim(s) marked as paid.'
+            : 'Failed to mark claims as paid.'),
+        backgroundColor: success ? Colors.green : Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ));
+      if (success) {
+        setState(() => selectedPaymentClaims.clear());
+        await _fetchAll();
+      }
+    } finally {
+      if (mounted) setState(() => _processing = false);
+    }
+  }
+
+  Future<void> _bulkSendReceipt(List<PaymentClaim> claims) async {
+    final eligible = claims.where((c) => c.paidAt != null && c.receiptSentAt == null).toList();
+    if (eligible.isEmpty) return;
+
+    final staffIds = eligible.map((c) => c.staffId).toSet();
+    if (staffIds.length > 1) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Select claims for ONE staff member only to send a combined receipt.'),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return;
+    final file = result.files.first;
+    if (file.bytes == null) return;
+
+    setState(() => _processing = true);
+    try {
+      final ids = eligible.map((c) => c.claimId).toList();
+      final result = await Provider.of<PaymentClaims>(context, listen: false).sendReceiptBulk(
+        claimIds: ids,
+        fileBytes: file.bytes!,
+        fileName: file.name,
+      );
+      final success = result['success'] == true;
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(success
+            ? '✅ ${result['message']}'
+            : '❌ ${result['message']}'),
+        backgroundColor: success ? Colors.green : Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ));
+      if (success) {
+        setState(() => selectedPaymentClaims.clear());
+        await _fetchAll();
+      }
+    } finally {
+      if (mounted) setState(() => _processing = false);
+    }
+  }
+
   void _showPaymentClaimRejectDialog(PaymentClaim claim) {
     final controller = TextEditingController();
     final formKey    = GlobalKey<FormState>();
@@ -444,6 +589,9 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
                 _detailRow('Paid On',
                     DateFormat('dd MMM yyyy').format(claim.paidAt!),
                     isHighlight: true),
+              if (claim.receiptSentAt != null)
+                _detailRow('Receipt Sent',
+                    DateFormat('dd MMM yyyy').format(claim.receiptSentAt!)),
               if (claim.rejectionReason != null &&
                   claim.rejectionReason!.isNotEmpty) ...[
                 const SizedBox(height: 10),
@@ -511,6 +659,24 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
               onPressed: () {
                 Navigator.pop(ctx);
                 _confirmMarkAsPaid(claim);
+              },
+            ),
+          ] else if (claim.paidAt != null && claim.receiptSentAt == null) ...[
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Close', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blueAccent,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10))),
+              icon: const Icon(Icons.receipt_long_rounded, size: 16),
+              label: const Text('Send Receipt'),
+              onPressed: () {
+                Navigator.pop(ctx);
+                _pickAndSendReceipt(claim);
               },
             ),
           ] else
@@ -581,6 +747,7 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
     }
 
     final canMarkPaid = claim.status == 'Approved' && claim.paidAt == null;
+    final canSendReceipt = claim.paidAt != null && claim.receiptSentAt == null;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12, left: 16, right: 16),
@@ -677,6 +844,40 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
                           color: Colors.green.shade600,
                           fontWeight: FontWeight.w600),
                     ),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: claim.receiptSentAt != null
+                            ? Colors.blueAccent.withOpacity(0.1)
+                            : Colors.orange.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(
+                          claim.receiptSentAt != null
+                              ? Icons.mark_email_read_rounded
+                              : Icons.mail_outline_rounded,
+                          size: 12,
+                          color: claim.receiptSentAt != null
+                              ? Colors.blueAccent
+                              : Colors.orange,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          claim.receiptSentAt != null
+                              ? 'Receipt Sent — ${DateFormat('dd MMM').format(claim.receiptSentAt!)}'
+                              : 'Receipt Pending',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: claim.receiptSentAt != null
+                                ? Colors.blueAccent
+                                : Colors.orange,
+                          ),
+                        ),
+                      ]),
+                    ),
                   ],
                 ]),
               ),
@@ -701,14 +902,43 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
                         : () => _showPaymentClaimRejectDialog(claim),
                   ),
                 ])
-              else if (canMarkPaid)
-                IconButton(
-                  icon: const Icon(Icons.payments_rounded,
-                      color: Colors.green, size: 28),
-                  tooltip: 'Mark as Paid',
-                  onPressed: _processing
-                      ? null
-                      : () => _confirmMarkAsPaid(claim),
+              else if (canMarkPaid || canSendReceipt)
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Checkbox(
+                      value: selectedPaymentClaims.contains(claim.claimId),
+                      activeColor: primaryBlue,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                      onChanged: (v) {
+                        setState(() {
+                          if (v == true) {
+                            selectedPaymentClaims.add(claim.claimId);
+                          } else {
+                            selectedPaymentClaims.remove(claim.claimId);
+                          }
+                        });
+                      },
+                    ),
+                    if (canMarkPaid)
+                      IconButton(
+                        icon: const Icon(Icons.payments_rounded,
+                            color: Colors.green, size: 26),
+                        tooltip: 'Mark as Paid',
+                        onPressed: _processing
+                            ? null
+                            : () => _confirmMarkAsPaid(claim),
+                      )
+                    else if (canSendReceipt)
+                      IconButton(
+                        icon: const Icon(Icons.receipt_long_rounded,
+                            color: Colors.blueAccent, size: 26),
+                        tooltip: 'Send Receipt',
+                        onPressed: _processing
+                            ? null
+                            : () => _pickAndSendReceipt(claim),
+                      ),
+                  ],
                 ),
             ]),
           ),
@@ -718,8 +948,7 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
   }
 
   // ── Payment claims list ────────────────────────────────────────────────────
-  Widget _buildPaymentClaimsList(List<PaymentClaim> claims,
-      {bool isPending = false}) {
+ Widget _buildPaymentClaimsList(List<PaymentClaim> claims, {bool isPending = false}) {
     final filtered = _applyPaymentClaimFilters(claims);
 
     if (filtered.isEmpty) {
@@ -740,19 +969,76 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
       );
     }
 
-    return RefreshIndicator(
-    color: primaryBlue,
-    onRefresh: _fetchAll,
-    child: ListView.builder(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.only(top: 8, bottom: 24),
-      itemCount: filtered.length,
-      itemBuilder: (_, i) => _buildPaymentClaimCard(
-        filtered[i],
-        isPending: filtered[i].status == 'Pending',  
+    final selected = claims.where((c) => selectedPaymentClaims.contains(c.claimId)).toList();
+    final canBulkPay = selected.isNotEmpty &&
+        selected.every((c) => c.status == 'Approved' && c.paidAt == null);
+    final canBulkReceipt = selected.isNotEmpty &&
+        selected.every((c) => c.paidAt != null && c.receiptSentAt == null);
+
+    return Column(children: [
+      Expanded(
+        child: RefreshIndicator(
+          color: primaryBlue,
+          onRefresh: _fetchAll,
+          child: ListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.only(top: 8, bottom: selected.isNotEmpty ? 90 : 24),
+            itemCount: filtered.length,
+            itemBuilder: (_, i) => _buildPaymentClaimCard(
+              filtered[i],
+              isPending: filtered[i].status == 'Pending',
+            ),
+          ),
+        ),
       ),
-    ),
-  );
+      if (selected.isNotEmpty)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5)),
+            ],
+          ),
+          child: SafeArea(
+            child: Row(children: [
+              Expanded(
+                child: Text('${selected.length} selected',
+                    style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+              ),
+              if (canBulkPay)
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: _processing ? null : () => _bulkMarkAsPaid(selected),
+                  icon: const Icon(Icons.payments_rounded, size: 16),
+                  label: Text('Mark Paid (${selected.length})'),
+                ),
+              if (canBulkReceipt) ...[
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueAccent,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: _processing ? null : () => _bulkSendReceipt(selected),
+                  icon: const Icon(Icons.receipt_long_rounded, size: 16),
+                  label: Text('Send Receipt (${selected.length})'),
+                ),
+              ],
+              if (!canBulkPay && !canBulkReceipt)
+                TextButton(
+                  onPressed: () => setState(() => selectedPaymentClaims.clear()),
+                  child: const Text('Clear selection', style: TextStyle(color: Colors.redAccent)),
+                ),
+            ]),
+          ),
+        ),
+    ]);
   }
 
   // ── Filter panel ──────────────────────────────────────────────────────────

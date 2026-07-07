@@ -32,6 +32,8 @@ class PaymentClaim {
   final DateTime? reviewedAt;
   final int? reviewedBy;
   final DateTime? paidAt;
+  final String? receiptPath;
+  final DateTime? receiptSentAt;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -54,6 +56,8 @@ class PaymentClaim {
     this.reviewedAt,
     this.reviewedBy,
     this.paidAt,
+    this.receiptPath,
+    this.receiptSentAt,
     required this.createdAt,
     required this.updatedAt,
     this.staffName,
@@ -82,6 +86,10 @@ class PaymentClaim {
       paidAt: json['paid_at'] != null 
     ? DateTime.tryParse(json['paid_at'])
     : null,
+    receiptPath: json['receipt_path'],
+      receiptSentAt: json['receipt_sent_at'] != null
+                         ? DateTime.tryParse(json['receipt_sent_at'])
+                         : null,
       createdAt: json['created_at'] != null 
     ? DateTime.parse(json['created_at']) 
     : DateTime.now(),
@@ -113,6 +121,8 @@ class PaymentClaim {
       'reviewed_at':      reviewedAt?.toIso8601String(),
       'reviewed_by':      reviewedBy,
       'paid_at': paidAt?.toIso8601String(),
+      'receipt_path': receiptPath,
+      'receipt_sent_at': receiptSentAt?.toIso8601String(),
       'created_at':       createdAt.toIso8601String(),
       'updated_at':       updatedAt.toIso8601String(),
     };
@@ -127,6 +137,8 @@ class PaymentClaim {
     double? dayRate,
     double? totalAmount,
     DateTime? paidAt,
+    String? receiptPath,
+    DateTime? receiptSentAt,
     String? status,
     String? rejectionReason,
     DateTime? submittedAt,
@@ -156,6 +168,8 @@ class PaymentClaim {
       staffName:       staffName ?? this.staffName,
       staffPhoto:      staffPhoto ?? this.staffPhoto,
       paidAt:            paidAt ?? this.paidAt,
+      receiptPath:       receiptPath ?? this.receiptPath,
+      receiptSentAt:     receiptSentAt ?? this.receiptSentAt,
     );
   }
 }

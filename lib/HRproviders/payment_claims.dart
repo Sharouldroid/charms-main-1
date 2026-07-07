@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:charms/HRmodels/payment_claim.dart';
 import 'package:flutter/widgets.dart';
+import 'dart:typed_data';
 
 class PaymentClaims with ChangeNotifier {
   static const String _base = 'https://devcms.com.my/charmsAPI/api';
@@ -180,6 +181,103 @@ Future<bool> markAsPaid(int claimId) async {
     return false;
   }
 }
+
+// ── ADMIN: Upload bank receipt + email it to the part-timer ──────────────
+  Future<bool> sendReceipt({
+    required int claimId,
+    required Uint8List fileBytes,
+    required String fileName,
+  }) async {
+    try {
+      final uri = Uri.parse('$_base/payment-claims/$claimId/send-receipt');
+      final request = http.MultipartRequest('POST', uri);
+
+      request.files.add(
+        http.MultipartFile.fromBytes('receipt', fileBytes, filename: fileName),
+      );
+
+      final streamed = await request.send();
+      final res = await http.Response.fromStream(streamed);
+
+      if (res.statusCode == 200) {
+        final idx = _claims.indexWhere((c) => c.claimId == claimId);
+        if (idx != -1) {
+          _claims[idx] = _claims[idx].copyWith(receiptSentAt: DateTime.now());
+          notifyListeners();
+        }
+        return true;
+      }
+      return false;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    }
+  }
+
+  // ── ADMIN: Mark MULTIPLE approved claims as paid in one action ───────────
+  Future<bool> markMultipleAsPaid(List<int> claimIds) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$_base/payment-claims/mark-paid-bulk'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'claim_ids': claimIds}),
+      );
+
+      if (res.statusCode == 200) {
+        for (final id in claimIds) {
+          final idx = _claims.indexWhere((c) => c.claimId == id);
+          if (idx != -1) {
+            _claims[idx] = _claims[idx].copyWith(paidAt: DateTime.now());
+          }
+        }
+        notifyListeners();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    }
+  }
+
+  // ── ADMIN: One receipt covering MULTIPLE claims (same staff) ─────────────
+  Future<Map<String, dynamic>> sendReceiptBulk({
+    required List<int> claimIds,
+    required Uint8List fileBytes,
+    required String fileName,
+  }) async {
+    try {
+      final uri = Uri.parse('$_base/payment-claims/send-receipt-bulk');
+      final request = http.MultipartRequest('POST', uri);
+
+      request.fields['claim_ids'] = claimIds.join(',');
+      request.files.add(
+        http.MultipartFile.fromBytes('receipt', fileBytes, filename: fileName),
+      );
+
+      final streamed = await request.send();
+      final res = await http.Response.fromStream(streamed);
+      final json = jsonDecode(res.body);
+
+      debugPrint('=== sendReceiptBulk status: ${res.statusCode} ===');
+      debugPrint('=== sendReceiptBulk body: ${res.body} ===');
+
+      if (res.statusCode == 200) {
+        for (final id in claimIds) {
+          final idx = _claims.indexWhere((c) => c.claimId == id);
+          if (idx != -1) {
+            _claims[idx] = _claims[idx].copyWith(receiptSentAt: DateTime.now());
+          }
+        }
+        notifyListeners();
+        return {'success': true, 'message': json['message'] ?? 'Receipt sent.'};
+      }
+      return {'success': false, 'message': json['message'] ?? 'Failed to send receipt.'};
+    } catch (e) {
+      _error = e.toString();
+      return {'success': false, 'message': e.toString()};
+    }
+  }
 
   // ── ADMIN: Reject a claim ─────────────────────────────────────────────────
   Future<bool> rejectClaim(
