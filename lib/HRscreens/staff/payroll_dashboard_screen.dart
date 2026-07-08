@@ -12,6 +12,7 @@ import 'package:charms/HRscreens/staff/staff_myself_screen.dart';
 import 'package:charms/HRscreens/staff/staff_notification_screen.dart';
 import 'package:charms/HRscreens/staff/staff_payroll_details_screen.dart';
 import 'package:charms/HRwidgets/staff/bottom_nav_staff.dart';
+import 'package:charms/HRwidgets/staff/hr_staff_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:charms/utils/logout_helper.dart';
@@ -212,17 +213,10 @@ class _PayrollDashboardScreenState extends State<PayrollDashboardScreen> {
     return Scaffold(
       backgroundColor: staffBg,
       extendBody: true,
-      appBar: AppBar(
-        elevation: 0,
-        title: const Text('STAFF PORTAL',
-            style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2)),
-        backgroundColor: staffPrimary,
-        centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.white),
+      appBar: StaffAppBar(
+        title: 'STAFF PORTAL',
         automaticallyImplyLeading: false,
+        roundedBottom: false,
         actions: [
           // ✅ FIXED bell badge — reads dismissed IDs from SharedPreferences
           Consumer4<Leaves, Claims, Schedules, ScheduleExchanges>(
@@ -298,7 +292,7 @@ class _PayrollDashboardScreenState extends State<PayrollDashboardScreen> {
       body: _isLoading
           ? Center(child: CircularProgressIndicator(color: staffPrimary))
           : Column(children: [
-              // ── Header banner ─────────────────────────────────────────
+              // ── Header banner ───────────────────────────────────────── (full-bleed, not width-capped)
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.only(
@@ -343,8 +337,9 @@ class _PayrollDashboardScreenState extends State<PayrollDashboardScreen> {
                 ),
               ),
 
-              // ── Grid ─────────────────────────────────────────────────
+              // ── Grid (width-capped) ───────────────────────────────────
               Expanded(
+                child: StaffPageContainer(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
                   child: Column(
@@ -395,6 +390,7 @@ class _PayrollDashboardScreenState extends State<PayrollDashboardScreen> {
                       ),
                     ],
                   ),
+                ),
                 ),
               ),
             ]),

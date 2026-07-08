@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // ✅ rootBundle — fast asset loading
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:charms/HRwidgets/staff/hr_staff_theme.dart';
 
 class StaffPayrollDetailsScreen extends StatefulWidget {
   final String month;
@@ -287,23 +288,11 @@ class _StaffPayrollDetailsScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: staffBg,
-      appBar: AppBar(
-        elevation: 0,
-        title: const Text('PAYMENT REPORT DETAILS',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold,
-                letterSpacing: 1.2)),
-        centerTitle: true,
-        backgroundColor: staffPrimary,
-        iconTheme: const IconThemeData(color: Colors.white),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
+      appBar: const StaffAppBar(title: 'PAYMENT REPORT DETAILS', roundedBottom: false),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // ── Indigo header banner ──────────────────────────────────────────
+            // ── Indigo header banner ────────────────────────────────────────── (full-bleed, not width-capped)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.only(top: 20, bottom: 48, left: 24, right: 24),
@@ -338,8 +327,9 @@ class _StaffPayrollDetailsScreenState
               ),
             ),
 
-            // ── Payslip card ──────────────────────────────────────────────────
-            Transform.translate(
+            // ── Payslip card (width-capped) ─────────────────────────────────
+            StaffPageContainer(
+              child: Transform.translate(
               offset: const Offset(0, -24),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
@@ -448,6 +438,7 @@ class _StaffPayrollDetailsScreenState
                   ],
                 ),
               ),
+            ),
             ),
           ],
         ),

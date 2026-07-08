@@ -15,6 +15,7 @@ import 'package:charms/HRscreens/staff/payroll_dashboard_screen.dart';
 import 'package:charms/HRscreens/staff/claim_dashboard.dart';
 import 'package:charms/HRscreens/staff/change_pass_screen.dart';
 import 'package:charms/HRwidgets/staff/bottom_nav_staff.dart';
+import 'package:charms/HRwidgets/staff/hr_staff_theme.dart';
 import 'package:charms/utils/logout_helper.dart';
 
 class StaffMySelfScreen extends StatefulWidget {
@@ -566,15 +567,10 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
     return Scaffold(
       backgroundColor: staffBg,
       extendBody: true,
-      appBar: AppBar(
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+      appBar: StaffAppBar(
+        title: 'STAFF PORTAL',
         automaticallyImplyLeading: false,
-        title: const Text('STAFF PORTAL',
-            style: TextStyle(
-                color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
-        centerTitle: true,
-        backgroundColor: staffPrimary,
+        roundedBottom: false,
         actions: [
           IconButton(
             icon: Icon(
@@ -612,7 +608,7 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
           : SingleChildScrollView(
               child: Column(
                 children: [
-                  // ── Profile header ──────────────────────────────────────
+                  // ── Profile header ──────────────────────────────────────  (full-bleed, not width-capped)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.only(
@@ -726,6 +722,10 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
                     ]),
                   ),
 
+                  // ── Width-capped content below the banner ───────────────
+                  StaffPageContainer(
+                    child: Column(
+                      children: [
                   // ── Incomplete banner ───────────────────────────────────
                   if (_isProfileIncomplete && !_isEditing)
                     _buildIncompleteBanner(),
@@ -837,6 +837,9 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
                           ),
                         ],
                       ),
+                    ),
+                  ),
+                      ],
                     ),
                   ),
                 ],

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:charms/HRwidgets/staff/hr_staff_theme.dart';
 import 'dart:typed_data';
 
 class LeaveFormScreen extends StatefulWidget {
@@ -304,25 +305,11 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
 
     return Scaffold(
       backgroundColor: staffBg, // Modern background
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: staffPrimary,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text('APPLY LEAVE',
-            style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2)),
-        centerTitle: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(20),
-          ),
-        ),
-      ),
+      appBar: const StaffAppBar(title: 'APPLY LEAVE'),
       body: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
+        child: StaffPageContainer(
         child: Container(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -562,6 +549,7 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
               ),
             ),
           ),
+        ),
         ),
       ),
     );

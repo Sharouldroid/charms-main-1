@@ -4,6 +4,7 @@ import 'package:charms/HRproviders/schedule_exchanges.dart';
 import 'package:charms/HRproviders/schedules.dart';
 import 'package:charms/HRproviders/staffs.dart';
 import 'package:charms/constants/user_roles.dart';
+import 'package:charms/HRwidgets/staff/hr_staff_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -209,24 +210,10 @@ class _ScheduleExchangeScreenState extends State<ScheduleExchangeScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: primaryBlue,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text(
-          'Request Schedule Exchange',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 15,
-          ),
-        ),
-        centerTitle: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-        ),
-      ),
+      appBar: const StaffAppBar(title: 'Request Schedule Exchange'),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
+        child: StaffPageContainer(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -583,6 +570,7 @@ class _ScheduleExchangeScreenState extends State<ScheduleExchangeScreen> {
             ),
             const SizedBox(height: 32),
           ],
+        ),
         ),
       ),
     );

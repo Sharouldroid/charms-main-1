@@ -2,6 +2,7 @@ import 'package:charms/HRmodels/schedule.dart';
 import 'package:charms/HRmodels/schedule_exchange.dart';
 import 'package:charms/HRproviders/schedule_exchanges.dart';
 import 'package:charms/HRproviders/schedules.dart';
+import 'package:charms/HRwidgets/staff/hr_staff_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -511,19 +512,9 @@ class _StaffScheduleHistoryScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: staffBg,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: staffPrimary,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text('Schedule History',
-            style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.1)),
-        centerTitle: true,
-        shape: const RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.vertical(bottom: Radius.circular(20))),
+      appBar: StaffAppBar(
+        title: 'Schedule History',
+        bottomHeight: 48,
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
@@ -565,7 +556,8 @@ class _StaffScheduleHistoryScreenState
           : RefreshIndicator(
               color: staffPrimary,
               onRefresh: _loadData,
-              child: TabBarView(
+              child: StaffPageContainer(
+                child: TabBarView(
                 controller: _tabController,
                 children: [
                   // ── Tab 1: Rejected Schedules ────────────────────────
@@ -601,6 +593,7 @@ class _StaffScheduleHistoryScreenState
                               _buildExchangeCard(_exchangeHistory[i]),
                         ),
                 ],
+                ),
               ),
             ),
     );

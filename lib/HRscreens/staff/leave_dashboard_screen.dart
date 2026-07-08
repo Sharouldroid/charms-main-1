@@ -13,6 +13,7 @@ import 'package:charms/HRscreens/staff/staff_myself_screen.dart';
 import 'package:charms/HRscreens/staff/staff_notification_screen.dart';
 import 'package:charms/HRwidgets/staff/bottom_nav_staff.dart';
 import 'package:charms/HRwidgets/staff/proof_attachment.dart';
+import 'package:charms/HRwidgets/staff/hr_staff_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -617,15 +618,10 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
     return Scaffold(
       backgroundColor: staffBg,
       extendBody: true,
-      appBar: AppBar(
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+      appBar: StaffAppBar(
+        title: 'MY LEAVES',
         automaticallyImplyLeading: false,
-        title: const Text('MY LEAVES',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold,
-                letterSpacing: 1.2)),
-        backgroundColor: staffPrimary,
-        centerTitle: true,
+        bottomHeight: 48,
         actions: [
           // ✅ FIXED bell badge
           Consumer4<Leaves, Claims, Schedules, ScheduleExchanges>(
@@ -696,7 +692,8 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
           final approved = all.where((l) => l.status.trim().toLowerCase() == 'approved').toList();
           final rejected = all.where((l) => l.status.trim().toLowerCase() == 'rejected').toList();
 
-          return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          return StaffPageContainer(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const SizedBox(height: 16),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16.0),
@@ -725,7 +722,8 @@ class _LeaveDashboardScreenState extends State<LeaveDashboardScreen>
                 ],
               ),
             ),
-          ]);
+          ]),
+          );
         },
       ),
       floatingActionButton: Padding(

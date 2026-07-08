@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:charms/HRwidgets/staff/hr_staff_theme.dart';
 
 class AttendanceSummaryScreen extends StatefulWidget {
   const AttendanceSummaryScreen({super.key});
@@ -70,23 +71,9 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: staffBg, // Modern Background
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: staffPrimary,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text('ATTENDANCE SUMMARY',
-            style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2)),
-        centerTitle: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(20),
-          ),
-        ),
-      ),
-      body: Column(
+      appBar: const StaffAppBar(title: 'ATTENDANCE SUMMARY'),
+      body: StaffPageContainer(
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Modern Filter Section
@@ -270,6 +257,7 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
             ),
           ),
         ],
+        ),
       ),
     );
   }

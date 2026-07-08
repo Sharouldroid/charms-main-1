@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:charms/HRwidgets/staff/hr_staff_theme.dart';
 
 class PartTimerScheduleDetailsScreen extends StatefulWidget {
   final String location;
@@ -309,11 +310,7 @@ class _PartTimerScheduleDetailsScreenState
   Widget build(BuildContext context) {
     if (_isCheckingAttendance) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Schedule Details', style: TextStyle(color: Colors.white)),
-          backgroundColor: _primary,
-          iconTheme: const IconThemeData(color: Colors.white),
-        ),
+        appBar: StaffAppBar(title: 'Schedule Details', backgroundColor: _primary),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -324,16 +321,13 @@ class _PartTimerScheduleDetailsScreenState
 
     return Scaffold(
       backgroundColor: _bgColor,
-      appBar: AppBar(
-        title: const Text('Schedule Details', style: TextStyle(color: Colors.white)),
-        backgroundColor: _primary,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
+      appBar: StaffAppBar(title: 'Schedule Details', backgroundColor: _primary),
       body: RefreshIndicator(
         onRefresh: _refreshData,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
+          child: StaffPageContainer(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -457,6 +451,7 @@ class _PartTimerScheduleDetailsScreenState
                   ),
                 ),
             ],
+          ),
           ),
         ),
       ),

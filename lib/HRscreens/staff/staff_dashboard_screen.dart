@@ -16,6 +16,7 @@ import 'package:charms/HRscreens/staff/staff_myself_screen.dart';
 import 'package:charms/HRscreens/staff/staff_schedule_details_screen.dart';
 import 'package:charms/HRutils/attendance_location_helper.dart';
 import 'package:charms/HRwidgets/staff/bottom_nav_staff.dart';
+import 'package:charms/HRwidgets/staff/hr_staff_theme.dart';
 import 'package:charms/HRscreens/staff/staff_notification_screen.dart';
 import 'package:charms/HRscreens/admin/admin_dashboard_screen.dart';
 import 'package:charms/constants/user_roles.dart';
@@ -414,17 +415,10 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
     return Scaffold(
       backgroundColor: staffBg,
       extendBody: true,
-      appBar: AppBar(
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+      appBar: StaffAppBar(
+        title: 'STAFF PORTAL',
         automaticallyImplyLeading: false,
-        title: const Text('STAFF PORTAL',
-            style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2)),
-        centerTitle: true,
-        backgroundColor: staffPrimary,
+        roundedBottom: false,
         actions: [
           if (_currentStaff != null &&
               UserRoles.hrAdmin.contains(_currentStaff!.usertype))
@@ -544,7 +538,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Welcome header ─────────────────────────────────────────────
+        // ── Welcome header ───────────────────────────────────────────── (full-bleed, not width-capped)
         Container(
           width: double.infinity,
           padding: const EdgeInsets.only(
@@ -581,65 +575,75 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
           ),
         ),
 
-        // ── Today's attendance card — clock in/out every day ─────────────
-        _buildTodayAttendanceCard(),
+        // ── Width-capped content below the banner ─────────────────────────
+        Expanded(
+          child: StaffPageContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Today's attendance card — clock in/out every day ─────
+                _buildTodayAttendanceCard(),
 
-        // ── Attendance history card ─────────────────────────────────────
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-          child: GestureDetector(
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => StaffAttendanceHistoryScreen(
-                  staffId:  _currentStaff?.staffId ?? 0,
-                  username: widget.username,
-                ),
-              ),
-            ),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: staffCardBorder),
-              ),
-              child: Row(children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                      color: staffPrimary.withOpacity(0.1),
-                      shape: BoxShape.circle),
-                  child: Icon(Icons.history_rounded,
-                      color: staffPrimary, size: 22),
-                ),
-                const SizedBox(width: 14),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Attendance History',
-                          style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14,
-                              color: Color(0xFF1E293B))),
-                      Text('View your clock in/out records',
-                          style: TextStyle(
-                              fontSize: 12, color: Colors.grey)),
-                    ],
+                // ── Attendance history card ──────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  child: GestureDetector(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => StaffAttendanceHistoryScreen(
+                          staffId:  _currentStaff?.staffId ?? 0,
+                          username: widget.username,
+                        ),
+                      ),
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: staffCardBorder),
+                      ),
+                      child: Row(children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                              color: staffPrimary.withOpacity(0.1),
+                              shape: BoxShape.circle),
+                          child: Icon(Icons.history_rounded,
+                              color: staffPrimary, size: 22),
+                        ),
+                        const SizedBox(width: 14),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Attendance History',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 14,
+                                      color: Color(0xFF1E293B))),
+                              Text('View your clock in/out records',
+                                  style: TextStyle(
+                                      fontSize: 12, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.arrow_forward_ios_rounded,
+                            size: 14, color: Colors.grey.shade400),
+                      ]),
+                    ),
                   ),
                 ),
-                Icon(Icons.arrow_forward_ios_rounded,
-                    size: 14, color: Colors.grey.shade400),
-              ]),
+
+                // ── Staff on leave today card ────────────────────────────
+                _buildStaffOnLeaveCard(),
+
+                Expanded(child: _buildSchedulesCards()),
+              ],
             ),
           ),
         ),
-
-        // ── Staff on leave today card ────────────────────────────────────
-        _buildStaffOnLeaveCard(),
-
-        Expanded(child: _buildSchedulesCards()),
       ],
     );
   }

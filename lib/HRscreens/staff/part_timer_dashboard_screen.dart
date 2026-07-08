@@ -15,6 +15,7 @@ import 'package:charms/utils/logout_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:charms/HRwidgets/staff/hr_staff_theme.dart';
 
 class PartTimerDashboardScreen extends StatefulWidget {
   final String username;
@@ -438,34 +439,14 @@ class _PartTimerDashboardScreenState extends State<PartTimerDashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _bg,
-      appBar: AppBar(
-        elevation: 0,
-        automaticallyImplyLeading: false,
+      appBar: StaffAppBar(
+        title: 'PART TIMER PORTAL',
         backgroundColor: _primary,
+        automaticallyImplyLeading: false,
+        centerTitle: false,
         toolbarHeight: 80,
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'PART TIMER PORTAL',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-                letterSpacing: 1.5,
-              ),
-            ),
-            Row(children: [
-              // IconButton(
-              //   icon: const Icon(Icons.person_rounded,
-              //       color: Colors.white, size: 24),
-              //   tooltip: 'My Profile',
-              //   onPressed: () => Navigator.push(
-              //     context,
-              //     MaterialPageRoute(
-              //         builder: (_) => const StaffMySelfScreen()),
-              //   ),
-              // ),
+        roundedBottom: false,
+        actions: [
               IconButton(
                 icon: const Icon(Icons.folder_shared_rounded,
                     color: Colors.white, size: 24),
@@ -530,9 +511,7 @@ class _PartTimerDashboardScreenState extends State<PartTimerDashboardScreen> {
                 tooltip: 'Logout',
                 onPressed: _logout,
               ),
-            ]),
-          ],
-        ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: _primary))
@@ -543,6 +522,8 @@ class _PartTimerDashboardScreenState extends State<PartTimerDashboardScreen> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 child: Column(children: [
                   _buildHeader(),
+                  StaffPageContainer(
+                  child: Column(children: [
                   const SizedBox(height: 16),
                   if (_missingDocuments.isNotEmpty) ...[
                     _buildDocumentsAlertBanner(),
@@ -623,6 +604,8 @@ class _PartTimerDashboardScreenState extends State<PartTimerDashboardScreen> {
                               _buildPaymentCard(_payments[i]),
                         ),
                   const SizedBox(height: 40),
+                  ]),
+                  ),
                 ]),
               ),
             ),

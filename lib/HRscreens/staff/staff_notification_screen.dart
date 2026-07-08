@@ -7,6 +7,7 @@ import 'package:charms/HRproviders/schedule_exchanges.dart';
 import 'package:charms/HRmodels/schedule_exchange.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:charms/HRwidgets/staff/hr_staff_theme.dart';
 
 class StaffNotificationScreen extends StatefulWidget {
   final int staffId;
@@ -540,22 +541,7 @@ class _StaffNotificationScreenState
 
     return Scaffold(
       backgroundColor: staffBg,
-      appBar: AppBar(
-        elevation: 0,
-        title: const Text('NOTIFICATIONS',
-            style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2)),
-        centerTitle: true,
-        backgroundColor: staffPrimary,
-        iconTheme: const IconThemeData(color: Colors.white),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded,
-              color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
+      appBar: const StaffAppBar(title: 'NOTIFICATIONS', roundedBottom: false),
       body: Consumer4<Leaves, Claims, Schedules, ScheduleExchanges>(
         builder: (context, leavesProvider, claimsProvider,
             schedulesProvider, exchangesProvider, child) {
@@ -633,7 +619,7 @@ class _StaffNotificationScreenState
           }
 
           return Column(children: [
-            // ── Header banner ─────────────────────────────────────
+            // ── Header banner ───────────────────────────────────── (full-bleed, not width-capped)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.only(
@@ -700,8 +686,9 @@ class _StaffNotificationScreenState
               ),
             ),
 
-            // ── List body ─────────────────────────────────────────
+            // ── List body (width-capped) ────────────────────────────
             Expanded(
+              child: StaffPageContainer(
               child: !hasAny
                   ? Center(
                       child: Column(
@@ -916,6 +903,7 @@ class _StaffNotificationScreenState
                         ],
                       ]),
                     ),
+              ),
             ),
           ]);
         },

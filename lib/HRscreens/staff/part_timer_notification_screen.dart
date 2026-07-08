@@ -1,5 +1,6 @@
 import 'package:charms/HRmodels/schedule_exchange.dart';
 import 'package:charms/HRproviders/schedule_exchanges.dart';
+import 'package:charms/HRwidgets/staff/hr_staff_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -136,14 +137,7 @@ class _PartTimerNotificationScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _bg,
-      appBar: AppBar(
-        title: const Text(
-          'NOTIFICATIONS',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: _primary,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
+      appBar: StaffAppBar(title: 'NOTIFICATIONS', backgroundColor: _primary),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Consumer<ScheduleExchanges>(
@@ -166,10 +160,12 @@ class _PartTimerNotificationScreenState
 
                 return RefreshIndicator(
                   onRefresh: _load,
-                  child: ListView(
+                  child: StaffPageContainer(
+                    child: ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(16),
                     children: incoming.map(_exchangeCard).toList(),
+                  ),
                   ),
                 );
               },

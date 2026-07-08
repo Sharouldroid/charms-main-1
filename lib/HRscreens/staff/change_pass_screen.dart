@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:charms/providers/auth.dart' as app_auth;
+import 'package:charms/HRwidgets/staff/hr_staff_theme.dart';
 
 
 class ChangePassScreen extends StatefulWidget {
@@ -287,29 +288,13 @@ class _ChangePassScreenState extends State<ChangePassScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _bgColor,
-      appBar: AppBar(
-        elevation: 0,
-        title: const Text(
-          'ACCOUNT SETTINGS',
-          style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.2),
-        ),
-        backgroundColor: _primary,
-        centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.white),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
+      appBar: const StaffAppBar(title: 'ACCOUNT SETTINGS', roundedBottom: false),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: _primary))
           : SingleChildScrollView(
               child: Column(
                 children: [
-                  // ── Top banner ─────────────────────────────────────────────
+                  // ── Top banner ───────────────────────────────────────────── (full-bleed, not width-capped)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.only(
@@ -401,8 +386,9 @@ class _ChangePassScreenState extends State<ChangePassScreen>
                     ),
                   ),
 
-                  // ── Tab content ────────────────────────────────────────────
-                  SizedBox(
+                  // ── Tab content (width-capped) ───────────────────────────
+                  StaffPageContainer(
+                  child: SizedBox(
                     height: 520,
                     child: TabBarView(
                       controller: _tabController,
@@ -524,6 +510,7 @@ class _ChangePassScreenState extends State<ChangePassScreen>
                         ),
                       ],
                     ),
+                  ),
                   ),
                 ],
               ),

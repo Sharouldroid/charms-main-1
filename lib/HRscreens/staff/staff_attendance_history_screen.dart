@@ -7,6 +7,7 @@ import 'package:charms/HRproviders/schedules.dart';
 import 'package:charms/HRproviders/schedule_exchanges.dart';
 import 'package:charms/HRmodels/schedule.dart';
 import 'package:charms/HRmodels/schedule_exchange.dart';
+import 'package:charms/HRwidgets/staff/hr_staff_theme.dart';
 
 class StaffAttendanceHistoryScreen extends StatefulWidget {
   final int staffId;
@@ -218,21 +219,8 @@ class _StaffAttendanceHistoryScreenState
 
     return Scaffold(
       backgroundColor: staffBg,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: staffPrimary,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text(
-          'ATTENDANCE HISTORY',
-          style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.2),
-        ),
-        centerTitle: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-        ),
+      appBar: StaffAppBar(
+        title: 'ATTENDANCE HISTORY',
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: Colors.white),
@@ -246,7 +234,8 @@ class _StaffAttendanceHistoryScreenState
           : RefreshIndicator(
               color: staffPrimary,
               onRefresh: _loadHistory,
-              child: CustomScrollView(
+              child: StaffPageContainer(
+                child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [
                   SliverToBoxAdapter(
@@ -407,6 +396,7 @@ class _StaffAttendanceHistoryScreenState
                           ),
                         ),
                 ],
+                ),
               ),
             ),
     );

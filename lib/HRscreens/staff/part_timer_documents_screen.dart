@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:charms/HRmodels/staff_document.dart';
 import 'package:charms/HRproviders/staff_documents.dart';
+import 'package:charms/HRwidgets/staff/hr_staff_theme.dart';
 
 class PartTimerDocumentsScreen extends StatefulWidget {
   final int staffId;
@@ -90,16 +91,7 @@ class _PartTimerDocumentsScreenState extends State<PartTimerDocumentsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _bg,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: _primary,
-        title: const Text(
-          'My Documents',
-          style: TextStyle(
-              color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
+      appBar: const StaffAppBar(title: 'My Documents', backgroundColor: _primary),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: _primary))
           : RefreshIndicator(
@@ -108,6 +100,7 @@ class _PartTimerDocumentsScreenState extends State<PartTimerDocumentsScreen> {
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(16),
+                child: StaffPageContainer(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -135,6 +128,7 @@ class _PartTimerDocumentsScreenState extends State<PartTimerDocumentsScreen> {
                     ...StaffDocuments.documentTypes
                         .map((type) => _buildDocumentCard(type)),
                   ],
+                ),
                 ),
               ),
             ),

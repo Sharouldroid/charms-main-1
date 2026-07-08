@@ -13,6 +13,7 @@ import 'package:charms/HRscreens/staff/staff_myself_screen.dart';
 import 'package:charms/HRscreens/staff/staff_notification_screen.dart';
 import 'package:charms/HRwidgets/staff/bottom_nav_staff.dart';
 import 'package:charms/HRwidgets/staff/proof_attachment.dart';
+import 'package:charms/HRwidgets/staff/hr_staff_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -626,15 +627,10 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
     return Scaffold(
       backgroundColor: staffBg,
       extendBody: true,
-      appBar: AppBar(
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+      appBar: StaffAppBar(
+        title: 'MY CLAIMS',
         automaticallyImplyLeading: false,
-        title: const Text('MY CLAIMS',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold,
-                letterSpacing: 1.2)),
-        backgroundColor: staffPrimary,
-        centerTitle: true,
+        bottomHeight: 48,
         actions: [
           // ✅ FIXED bell badge
           Consumer4<Leaves, Claims, Schedules, ScheduleExchanges>(
@@ -702,7 +698,8 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
           final pending  = claimsData.claims.where((c) => c.status == 'Pending').toList();
           final approved = claimsData.claims.where((c) => c.status == 'Approved').toList();
           final rejected = claimsData.claims.where((c) => c.status == 'Rejected').toList();
-          return Column(children: [
+          return StaffPageContainer(
+            child: Column(children: [
             _buildFilterPanel(),
             const SizedBox(height: 8),
             Expanded(
@@ -715,7 +712,8 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
                 ],
               ),
             ),
-          ]);
+          ]),
+          );
         },
       ),
       floatingActionButton: Padding(

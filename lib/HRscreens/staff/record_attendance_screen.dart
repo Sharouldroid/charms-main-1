@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:charms/HRwidgets/staff/hr_staff_theme.dart';
 
 class RecordAttendanceScreen extends StatefulWidget {
   const RecordAttendanceScreen({super.key});
@@ -117,23 +118,9 @@ class _RecordAttendanceScreenState extends State<RecordAttendanceScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: staffBg, // Modern background
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: staffPrimary,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text('RECORD ATTENDANCE',
-            style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2)),
-        centerTitle: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(20),
-          ),
-        ),
-      ),
+      appBar: const StaffAppBar(title: 'RECORD ATTENDANCE'),
       body: SafeArea(
+        child: StaffPageContainer(
         child: Column(
           children: [
             Expanded(
@@ -380,6 +367,7 @@ class _RecordAttendanceScreenState extends State<RecordAttendanceScreen> {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

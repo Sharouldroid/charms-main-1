@@ -3,6 +3,7 @@ import 'package:charms/HRproviders/attendances.dart';
 import 'package:charms/HRproviders/schedules.dart';
 import 'package:charms/HRscreens/staff/schedule_exchange_screen.dart';
 import 'package:charms/HRutils/attendance_location_helper.dart';
+import 'package:charms/HRwidgets/staff/hr_staff_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -302,9 +303,7 @@ class _StaffScheduleDetailsScreenState
   Widget build(BuildContext context) {
     if (_isCheckingAttendance) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Schedule Details', style: TextStyle(color: Colors.white)),
-            centerTitle: true, backgroundColor: _primaryBlue,
-            iconTheme: const IconThemeData(color: Colors.white)),
+        appBar: StaffAppBar(title: 'Schedule Details', backgroundColor: _primaryBlue),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -314,19 +313,12 @@ class _StaffScheduleDetailsScreenState
 
     return Scaffold(
       backgroundColor: _bgColor,
-      appBar: AppBar(
-        title: const Text('Schedule Details',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
-        centerTitle: true,
-        backgroundColor: _primaryBlue,
-        iconTheme: const IconThemeData(color: Colors.white),
-        shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(bottom: Radius.circular(20))),
-      ),
+      appBar: StaffAppBar(title: 'Schedule Details', backgroundColor: _primaryBlue),
       body: RefreshIndicator(
         onRefresh: _refreshData,
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
+          child: StaffPageContainer(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -563,6 +555,7 @@ class _StaffScheduleDetailsScreenState
                   ]),
                 ),
             ],
+          ),
           ),
         ),
       ),
