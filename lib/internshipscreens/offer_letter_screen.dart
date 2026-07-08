@@ -97,6 +97,16 @@ class _OfferLetterScreenState extends State<OfferLetterScreen> {
   static const _kTableValueX  = 188.8;
   static const _kTempohY      = 337.5;  // "28 Mac 2026 ..." top-of-box
 
+  // "Kemudahan : diberikan ● Elaun" bullet — V2 template leaves the amount
+  // blank. Value starts right after "● " at x0≈206.8 (same column as the
+  // Skop latihan bullets). A white box first covers that span in case any
+  // leftover "(RM .../bulan)" text remains underneath in the template.
+  static const _kElaunX       = 206.8;
+  static const _kElaunY       = 430.4;  // "Elaun" top-of-box
+  static const _kElaunMaskX   = 204.0;
+  static const _kElaunMaskW   = 250.0;
+  static const _kElaunMaskH   = 16.0;
+
   // Default body font size for overlays (matches template body text)
   static const _kFontSize     = 11.0;
 
@@ -237,7 +247,7 @@ class _OfferLetterScreenState extends State<OfferLetterScreen> {
   Future<Uint8List> _buildPdf() async {
     // Raster template page 1 → PNG background
     final templateData = await rootBundle.load(
-      'assets/Surat_Tawaran_Latihan_Industri_SEATRU_2026_Templatepdf.pdf',
+      'assets/Surat_Tawaran_Latihan_Industri_SEATRU_2026_V2Templatepdf.pdf',
     );
     final templateBytes = templateData.buffer.asUint8List();
 
@@ -281,6 +291,16 @@ class _OfferLetterScreenState extends State<OfferLetterScreen> {
     final tempoh = (startDate != '-' && endDate != '-')
         ? '$startDate Hingga $endDate'
         : '-';
+
+    // Allowance amount — admin-adjustable per schedule (falls back to the
+    // long-standing default of RM 550/bulan if the backend hasn't set one).
+    final allowanceRaw = _sched?['allowance'] ?? reg['allowance'];
+    final allowanceAmount = allowanceRaw != null
+        ? num.tryParse(allowanceRaw.toString())
+        : null;
+    final elaunText = 'Elaun (RM '
+        '${allowanceAmount != null ? allowanceAmount.toStringAsFixed(0) : '550'}'
+        '/bulan)';
 
     final doc = pw.Document();
     doc.addPage(
@@ -328,6 +348,19 @@ class _OfferLetterScreenState extends State<OfferLetterScreen> {
 
             // Tempoh date range
             _field(tempoh, left: _kTableValueX, top: _kTempohY),
+
+            // Elaun (allowance) — mask any leftover template text, then
+            // draw the admin-adjustable amount.
+            pw.Positioned(
+              left: _kElaunMaskX,
+              top: _kElaunY - 2,
+              child: pw.Container(
+                width: _kElaunMaskW,
+                height: _kElaunMaskH,
+                color: PdfColors.white,
+              ),
+            ),
+            _field(elaunText, left: _kElaunX, top: _kElaunY),
 
             // (No report date — official template has no placeholder in para 3)
           ],

@@ -5,6 +5,7 @@ class Schedule {
   final String description; // now holds one of the fixed team names
   final String duration; // kept as String for backend compatibility
   final int maxRegistrations;
+  final num? allowance; // Elaun (RM/bulan) — admin-adjustable per schedule
 
   Schedule({
     required this.id,
@@ -13,6 +14,7 @@ class Schedule {
     required this.description,
     required this.duration,
     this.maxRegistrations = kUnlimitedRegistrations,
+    this.allowance,
   });
 
   factory Schedule.fromJson(Map<String, dynamic> json) {
@@ -24,6 +26,9 @@ class Schedule {
       duration: json['duration'].toString(),
       maxRegistrations:
           (json['max_registrations'] as num?)?.toInt() ?? kUnlimitedRegistrations,
+      allowance: json['allowance'] != null
+          ? num.tryParse(json['allowance'].toString())
+          : null,
     );
   }
 
@@ -35,6 +40,7 @@ class Schedule {
         'description': description,
         'duration': duration,
         'max_registrations': maxRegistrations,
+        if (allowance != null) 'allowance': allowance,
       };
 }
 

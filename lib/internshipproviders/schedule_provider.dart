@@ -25,6 +25,7 @@ class ScheduleProvider with ChangeNotifier {
       updatedSchedule.id,
       updatedSchedule.description,
       updatedSchedule.duration, // keep duration as String to match backend
+      allowance: updatedSchedule.allowance,
     );
 
     final index = _schedules.indexWhere((s) => s.id == updatedSchedule.id);

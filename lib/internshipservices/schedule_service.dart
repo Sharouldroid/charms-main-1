@@ -119,11 +119,13 @@ class ScheduleService {
 
   // PUT /api/internship/schedules/{id}
   Future<void> updateSchedule(
-      int id, String newDescription, String newDuration) async {
+      int id, String newDescription, String newDuration,
+      {num? allowance}) async {
     final url = '$baseUrl/api/internship/schedules/$id';
     final payload = {
       'description': newDescription,
       'duration': newDuration,
+      if (allowance != null) 'allowance': allowance,
     };
 
     print('REQUEST URL (updateSchedule): $url');

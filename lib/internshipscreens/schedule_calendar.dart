@@ -237,6 +237,7 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
 
   void _showAddScheduleDialog() {
     String? selectedTeam;
+    String allowanceInput = '';
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -279,6 +280,22 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
                   onChanged: (v) => setDialogState(() => selectedTeam = v),
                 ),
                 const SizedBox(height: 16),
+                TextFormField(
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                    labelText: 'Elaun (RM/bulan)',
+                    hintText: 'e.g. 550',
+                    prefixText: 'RM ',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: Colors.blueAccent, width: 2),
+                    ),
+                    contentPadding: const EdgeInsets.all(12),
+                  ),
+                  onChanged: (v) => allowanceInput = v,
+                ),
+                const SizedBox(height: 16),
                 Row(children: [
                   Expanded(
                     child: OutlinedButton(
@@ -303,6 +320,7 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
                             description: selectedTeam!,
                             duration: _endDate!.difference(_startDate!).inDays.toString(),
                             maxRegistrations: kUnlimitedRegistrations,
+                            allowance: num.tryParse(allowanceInput.trim()),
                           ));
                           Navigator.pop(ctx);
                           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -710,6 +728,15 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
                       ),
                     ]),
                   ),
+
+                  if (schedule.allowance != null) ...[
+                    const SizedBox(height: 8),
+                    _infoChip(
+                      Icons.payments_rounded,
+                      'Elaun RM ${schedule.allowance!.toStringAsFixed(0)}/bulan',
+                      Colors.teal,
+                    ),
+                  ],
 
                   const SizedBox(height: 12),
 
