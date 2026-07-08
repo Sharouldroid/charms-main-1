@@ -7,6 +7,7 @@ import 'package:charms/HRproviders/payments.dart';
 import 'package:charms/HRscreens/staff/staff_payroll_details_screen.dart';
 import 'package:charms/HRmodels/payment.dart';
 import 'package:intl/intl.dart';
+import 'package:charms/HRwidgets/admin/hr_theme.dart';
 import 'payroll_form_screen.dart';
 
 class ManagePayrollScreen extends StatefulWidget {
@@ -475,16 +476,9 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: bgColor,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: primaryBlue,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text('MANAGE PAYMENT REPORTS',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
-        centerTitle: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-        ),
+      appBar: HRAppBar(
+        title: 'MANAGE PAYMENT REPORTS',
+        bottomHeight: 48,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: Colors.white),
@@ -504,7 +498,8 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
           ],
         ),
       ),
-      body: Column(
+      body: HRPageContainer(
+        child: Column(
         children: [
           _buildFilterSection(),
           _buildCategoryChips(),   // ✅ SEATRU / CMS / Intern chips
@@ -518,6 +513,7 @@ class _ManagePayrollScreenState extends State<ManagePayrollScreen>
             ),
           ),
         ],
+        ),
       ),
     );
   }

@@ -14,6 +14,7 @@ import 'package:charms/HRmodels/schedule_exchange.dart';
 import 'package:charms/HRmodels/schedule.dart';
 import 'package:charms/HRproviders/staff_documents.dart';
 import 'package:charms/HRscreens/admin/staff_documents_admin_screen.dart';
+import 'package:charms/HRwidgets/admin/hr_theme.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -891,21 +892,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: bgColor,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: primaryBlue,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text('NOTIFICATIONS',
-            style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2)),
-        centerTitle: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.vertical(bottom: Radius.circular(20)),
-        ),
-      ),
+      appBar: const HRAppBar(title: 'NOTIFICATIONS'),
       body: Consumer<PaymentClaims>(
         builder: (context, paymentClaims, _) {
           return Consumer<StaffDocuments>(
@@ -959,7 +946,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 );
               }
 
-              return ListView(
+              return HRPageContainer(
+                child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(16.0),
                 children: [
@@ -1127,6 +1115,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     }),
                   ],
                 ],
+                ),
               );
             },
           );

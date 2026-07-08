@@ -3,6 +3,7 @@ import 'package:charms/HRmodels/staff.dart';
 import 'package:charms/HRproviders/leaves.dart';
 import 'package:charms/HRproviders/staffs.dart';
 import 'package:charms/HRwidgets/staff/proof_attachment.dart';
+import 'package:charms/HRwidgets/admin/hr_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -905,20 +906,9 @@ class _ManageLeaveScreenState extends State<ManageLeaveScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: bgColor,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: primaryBlue,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text('MANAGE LEAVE',
-            style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2)),
-        centerTitle: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.vertical(bottom: Radius.circular(20)),
-        ),
+      appBar: HRAppBar(
+        title: 'MANAGE LEAVE',
+        bottomHeight: 48,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: Colors.white),
@@ -958,7 +948,8 @@ class _ManageLeaveScreenState extends State<ManageLeaveScreen>
                   ? approved
                   : rejected;
 
-          return Stack(
+          return HRPageContainer(
+            child: Stack(
             children: [
               Column(
                 children: [
@@ -992,6 +983,7 @@ class _ManageLeaveScreenState extends State<ManageLeaveScreen>
                           CircularProgressIndicator(color: primaryBlue)),
                 ),
             ],
+            ),
           );
         },
       ),

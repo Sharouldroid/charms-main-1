@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:charms/HRmodels/payment.dart';
+import 'package:charms/HRwidgets/admin/hr_theme.dart';
 import 'package:intl/intl.dart'; // ✅ Added for nicer date formatting
 
 class EditPayrollScreen extends StatefulWidget {
@@ -94,28 +95,11 @@ class _EditPayrollScreenState extends State<EditPayrollScreen> {
 
     return Scaffold(
       backgroundColor: bgColor, // Modern background
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: primaryBlue,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text(
-          'EDIT PAYMENT REPORT',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1.2,
-          ),
-        ),
-        centerTitle: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(20),
-          ),
-        ),
-      ),
+      appBar: const HRAppBar(title: 'EDIT PAYMENT REPORT'),
       body: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16.0),
+        child: HRPageContainer(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -255,6 +239,7 @@ class _EditPayrollScreenState extends State<EditPayrollScreen> {
             ),
             const SizedBox(height: 24), // Bottom padding
           ],
+        ),
         ),
       ),
     );

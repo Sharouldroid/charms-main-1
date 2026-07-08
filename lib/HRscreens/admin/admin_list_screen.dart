@@ -17,6 +17,7 @@ import 'package:charms/HRproviders/schedule_exchanges.dart';
 import 'package:charms/HRproviders/schedules.dart';
 import 'package:charms/HRproviders/payment_claims.dart';
 import 'package:charms/HRproviders/staff_documents.dart';
+import 'package:charms/HRwidgets/admin/hr_theme.dart';
 import 'package:intl/intl.dart';
 
 class AdminListScreen extends StatefulWidget {
@@ -388,22 +389,9 @@ class _AdminListScreenState extends State<AdminListScreen> {
     return Scaffold(
       backgroundColor: _bgColor,
       extendBody: true,
-      appBar: AppBar(
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+      appBar: HRAppBar(
+        title: 'STAFF LIST',
         automaticallyImplyLeading: false,
-        title: const Text(
-          'STAFF LIST',
-          style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.2),
-        ),
-        centerTitle: true,
-        backgroundColor: _primaryBlue,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-        ),
         actions: [
           Consumer<PaymentClaims>(
             builder: (context, paymentClaims, _) {
@@ -455,7 +443,8 @@ class _AdminListScreenState extends State<AdminListScreen> {
           : RefreshIndicator(
               color: _primaryBlue,
               onRefresh: _loadStaffData,
-              child: CustomScrollView(
+              child: HRPageContainer(
+                child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [
 
@@ -629,6 +618,7 @@ class _AdminListScreenState extends State<AdminListScreen> {
 
                   const SliverToBoxAdapter(child: SizedBox(height: 100)),
                 ],
+                ),
               ),
             ),
       bottomNavigationBar: BottomNavBar(

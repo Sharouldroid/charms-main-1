@@ -4,6 +4,7 @@ import 'package:charms/HRscreens/staff/StaffScheduleHistoryScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:charms/HRproviders/staffs.dart';
+import 'package:charms/HRwidgets/admin/hr_theme.dart';
 
 class PlanScheduleScreen extends StatefulWidget {
   const PlanScheduleScreen({super.key});
@@ -69,21 +70,9 @@ class _PlanScheduleScreenState extends State<PlanScheduleScreen> {
       length: 3,
       child: Scaffold(
         backgroundColor: bgColor,
-        appBar: AppBar(
-          elevation: 0,
-          backgroundColor: primaryBlue,
-          iconTheme: const IconThemeData(color: Colors.white),
-          title: const Text(
-            'MANAGE SCHEDULE',
-            style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2),
-          ),
-          centerTitle: true,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-          ),
+        appBar: HRAppBar(
+          title: 'MANAGE SCHEDULE',
+          bottomHeight: 48,
           bottom: TabBar(
             indicatorColor: Colors.white,
             indicatorWeight: 3,
@@ -109,6 +98,7 @@ class _PlanScheduleScreenState extends State<PlanScheduleScreen> {
             : RefreshIndicator(
                 color: primaryBlue,
                 onRefresh: _loadStaffData,
+                child: HRPageContainer(
                 child: Column(
                   children: [
                     const SizedBox(height: 16),
@@ -225,6 +215,7 @@ class _PlanScheduleScreenState extends State<PlanScheduleScreen> {
                             ),
                     ),
                   ],
+                ),
                 ),
               ),
       ),

@@ -3,6 +3,7 @@ import 'package:charms/HRmodels/staff.dart';
 import 'package:charms/HRproviders/leaves.dart';
 import 'package:charms/HRproviders/staffs.dart';
 import 'package:charms/HRscreens/admin/manage_leave_screen.dart';
+import 'package:charms/HRwidgets/admin/hr_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -64,19 +65,8 @@ class _StaffOnLeaveScreenState extends State<StaffOnLeaveScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: bgColor,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: primaryBlue,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text('STAFF ON LEAVE',
-            style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2)),
-        centerTitle: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-        ),
+      appBar: HRAppBar(
+        title: 'STAFF ON LEAVE',
         actions: [
           if (widget.isAdmin)
             IconButton(
@@ -109,7 +99,8 @@ class _StaffOnLeaveScreenState extends State<StaffOnLeaveScreen> {
                 return RefreshIndicator(
                   color: primaryBlue,
                   onRefresh: _fetchData,
-                  child: ListView(
+                  child: HRPageContainer(
+                    child: ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                     children: [
@@ -127,6 +118,7 @@ class _StaffOnLeaveScreenState extends State<StaffOnLeaveScreen> {
                       else
                         ...upcoming.map((l) => _leaveCard(l, staffList, active: false)),
                     ],
+                    ),
                   ),
                 );
               },

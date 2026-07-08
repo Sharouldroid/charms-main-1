@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:charms/HRmodels/staff.dart';
 import 'package:charms/HRproviders/staffs.dart';
+import 'package:charms/HRwidgets/admin/hr_theme.dart';
 
 class EditStaffScreen extends StatefulWidget {
   final Staff staff;
@@ -207,26 +208,11 @@ class _EditStaffScreenState extends State<EditStaffScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: bgColor,
-      appBar: AppBar(
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text(
-          'EDIT STAFF',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1.2,
-          ),
-        ),
-        backgroundColor: primaryBlue,
-        centerTitle: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-        ),
-      ),
+      appBar: const HRAppBar(title: 'EDIT STAFF'),
       body: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16.0),
+        child: HRPageContainer(
         child: Container(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -360,6 +346,7 @@ class _EditStaffScreenState extends State<EditStaffScreen> {
               ),
             ),
           ),
+        ),
         ),
       ),
     );

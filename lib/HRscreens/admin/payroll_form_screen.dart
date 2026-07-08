@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:charms/HRwidgets/admin/hr_theme.dart';
 
 class PayrollFormScreen extends StatefulWidget {
   final String staffId;
@@ -97,28 +98,11 @@ class _PayrollFormScreenState extends State<PayrollFormScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: bgColor, // Modern light grey background
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: primaryBlue,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text(
-          'PAYMENT REPORT FORM',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1.2,
-          ),
-        ),
-        centerTitle: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(20),
-          ),
-        ),
-      ),
+      appBar: const HRAppBar(title: 'PAYMENT REPORT FORM'),
       body: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16.0),
+        child: HRPageContainer(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -259,6 +243,7 @@ class _PayrollFormScreenState extends State<PayrollFormScreen> {
             ),
             const SizedBox(height: 24), // Bottom padding
           ],
+        ),
         ),
       ),
     );

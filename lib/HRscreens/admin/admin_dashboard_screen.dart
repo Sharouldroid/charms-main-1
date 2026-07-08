@@ -23,6 +23,7 @@ import 'package:charms/HRscreens/staff/staff_dashboard_screen.dart';
 import 'package:charms/utils/logout_helper.dart';
 import 'package:charms/HRproviders/schedule_exchanges.dart';
 import 'package:charms/HRproviders/staff_documents.dart';
+import 'package:charms/HRwidgets/admin/hr_theme.dart';
 
 class AdminDashboard extends StatelessWidget {
   final String username;
@@ -314,23 +315,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return Scaffold(
       backgroundColor: bgColor,
       extendBody: true,
-      appBar: AppBar(
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+      appBar: HRAppBar(
+        title: 'CHARMS ADMIN',
         automaticallyImplyLeading: false,
-        title: const Text(
-          'CHARMS ADMIN',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1.2,
-          ),
-        ),
-        centerTitle: true,
-        backgroundColor: primaryBlue,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.compare_arrows_rounded),
@@ -426,6 +413,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       onRefresh: _loadDashboardData,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
+        child: HRPageContainer(
         child: Padding(
           padding:
               const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
@@ -558,6 +546,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               const SizedBox(height: 80),
             ],
           ),
+        ),
         ),
       ),
     );

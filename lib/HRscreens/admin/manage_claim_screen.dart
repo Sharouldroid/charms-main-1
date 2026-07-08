@@ -8,6 +8,7 @@ import 'package:charms/HRmodels/claim.dart';
 import 'package:charms/HRmodels/staff.dart';
 import 'package:charms/HRmodels/payment_claim.dart';
 import 'package:charms/HRwidgets/staff/proof_attachment.dart';
+import 'package:charms/HRwidgets/admin/hr_theme.dart';
 import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 
@@ -1762,19 +1763,9 @@ class _ManageClaimScreenState extends State<ManageClaimScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: bgColor,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: primaryBlue,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text('MANAGE CLAIM',
-            style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2)),
-        centerTitle: true,
-        shape: const RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.vertical(bottom: Radius.circular(20))),
+      appBar: HRAppBar(
+        title: 'MANAGE CLAIM',
+        bottomHeight: 48,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: Colors.white),

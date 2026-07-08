@@ -13,6 +13,7 @@ import 'package:charms/HRscreens/admin/admin_list_screen.dart';
 import 'package:charms/HRscreens/admin/manage_staff_screen.dart';
 import 'package:charms/HRscreens/staff/change_pass_screen.dart';
 import 'package:charms/HRwidgets/admin/bottom_nav_bar.dart';
+import 'package:charms/HRwidgets/admin/hr_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -481,22 +482,9 @@ class _MySelfScreenState extends State<MySelfScreen> {
     return Scaffold(
       backgroundColor: _bgColor,
       extendBody: true,
-      appBar: AppBar(
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+      appBar: HRAppBar(
+        title: 'CHARMS ADMIN',
         automaticallyImplyLeading: false,
-        backgroundColor: _primaryBlue,
-        centerTitle: true,
-        title: const Text(
-          'CHARMS ADMIN',
-          style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.2),
-        ),
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-        ),
         actions: [
           IconButton(
             icon: Icon(
@@ -530,7 +518,8 @@ class _MySelfScreenState extends State<MySelfScreen> {
           ? Center(child: CircularProgressIndicator(color: _primaryBlue))
           : SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(16, 24, 16, 120),
-              child: Form(
+              child: HRPageContainer(
+                child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -710,6 +699,7 @@ class _MySelfScreenState extends State<MySelfScreen> {
                       ),
                     ),
                   ],
+                ),
                 ),
               ),
             ),

@@ -7,6 +7,7 @@ import 'package:charms/HRproviders/staffs.dart';
 import 'package:charms/HRproviders/schedules.dart';
 import 'package:charms/HRmodels/staff.dart';
 import 'package:charms/HRmodels/schedule.dart';
+import 'package:charms/HRwidgets/admin/hr_theme.dart';
 
 class ManageAttendanceScreen extends StatefulWidget {
   const ManageAttendanceScreen({super.key});
@@ -1053,20 +1054,8 @@ Future<void> _markAbsent(Map<String, dynamic> item, List<Staff> staffList) async
 
     return Scaffold(
       backgroundColor: bgColor,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: primaryBlue,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text('MANAGE ATTENDANCE',
-            style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2)),
-        centerTitle: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.vertical(bottom: Radius.circular(20)),
-        ),
+      appBar: HRAppBar(
+        title: 'MANAGE ATTENDANCE',
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: Colors.white),
@@ -1084,7 +1073,8 @@ Future<void> _markAbsent(Map<String, dynamic> item, List<Staff> staffList) async
           final totalAbsent    = merged.where((r) => r['attendance_status'] == 1).length;
           final totalNoClockIn = merged.where((r) => r['attendance_status'] == -1).length;
 
-          return Column(
+          return HRPageContainer(
+            child: Column(
             children: [
               // ── Filter panel ─────────────────────────────────────────────────
               Container(
@@ -1381,6 +1371,7 @@ Future<void> _markAbsent(Map<String, dynamic> item, List<Staff> staffList) async
                           ),
               ),
             ],
+            ),
           );
         },
       ),

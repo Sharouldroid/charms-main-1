@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:charms/utils/pdf_download.dart';
+import 'package:charms/HRwidgets/admin/hr_theme.dart';
 
 class PayrollDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> payrollRecord;
@@ -277,24 +278,13 @@ class _PayrollDetailsScreenState extends State<PayrollDetailsScreen> {
 
     return Scaffold(
       backgroundColor: bgColor, // Modern Background
-      appBar: AppBar(
-        elevation: 0,
-        title: const Text('PAYROLL DETAILS',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
-        backgroundColor: primaryBlue,
-        iconTheme: const IconThemeData(color: Colors.white),
-        centerTitle: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(20),
-          ),
-        ),
-      ),
+      appBar: const HRAppBar(title: 'PAYROLL DETAILS'),
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
+          child: HRPageContainer(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -459,6 +449,7 @@ class _PayrollDetailsScreenState extends State<PayrollDetailsScreen> {
               ),
               const SizedBox(height: 24),
             ],
+          ),
           ),
         ),
       ),

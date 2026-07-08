@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:charms/HRmodels/staff_document.dart';
 import 'package:charms/HRproviders/staff_documents.dart';
+import 'package:charms/HRwidgets/admin/hr_theme.dart';
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
 
@@ -124,24 +125,16 @@ class _StaffDocumentsAdminScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F7FA),
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: _primaryBlue,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: Text(
-          '${widget.staffName} — Documents',
-          style: const TextStyle(
-              color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-      ),
+      backgroundColor: HRColors.background,
+      appBar: HRAppBar(title: '${widget.staffName} — Documents'),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: _primaryBlue))
           : RefreshIndicator(
               color: _primaryBlue,
               onRefresh: _load,
               child: Consumer<StaffDocuments>(
-                builder: (context, docsProv, _) => ListView(
+                builder: (context, docsProv, _) => HRPageContainer(
+                  child: ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.all(16),
                   children: StaffDocuments.documentTypes.map((type) {
@@ -151,11 +144,7 @@ class _StaffDocumentsAdminScreenState
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.grey.shade200),
-                      ),
+                      decoration: hrCardDecoration(radius: 14),
                       child: Row(children: [
                         Container(
                           padding: const EdgeInsets.all(10),
@@ -217,6 +206,7 @@ class _StaffDocumentsAdminScreenState
                       ]),
                     );
                   }).toList(),
+                  ),
                 ),
               ),
             ),

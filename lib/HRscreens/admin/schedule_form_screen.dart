@@ -5,6 +5,7 @@ import 'package:charms/HRmodels/schedule.dart';
 import 'package:charms/HRmodels/timeslot.dart';
 import 'package:charms/HRproviders/schedules.dart';
 import 'package:charms/HRproviders/staffs.dart';
+import 'package:charms/HRwidgets/admin/hr_theme.dart';
 
 class ScheduleFormScreen extends StatefulWidget {
   final int staffId;
@@ -151,22 +152,7 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: bgColor, // Modern Background
-      appBar: AppBar(
-        elevation: 0,
-        leading: const BackButton(color: Colors.white),
-        title: const Text('ASSIGN SHIFT',
-            style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2)),
-        backgroundColor: primaryBlue,
-        centerTitle: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(20),
-          ),
-        ),
-      ),
+      appBar: const HRAppBar(title: 'ASSIGN SHIFT'),
       body: FutureBuilder(
         future: _staffFuture,
         builder: (ctx, snapshot) {
@@ -179,6 +165,7 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
               key: _formKey,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
+                child: HRPageContainer(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -229,6 +216,7 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
                     _buildSubmitButton(),
                     const SizedBox(height: 20),
                   ],
+                ),
                 ),
               ),
             ),

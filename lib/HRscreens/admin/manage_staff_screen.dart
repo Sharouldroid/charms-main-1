@@ -21,6 +21,7 @@ import 'package:charms/HRproviders/schedules.dart';
 import 'package:charms/HRproviders/staffs.dart';
 import 'package:charms/HRproviders/payment_claims.dart';
 import 'package:charms/HRproviders/staff_documents.dart';
+import 'package:charms/HRwidgets/admin/hr_theme.dart';
 
 class ManageStaffScreen extends StatefulWidget {
   final String username;
@@ -35,7 +36,6 @@ class _ManageStaffScreenState extends State<ManageStaffScreen> {
 
   // ── Matches AdminDashboard palette ──────────────────────────────────────────
   final Color _bgColor = const Color(0xFFF4F7FA);
-  final Color _primaryBlue = const Color(0xFF2563EB);
 
   // ── Menu items ───────────────────────────────────────────────────────────────
   static const List<_MenuItem> _items = [
@@ -107,23 +107,9 @@ class _ManageStaffScreenState extends State<ManageStaffScreen> {
       backgroundColor: _bgColor,
       extendBody: true,
       // ── AppBar — identical style to AdminDashboard ─────────────────────────
-      appBar: AppBar(
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+      appBar: HRAppBar(
+        title: 'CHARMS ADMIN',
         automaticallyImplyLeading: false,
-        title: const Text(
-          'CHARMS ADMIN',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1.2,
-          ),
-        ),
-        centerTitle: true,
-        backgroundColor: _primaryBlue,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-        ),
         actions: [
           // ── Notification badge ─────────────────────────────────────────────
           Consumer<PaymentClaims>(
@@ -176,6 +162,7 @@ class _ManageStaffScreenState extends State<ManageStaffScreen> {
 
       body: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
+        child: HRPageContainer(
         child: Padding(
           padding:
               const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
@@ -236,6 +223,7 @@ class _ManageStaffScreenState extends State<ManageStaffScreen> {
               const SizedBox(height: 80),
             ],
           ),
+        ),
         ),
       ),
 

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:charms/HRmodels/staff.dart';
 import 'package:charms/HRproviders/staffs.dart';
 import 'package:charms/HRscreens/admin/edit_staff_screen.dart';
+import 'package:charms/HRwidgets/admin/hr_theme.dart';
 
 class StaffDetailsScreen extends StatefulWidget {
   final Staff staff;
@@ -131,26 +132,11 @@ class _StaffDetailsScreenState extends State<StaffDetailsScreen> {
 
     return Scaffold(
       backgroundColor: bgColor,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: primaryBlue,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text(
-          'STAFF DETAILS',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1.2,
-          ),
-        ),
-        centerTitle: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-        ),
-      ),
+      appBar: const HRAppBar(title: 'STAFF DETAILS'),
       body: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16.0),
+        child: HRPageContainer(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -311,6 +297,7 @@ class _StaffDetailsScreenState extends State<StaffDetailsScreen> {
             ),
             const SizedBox(height: 24),
           ],
+        ),
         ),
       ),
     );

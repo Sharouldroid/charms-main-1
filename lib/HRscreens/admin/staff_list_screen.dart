@@ -2,6 +2,7 @@ import 'package:charms/HRmodels/staff.dart';
 import 'package:charms/HRproviders/staffs.dart';
 import 'package:charms/HRscreens/admin/register_staff_screen.dart';
 import 'package:charms/HRscreens/admin/staff_details_screen.dart';
+import 'package:charms/HRwidgets/admin/hr_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -89,19 +90,9 @@ class _StaffListScreenState extends State<StaffListScreen> {
       length: 3,
       child: Scaffold(
         backgroundColor: bgColor,
-        appBar: AppBar(
-          elevation: 0,
-          backgroundColor: primaryBlue,
-          iconTheme: const IconThemeData(color: Colors.white),
-          title: const Text('MANAGE STAFF',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.2)),
-          centerTitle: true,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-          ),
+        appBar: HRAppBar(
+          title: 'MANAGE STAFF',
+          bottomHeight: 48,
           bottom: TabBar(
             indicatorColor: Colors.white,
             indicatorWeight: 3,
@@ -126,6 +117,7 @@ class _StaffListScreenState extends State<StaffListScreen> {
             : RefreshIndicator(
                 color: primaryBlue,
                 onRefresh: _loadStaffData,
+                child: HRPageContainer(
                 child: Column(
                   children: [
                     const SizedBox(height: 16),
@@ -295,6 +287,7 @@ class _StaffListScreenState extends State<StaffListScreen> {
                             ),
                     ),
                   ],
+                ),
                 ),
               ),
       ),
