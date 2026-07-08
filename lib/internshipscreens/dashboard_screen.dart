@@ -5,7 +5,11 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:charms/HRproviders/staffs.dart';
+import 'package:charms/HRproviders/leaves.dart';
 import 'package:charms/HRmodels/staff.dart';
+import 'package:charms/HRscreens/admin/staff_on_leave_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'intern_leave_status_screen.dart';
 import 'package:charms/internshipscreens/assessment_intern.dart';
 import 'package:charms/internshipservices/intern_helper.dart';
 import 'package:charms/utils/logout_helper.dart';
@@ -76,6 +80,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   InterviewSession? _mySession;
   bool _needsInterviewBooking = false;
   bool _interviewLoading = true;
+
+  // ── Leave decision alert (Intern only) ──────────────────────────────────
+  bool _hasUnseenLeaveDecision = false;
 
   // ── Interview session overview (Admin/Supervisor only) ──────────────────
   int _upcomingInterviewCount = 0;
@@ -232,6 +239,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _profilePicture =
               'https://devcms.com.my/charmsAPI/public/storage/${_currentStaff!.filepath}';
         }
+        if (widget.role == 'Intern') {
+          _checkLeaveNotifications();
+        }
       }
     } catch (error) {
       debugPrint('Error loading staff data: $error');
@@ -240,8 +250,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  // ── Check for approved/rejected leaves the intern hasn't seen yet ───────
+  // Uses SharedPreferences (works on web/PWA via localStorage) rather than a
+  // backend push, since leave approvals don't emit a server notification.
+  Future<void> _checkLeaveNotifications() async {
+    if (_currentStaff == null) return;
+    try {
+      final leavesProvider = context.read<Leaves>();
+      await leavesProvider.getLeaveByStaffId(staffId: _currentStaff!.staffId);
+
+      final decided = leavesProvider.leaves.where((l) {
+        final s = l.status.trim().toLowerCase();
+        return s == 'approved' || s == 'rejected';
+      });
+
+      final prefs = await SharedPreferences.getInstance();
+      final seenIds = (prefs.getStringList(
+              'intern_seen_leave_ids_${_currentStaff!.staffId}') ??
+          [])
+          .toSet();
+      final hasUnseen =
+          decided.any((l) => !seenIds.contains(l.leaveId.toString()));
+
+      if (mounted) setState(() => _hasUnseenLeaveDecision = hasUnseen);
+    } catch (e) {
+      debugPrint('Error checking leave notifications: $e');
+    }
+  }
+
   Future<void> _logout(BuildContext context) async {
     await LogoutHelper.fullLogout(context);
+  }
+
+  // ── Leave navigation guard (Intern only) ────────────────────────────────
+  void _requireStaffId(void Function(int staffId) onReady) {
+    if (_currentStaff == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Still loading your profile, please try again')),
+      );
+      return;
+    }
+    onReady(_currentStaff!.staffId);
   }
 
   // ── GPS helpers ────────────────────────────────────────────────────────
@@ -1909,6 +1959,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
               builder: (_) => const AlumniListScreen(),
             )),
           ),
+          const SizedBox(height: 12),
+          _buildSupervisorCard(
+            title: 'Interns On Leave',
+            subtitle: 'See which interns are on leave today or upcoming',
+            icon: Icons.event_busy_rounded,
+            iconColor: const Color(0xFFDC2626),
+            iconBg: const Color(0xFFFEE2E2),
+            tag: 'Leave',
+            tagColor: const Color(0xFFDC2626),
+            tagBg: const Color(0xFFFEF2F2),
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const StaffOnLeaveScreen(isAdmin: false),
+            )),
+          ),
         ],
       ),
     );
@@ -2616,6 +2680,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
             tagBg: const Color(0xFFECFDF5),
             onTap: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) => RegistrationStatusPage(userId: widget.userId),
+            )),
+          ),
+          const SizedBox(height: 12),
+          _buildSupervisorCard(
+            title: 'My Leaves',
+            subtitle: 'Check the status and history of your leave requests',
+            icon: Icons.fact_check_rounded,
+            iconColor: const Color(0xFF0891B2),
+            iconBg: const Color(0xFFE0F2FE),
+            tag: 'History',
+            tagColor: const Color(0xFF0891B2),
+            tagBg: const Color(0xFFF0F9FF),
+            showAlert: _hasUnseenLeaveDecision,
+            onTap: () => _requireStaffId((staffId) {
+              Navigator.push(context, MaterialPageRoute(
+                builder: (_) => InternLeaveStatusScreen(staffId: staffId),
+              )).then((_) => _checkLeaveNotifications());
+            }),
+          ),
+          const SizedBox(height: 12),
+          _buildSupervisorCard(
+            title: 'Interns On Leave',
+            subtitle: 'See which interns are on leave today or upcoming',
+            icon: Icons.groups_rounded,
+            iconColor: const Color(0xFF7C3AED),
+            iconBg: const Color(0xFFEDE9FE),
+            tag: 'Team',
+            tagColor: const Color(0xFF7C3AED),
+            tagBg: const Color(0xFFF5F3FF),
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const StaffOnLeaveScreen(isAdmin: false),
             )),
           ),
           const SizedBox(height: 12),
