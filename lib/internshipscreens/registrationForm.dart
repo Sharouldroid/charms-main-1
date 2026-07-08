@@ -59,8 +59,14 @@ class _RegistrationFormState extends State<RegistrationForm> {
     'PhD'
   ];
   String? _selectedLevel;
-  String? _selectedCountry;
+  String? _selectedInstitutionCountry;
   String? _selectedInstitution;
+
+  // ✅ NEW: separate from _selectedInstitutionCountry — this is the address's
+  // country, set by the CountryListPick below. Previously both fields shared
+  // _selectedCountry, so picking an address country could silently overwrite
+  // (and crash) the institution country dropdown above.
+  String? _selectedAddressCountry = 'Malaysia'; // matches initialSelection '+60'
 
   final List<String> _malaysianUniversities = [
     'Universiti Malaya (UM)',
@@ -100,6 +106,9 @@ class _RegistrationFormState extends State<RegistrationForm> {
 
   // ✅ NEW: Malaysian IC format XXXXXX-XX-XXXX
   final RegExp _icRegExp = RegExp(r'^\d{6}-\d{2}-\d{4}$');
+
+  // ✅ NEW: Postal code must be 4-6 digits (covers MY/SG/TH/ID/PH/BN)
+  final RegExp _postalCodeRegExp = RegExp(r'^\d{4,6}$');
 
   @override
   void initState() {
@@ -369,6 +378,19 @@ class _RegistrationFormState extends State<RegistrationForm> {
       return;
     }
 
+    // ✅ CountryListPick isn't a FormField, so _formKey.validate() can't
+    // catch a missing/blank address country — check it explicitly.
+    if (_selectedAddressCountry == null || _selectedAddressCountry!.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⚠️ Please select your address country'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
     if (_formKey.currentState!.validate()) {
       // Ensure state is set correctly
       String finalState = _selectedState ?? '';
@@ -394,7 +416,7 @@ class _RegistrationFormState extends State<RegistrationForm> {
         city: _cityController.text,
         state: finalState,
         postalCode: _postalCodeController.text,
-        country: _selectedCountry ?? '',
+        country: _selectedAddressCountry ?? '',
         areaCode: _countryCode ?? '',
         phoneNumber: _phoneNumber ?? '',
         email: _emailController.text,
@@ -767,7 +789,7 @@ class _RegistrationFormState extends State<RegistrationForm> {
 
               // Country Dropdown
               DropdownButtonFormField<String>(
-                value: _selectedCountry,
+                value: _selectedInstitutionCountry,
                 items: [
                   'Malaysia',
                   'Singapore',
@@ -785,7 +807,7 @@ class _RegistrationFormState extends State<RegistrationForm> {
                 decoration: const InputDecoration(labelText: 'Country'),
                 onChanged: (value) {
                   setState(() {
-                    _selectedCountry = value;
+                    _selectedInstitutionCountry = value;
                     _selectedInstitution = null;
                     _institutionController.clear();
                   });
@@ -820,7 +842,7 @@ class _RegistrationFormState extends State<RegistrationForm> {
               const SizedBox(height: 16),
 
               // Institution Field
-              if (_selectedCountry == 'Malaysia') ...[
+              if (_selectedInstitutionCountry == 'Malaysia') ...[
                 DropdownButtonFormField<String>(
                   value: _selectedInstitution,
                   items: _malaysianUniversities.map((university) {
@@ -860,7 +882,7 @@ class _RegistrationFormState extends State<RegistrationForm> {
                     },
                   ),
                 ],
-              ] else if (_selectedCountry != null) ...[
+              ] else if (_selectedInstitutionCountry != null) ...[
                 TextFormField(
                   controller: _institutionController,
                   decoration: const InputDecoration(labelText: 'Institution'),
@@ -941,7 +963,10 @@ class _RegistrationFormState extends State<RegistrationForm> {
               ),
               const SizedBox(height: 16),
 
-              // Country Picker
+              // Country Picker (address country — kept separate from
+              // _selectedInstitutionCountry above; they used to share one
+              // variable, which let this picker silently overwrite the
+              // institution country and could crash its dropdown).
               Container(
                 alignment: Alignment.centerLeft,
                 child: CountryListPick(
@@ -955,17 +980,14 @@ class _RegistrationFormState extends State<RegistrationForm> {
                   initialSelection: '+60',
                   onChanged: (CountryCode? code) {
                     setState(() {
-                      _selectedCountry = code?.name ?? '';
+                      _selectedAddressCountry = code?.name ?? '';
                     });
                   },
                 ),
               ),
               const SizedBox(height: 16),
 
-              // ✅ State Field — always a dropdown now (was previously
-              // conditional on _selectedCountry == 'Malaysia', which showed
-              // a plain text field because the CountryListPick widget above
-              // silently overwrites _selectedCountry too — see note below).
+              // ✅ State Field — always a dropdown.
               DropdownButtonFormField<String>(
                 value: _selectedState,
                 items: AuthConstants.statesOfMalaysia.map((state) {
@@ -1007,7 +1029,12 @@ class _RegistrationFormState extends State<RegistrationForm> {
                 decoration: const InputDecoration(labelText: 'Postal Code'),
                 keyboardType: TextInputType.number,
                 validator: (value) {
-                  if (value!.isEmpty) return 'Please enter your postal code';
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter your postal code';
+                  }
+                  if (!_postalCodeRegExp.hasMatch(value.trim())) {
+                    return 'Enter a valid postal code (4-6 digits)';
+                  }
                   return null;
                 },
               ),
@@ -1032,7 +1059,7 @@ class _RegistrationFormState extends State<RegistrationForm> {
                   });
                 },
                 validator: (value) {
-                  if (value == null) {
+                  if (value == null || value.number.trim().isEmpty) {
                     return 'Please enter your phone number';
                   }
                   return null;
