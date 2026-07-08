@@ -5,6 +5,8 @@ import 'package:charms/main.dart';
 import 'package:charms/internshipmodels/register.dart';
 import 'package:charms/internshipproviders/register_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'document_actions.dart';
 
 class InternDetailScreen extends StatefulWidget {
   final int internId;
@@ -21,10 +23,14 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
   bool _isLoading = true;
   String? _error;
 
+  List<Map<String, dynamic>> _submissions = [];
+  bool _isLoadingSubmissions = true;
+
   @override
   void initState() {
     super.initState();
     _loadInternWithPhoto();
+    _loadSubmissions();
   }
 
   Future<void> _loadInternWithPhoto() async {
@@ -44,6 +50,33 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
     } catch (e) {
       setState(() { _error = e.toString(); _isLoading = false; });
     }
+  }
+
+  Future<void> _loadSubmissions() async {
+    setState(() => _isLoadingSubmissions = true);
+    try {
+      final response = await http.get(
+        Uri.parse(
+            '${AppConfig.hostname}/api/internship/documents/submissions/${widget.internId}'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as List;
+        setState(() {
+          _submissions = data.cast<Map<String, dynamic>>();
+        });
+      }
+    } catch (_) {
+      // Non-fatal: the profile above still renders without documents.
+    } finally {
+      if (mounted) setState(() => _isLoadingSubmissions = false);
+    }
+  }
+
+  Future<void> _openLink(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   Future<String?> _fetchPhoto(int internId) async {
@@ -237,6 +270,11 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
                         _infoRow(Icons.flag, 'Country', _intern!.country),
                       ]),
 
+                      const SizedBox(height: 16),
+
+                      _sectionTitle('Document Submissions'),
+                      _buildDocumentsSection(),
+
                       const SizedBox(height: 24),
                     ],
                   ),
@@ -255,6 +293,203 @@ class _InternDetailScreenState extends State<InternDetailScreen> {
           color: Colors.blueAccent,
           letterSpacing: 0.5,
         ),
+      ),
+    );
+  }
+
+  Widget _buildDocumentsSection() {
+    if (_isLoadingSubmissions) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_submissions.isEmpty) {
+      return _infoCard([
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Row(
+            children: [
+              Icon(Icons.inbox, color: Colors.grey[400]),
+              const SizedBox(width: 12),
+              Text('No documents submitted yet',
+                  style: TextStyle(color: Colors.grey[600])),
+            ],
+          ),
+        ),
+      ]);
+    }
+
+    return Column(
+      children: _submissions.map(_buildSubmissionCard).toList(),
+    );
+  }
+
+  Color _submissionStatusColor(String status) {
+    switch (status) {
+      case 'approved':
+        return Colors.green;
+      case 'rejected':
+        return Colors.red;
+      case 'resubmit':
+        return Colors.blue;
+      case 'pending':
+      default:
+        return Colors.orange;
+    }
+  }
+
+  IconData _submissionStatusIcon(String status) {
+    switch (status) {
+      case 'approved':
+        return Icons.check_circle;
+      case 'rejected':
+        return Icons.cancel;
+      case 'resubmit':
+        return Icons.refresh;
+      case 'pending':
+      default:
+        return Icons.hourglass_empty;
+    }
+  }
+
+  Widget _buildSubmissionCard(Map<String, dynamic> submission) {
+    final status = (submission['status'] ?? 'pending').toString();
+    final color = _submissionStatusColor(status);
+    final fileName = submission['file_name']?.toString();
+    final hasFile = fileName != null && fileName.isNotEmpty;
+    final documentLink = submission['document_link']?.toString();
+    final hasLink = documentLink != null && documentLink.isNotEmpty;
+    final documentType = submission['document_type']?.toString();
+    final comments = submission['admin_comments']?.toString();
+    final submissionId = (submission['id'] as num).toInt();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  documentType != null && documentType.isNotEmpty
+                      ? documentType
+                      : (fileName ?? 'Document'),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: color),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(_submissionStatusIcon(status), size: 12, color: color),
+                    const SizedBox(width: 4),
+                    Text(
+                      status.toUpperCase(),
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (hasFile) ...[
+            const SizedBox(height: 8),
+            Text(fileName, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+          ],
+          if (hasLink) ...[
+            const SizedBox(height: 8),
+            InkWell(
+              onTap: () => _openLink(documentLink),
+              child: Row(
+                children: [
+                  const Icon(Icons.link, size: 14, color: Colors.indigo),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      documentLink,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.indigo,
+                        decoration: TextDecoration.underline,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (comments != null && comments.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              comments,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[700],
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+          if (hasFile) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () =>
+                        DocumentActions.viewFile(context, submissionId, fileName),
+                    icon: const Icon(Icons.visibility, size: 14),
+                    label: const Text('View'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.teal,
+                      textStyle: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => DocumentActions.downloadFile(
+                        context, submissionId, fileName),
+                    icon: const Icon(Icons.download, size: 14),
+                    label: const Text('Download'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.blue,
+                      textStyle: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
       ),
     );
   }

@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:charms/main.dart';
 import 'package:url_launcher/url_launcher.dart';
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
+import 'document_actions.dart';
 
 class AdminSubmissionsPage extends StatefulWidget {
   final int adminId;
@@ -56,89 +54,13 @@ class _AdminSubmissionsPageState extends State<AdminSubmissionsPage> {
     }
   }
 
-  // ─── Download File ───────────────────────────────────────────────────────────
+  // ─── Download / View File ────────────────────────────────────────────────────
 
-  Future<void> _downloadFile(int submissionId, String fileName) async {
-    try {
-      _showLoadingDialog('Downloading file...');
+  Future<void> _downloadFile(int submissionId, String fileName) =>
+      DocumentActions.downloadFile(context, submissionId, fileName);
 
-      final response = await http.get(
-        Uri.parse('${AppConfig.hostname}/api/internship/documents/download/$submissionId'),
-      );
-
-      if (mounted) Navigator.of(context).pop();
-
-      if (response.statusCode == 200) {
-        if (kIsWeb) {
-          final bytes = response.bodyBytes;
-          final blob = html.Blob([bytes]);
-          final url = html.Url.createObjectUrlFromBlob(blob);
-          html.AnchorElement(href: url)
-            ..setAttribute('download', fileName)
-            ..click();
-          html.Url.revokeObjectUrl(url);
-        }
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('File downloaded successfully!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } else {
-        _showErrorMessage('Failed to download file: ${response.statusCode}');
-      }
-    } catch (e) {
-      if (mounted) Navigator.of(context).pop();
-      _showErrorMessage('Error downloading file: $e');
-    }
-  }
-
-  Future<void> _viewFile(int submissionId, String fileName) async {
-  try {
-    _showLoadingDialog('Opening file...');
-
-    final response = await http.get(
-      Uri.parse('${AppConfig.hostname}/api/internship/documents/download/$submissionId'),
-    );
-
-    if (mounted) Navigator.of(context).pop();
-
-    if (response.statusCode == 200) {
-      if (kIsWeb) {
-        final bytes = response.bodyBytes;
-
-        String mimeType = 'application/octet-stream';
-        final lower = fileName.toLowerCase();
-        if (lower.endsWith('.pdf')) {
-          mimeType = 'application/pdf';
-        } else if (lower.endsWith('.png')) {
-          mimeType = 'image/png';
-        } else if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) {
-          mimeType = 'image/jpeg';
-        } else if (lower.endsWith('.webp')) {
-          mimeType = 'image/webp';
-        }
-
-        final blob = html.Blob([bytes], mimeType);
-        final url = html.Url.createObjectUrlFromBlob(blob);
-
-        html.window.open(url, '_blank');
-
-        Future.delayed(const Duration(seconds: 10), () {
-          html.Url.revokeObjectUrl(url);
-        });
-      }
-    } else {
-      _showErrorMessage('Failed to open file: ${response.statusCode}');
-    }
-  } catch (e) {
-    if (mounted) Navigator.of(context).pop();
-    _showErrorMessage('Error opening file: $e');
-  }
-}
+  Future<void> _viewFile(int submissionId, String fileName) =>
+      DocumentActions.viewFile(context, submissionId, fileName);
 
   // ─── Open Link ───────────────────────────────────────────────────────────────
 
