@@ -15,6 +15,7 @@ import 'package:charms/HRscreens/staff/claim_dashboard.dart';
 import 'package:charms/HRscreens/staff/staff_myself_screen.dart';
 import 'package:charms/HRscreens/staff/staff_schedule_details_screen.dart';
 import 'package:charms/HRutils/attendance_location_helper.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:charms/HRwidgets/staff/bottom_nav_staff.dart';
 import 'package:charms/HRwidgets/staff/hr_staff_theme.dart';
 import 'package:charms/HRscreens/staff/staff_notification_screen.dart';
@@ -52,6 +53,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
   bool _isClockedOutToday = false;
   String? _todayClockInTimeStr;
   String? _todayClockOutTimeStr;
+  String? _todayClockInLocationStr;
 
   final Color staffPrimary    = const Color(0xFF4F46E5);
   final Color staffBg         = const Color(0xFFF8FAFC);
@@ -165,6 +167,11 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
     }
   }
 
+  Future<void> _openGoogleMaps(String coordinates) async {
+    final uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$coordinates');
+    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
   // ── Resolve today's schedule (admin-assigned or previously self-created) ──
   Schedule? _findTodaySchedule(List<Schedule> schedules) {
     final now = DateTime.now();
@@ -197,12 +204,14 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
       );
       final clockOutTime = ap.lastCheckedClockOutTime;
       final clockInTime  = ap.lastCheckedClockInTime;
+      final clockInLocation = ap.lastCheckedClockInLocation;
       if (!_mounted) return;
       setState(() {
         _isClockedInToday          = hasAttendance;
         _isClockedOutToday         = clockOutTime != null && clockOutTime.isNotEmpty;
         _todayClockInTimeStr       = clockInTime;
         _todayClockOutTimeStr      = clockOutTime;
+        _todayClockInLocationStr   = clockInLocation;
         _isCheckingTodayAttendance = false;
       });
     } catch (_) {
@@ -271,8 +280,9 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
 
       if (result['success'] == true && _mounted) {
         setState(() {
-          _isClockedInToday    = true;
-          _todayClockInTimeStr = DateFormat('hh:mm a').format(DateTime.now());
+          _isClockedInToday        = true;
+          _todayClockInTimeStr     = DateFormat('hh:mm a').format(DateTime.now());
+          _todayClockInLocationStr = displayLocation;
         });
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Successfully clocked in!'), backgroundColor: Colors.green));
@@ -758,6 +768,37 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
               child: Text('Clocked in at $_todayClockInTimeStr',
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
             ),
+          if (_todayClockInLocationStr != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: GestureDetector(
+                onTap: () => _openGoogleMaps(_todayClockInLocationStr!),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.green.withOpacity(0.3)),
+                  ),
+                  child: Row(children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.15), shape: BoxShape.circle),
+                      child: const Icon(Icons.location_pin, color: Colors.green, size: 16),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(_todayClockInLocationStr!,
+                          style: const TextStyle(fontSize: 12, color: Colors.blue,
+                              decoration: TextDecoration.underline),
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                  ]),
+                ),
+              ),
+            ),
           ElevatedButton.icon(
             onPressed: _handleDashboardClockOut,
             icon: const Icon(Icons.logout_rounded),
@@ -836,7 +877,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
           padding: const EdgeInsets.only(
               left: 24, right: 24, bottom: 8),
           child: Text(
-              'Assigned by HR for outstation trips or schedule swaps — not required for daily clock-in.',
+              'Assigned by HR for outstation trips or schedule swaps .',
               style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
         ),
         Expanded(

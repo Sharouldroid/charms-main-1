@@ -30,7 +30,7 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
   final Color bgColor = const Color(0xFFF4F7FA);
   final Color primaryBlue = const Color(0xFF2563EB);
 
-  final List<String> _branches = ['Chagar Hutang', 'Turtle Lab', 'UMT'];
+  final List<String> _branches = ['Chagar Hutang', 'Turtle Lab'];
   final List<String> _slots = ['Slot 1', 'Slot 2', 'Slot 3', 'Slot 4'];
 
   final Map<String, TimeSlot> _slotDetails = {
@@ -112,8 +112,6 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
         return 1;
       case 'Turtle Lab':
         return 2;
-      case 'UMT':
-        return 3;
       default:
         return 1;
     }

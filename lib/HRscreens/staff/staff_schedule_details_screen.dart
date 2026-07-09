@@ -308,8 +308,12 @@ class _StaffScheduleDetailsScreenState
       );
     }
 
-    final isPast = widget.workDate.isBefore(
-        DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day));
+    final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    final isPast = widget.workDate.isBefore(today);
+    final isToday = !isPast &&
+        widget.workDate.year == today.year &&
+        widget.workDate.month == today.month &&
+        widget.workDate.day == today.day;
 
     return Scaffold(
       backgroundColor: _bgColor,
@@ -371,41 +375,43 @@ class _StaffScheduleDetailsScreenState
                     ]),
                   ),
 
-                  // Accept / Reject buttons — only when Pending and not past
+                  // Accept / Reject buttons — only when Pending and not past.
+                  // Styled as secondary (outlined, compact) since accepting is
+                  // optional and Clock In below remains the primary action.
                   if (_acceptanceStatus == 0 && !isPast) ...[
                     const SizedBox(height: 8),
                     Text(
-                      'Optional — accepting just confirms this assignment for HR. '
-                      'You can clock in either way, unless you choose Not Accept.',
+                      'Optional — confirms this assignment for HR. '
+                      'You can still clock in without accepting, unless you choose Not Accept.',
                       style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     Row(children: [
                       Expanded(
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.green.shade700,
+                            side: BorderSide(color: Colors.green.shade300),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
                           ),
                           onPressed: _isLoading ? null : _handleAccept,
-                          icon: const Icon(Icons.check_circle_rounded, size: 18),
-                          label: const Text('Accept', style: TextStyle(fontWeight: FontWeight.bold)),
+                          icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
+                          label: const Text('Accept', style: TextStyle(fontSize: 13)),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       Expanded(
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.redAccent,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.redAccent,
+                            side: BorderSide(color: Colors.redAccent.shade100),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
                           ),
                           onPressed: _isLoading ? null : _handleReject,
-                          icon: const Icon(Icons.cancel_rounded, size: 18),
-                          label: const Text('Not Accept', style: TextStyle(fontWeight: FontWeight.bold)),
+                          icon: const Icon(Icons.cancel_outlined, size: 16),
+                          label: const Text('Not Accept', style: TextStyle(fontSize: 13)),
                         ),
                       ),
                     ]),
@@ -495,7 +501,7 @@ class _StaffScheduleDetailsScreenState
               if (_isLoading)
                 const Center(child: CircularProgressIndicator())
               else if (_acceptanceStatus != 2) ...[
-                if (!isClockIn)
+                if (!isClockIn && isToday)
                   ElevatedButton.icon(
                     onPressed: _handleClockIn,
                     icon: const Icon(Icons.login_rounded),
@@ -507,6 +513,26 @@ class _StaffScheduleDetailsScreenState
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
+                  )
+                else if (!isClockIn && !isToday)
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.grey.withOpacity(0.25)),
+                    ),
+                    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      Icon(Icons.schedule_rounded, color: Colors.grey.shade600, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        isPast
+                            ? 'This shift has passed.'
+                            : 'Clock In opens on ${DateFormat('dd MMM yyyy').format(widget.workDate)}.',
+                        style: TextStyle(color: Colors.grey.shade600,
+                            fontWeight: FontWeight.w500, fontSize: 13),
+                      ),
+                    ]),
                   )
                 else if (isClockIn && !isClockOut)
                   ElevatedButton.icon(
