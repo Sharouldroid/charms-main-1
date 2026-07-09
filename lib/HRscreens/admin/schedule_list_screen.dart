@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:charms/HRproviders/schedules.dart';
 import 'package:charms/HRproviders/staffs.dart';
+import 'package:charms/HRproviders/attendances.dart';
 
 
 class ScheduleListScreen extends StatefulWidget {
@@ -24,6 +25,7 @@ class ScheduleListScreen extends StatefulWidget {
 class _ScheduleListScreenState extends State<ScheduleListScreen> {
   bool _sortAscending = true;
   bool _isLoading = true;
+  List<Map<String, dynamic>> _attendanceRecords = [];
 
   @override
   void initState() {
@@ -36,17 +38,30 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
     try {
       final schedulesProvider = Provider.of<Schedules>(context, listen: false);
       final staffsProvider = Provider.of<Staffs>(context, listen: false);
+      final attendancesProvider = Provider.of<Attendances>(context, listen: false);
 
       await Future.wait([
         schedulesProvider.fetchSchedules(),
         staffsProvider.fetchStaff(),
       ]);
+      _attendanceRecords = await attendancesProvider.getAllAttendances();
     } catch (error) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to load data: $error')),
       );
     }
     setState(() => _isLoading = false);
+  }
+
+  // Present (status 2) clock-in time for a schedule, or null if not clocked in.
+  String? _clockInTimeForSchedule(int schedId) {
+    for (final record in _attendanceRecords) {
+      if (record['schedule_id']?.toString() == schedId.toString() &&
+          record['attendance_status']?.toString() == '2') {
+        return record['clock_in_time']?.toString();
+      }
+    }
+    return null;
   }
 
   int _getLocationId(String location) {
@@ -161,11 +176,12 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
                                       country: ''));
                               return _ScheduleTile(
                                 staffName: staff.username,
-                                staffId: schedule.staffId,
+                                staffFilepath: staff.filepath,
                                 workStartTime: schedule.workStartTime,
                                 workEndTime: schedule.workEndTime,
                                 breakStartTime: schedule.breakStartTime,
                                 breakEndTime: schedule.breakEndTime,
+                                clockInTime: _clockInTimeForSchedule(schedule.schedId),
                               );
                             },
                           ),
@@ -179,19 +195,21 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
 
 class _ScheduleTile extends StatelessWidget {
   final String staffName;
-  final int staffId;
+  final String? staffFilepath;
   final String? workStartTime;
   final String? workEndTime;
   final String? breakStartTime;
   final String? breakEndTime;
+  final String? clockInTime;
 
   const _ScheduleTile({
     required this.staffName,
-    required this.staffId,
+    required this.staffFilepath,
     required this.workStartTime,
     required this.workEndTime,
     required this.breakStartTime,
     required this.breakEndTime,
+    required this.clockInTime,
   });
 
   @override
@@ -204,13 +222,16 @@ class _ScheduleTile extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: HRColors.primary.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.person_rounded, size: 22, color: HRColors.primary),
+            CircleAvatar(
+              radius: 21,
+              backgroundColor: HRColors.primary.withOpacity(0.1),
+              backgroundImage: (staffFilepath != null && staffFilepath!.isNotEmpty)
+                  ? NetworkImage(
+                      'https://devcms.com.my/charmsAPI/public/storage/$staffFilepath')
+                  : null,
+              child: (staffFilepath == null || staffFilepath!.isEmpty)
+                  ? const Icon(Icons.person_rounded, size: 22, color: HRColors.primary)
+                  : null,
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -218,7 +239,7 @@ class _ScheduleTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '$staffName (ID: $staffId)',
+                    staffName,
                     style: HRTextStyles.cardTitle,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -229,11 +250,17 @@ class _ScheduleTile extends StatelessWidget {
                     value: '${workStartTime ?? '—'} - ${workEndTime ?? '—'}',
                   ),
                   const SizedBox(height: 4),
-                  _InfoRow(
-                    icon: Icons.free_breakfast_rounded,
-                    label: 'Break Time',
-                    value: '${breakStartTime ?? '—'} - ${breakEndTime ?? '—'}',
-                  ),
+                  (breakStartTime != null && breakStartTime!.isNotEmpty)
+                      ? _InfoRow(
+                          icon: Icons.free_breakfast_rounded,
+                          label: 'Break Time',
+                          value: '${breakStartTime ?? '—'} - ${breakEndTime ?? '—'}',
+                        )
+                      : _InfoRow(
+                          icon: Icons.login_rounded,
+                          label: 'Clock In',
+                          value: clockInTime ?? '—',
+                        ),
                 ],
               ),
             ),

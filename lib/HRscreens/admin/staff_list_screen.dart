@@ -354,11 +354,16 @@ class StaffListTile extends StatelessWidget {
       child: ListTile(
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        leading: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-              color: Colors.blue.withOpacity(0.1), shape: BoxShape.circle),
-          child: const Icon(Icons.person_rounded, size: 24, color: Colors.blue),
+        leading: CircleAvatar(
+          radius: 22,
+          backgroundColor: Colors.blue.withOpacity(0.1),
+          backgroundImage: (staff.filepath != null && staff.filepath!.isNotEmpty)
+              ? NetworkImage(
+                  'https://devcms.com.my/charmsAPI/public/storage/${staff.filepath}')
+              : null,
+          child: (staff.filepath == null || staff.filepath!.isEmpty)
+              ? const Icon(Icons.person_rounded, size: 24, color: Colors.blue)
+              : null,
         ),
         title: Text(
           '${staff.firstname} ${staff.lastname}',

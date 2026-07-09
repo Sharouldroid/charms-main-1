@@ -60,9 +60,20 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
   }
 
   // ── Availability is purely date-based now (no capacity cap) ──
-  bool _isScheduleAvailable(DateTime endDate) {
+  // Registration opens 1 day before the start date and closes at the end of the end date.
+  DateTime _registrationOpensAt(DateTime startDate) {
+    return DateTime(startDate.year, startDate.month, startDate.day)
+        .subtract(const Duration(days: 1));
+  }
+
+  bool _isRegistrationNotYetOpen(DateTime startDate) {
+    return DateTime.now().isBefore(_registrationOpensAt(startDate));
+  }
+
+  bool _isScheduleAvailable(DateTime startDate, DateTime endDate) {
     final endOfDay = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
-    return DateTime.now().isBefore(endOfDay);
+    final now = DateTime.now();
+    return !now.isBefore(_registrationOpensAt(startDate)) && now.isBefore(endOfDay);
   }
 
   Future<void> _loadSchedules() async {
@@ -122,7 +133,7 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
   // ── Rule: 1 intern = 1 schedule, system-wide ──────────────────
   // If the user already has ANY registration, block registering for
   // a different schedule, not just the same one.
-  Future<void> _checkRegistrationLimit(int scheduleId, DateTime endDate) async {
+  Future<void> _checkRegistrationLimit(int scheduleId, DateTime startDate, DateTime endDate) async {
     if (_userRegisteredScheduleIds.isNotEmpty) {
       final alreadyThisOne = _userRegisteredScheduleIds.contains(scheduleId);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -133,7 +144,15 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
       ));
       return;
     }
-    if (!_isScheduleAvailable(endDate)) {
+    if (_isRegistrationNotYetOpen(startDate)) {
+      final opensAt = _registrationOpensAt(startDate).toLocal().toString().split(' ')[0];
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Registration opens on $opensAt (1 day before the start date)'),
+        backgroundColor: Colors.orange,
+      ));
+      return;
+    }
+    if (!_isScheduleAvailable(startDate, endDate)) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Registration closed — this period has ended'),
         backgroundColor: Colors.red,
@@ -362,8 +381,9 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
         : schedules.where((s) => s.description == _filterTeam).toList();
 
     if (_availableOnly) {
-      filteredSchedules =
-          filteredSchedules.where((s) => _isScheduleAvailable(s.endDate)).toList();
+      filteredSchedules = filteredSchedules
+          .where((s) => _isScheduleAvailable(s.startDate, s.endDate))
+          .toList();
     }
 
     return Scaffold(
@@ -589,7 +609,8 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
     final isRegistered = _userRegisteredScheduleIds.contains(schedule.id);
     final hasAnyRegistration = _userRegisteredScheduleIds.isNotEmpty;
     final isLockedByOtherSlot = hasAnyRegistration && !isRegistered;
-    final isAvailable = _isScheduleAvailable(schedule.endDate);
+    final isAvailable = _isScheduleAvailable(schedule.startDate, schedule.endDate);
+    final isNotYetOpen = _isRegistrationNotYetOpen(schedule.startDate);
     final countData = _registrationCounts[schedule.id];
     final current = (countData?['currentRegistrations'] as num?)?.toInt() ?? 0;
     final startDate = schedule.startDate.toLocal().toString().split(' ')[0];
@@ -618,7 +639,7 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
           borderRadius: BorderRadius.circular(16),
           onTap: widget.isAdmin
               ? null
-              : () => _checkRegistrationLimit(schedule.id, schedule.endDate),
+              : () => _checkRegistrationLimit(schedule.id, schedule.startDate, schedule.endDate),
           child: Opacity(
             // Dim the card if it's closed, OR if the user is already
             // locked into a different schedule.
@@ -780,6 +801,13 @@ class _ScheduleCalendarState extends State<ScheduleCalendar> {
                                 color: Colors.blueAccent,
                                 fontSize: 12,
                                 fontStyle: FontStyle.italic)),
+                      ])
+                    else if (isNotYetOpen)
+                      Row(children: [
+                        Icon(Icons.schedule, color: Colors.grey[500], size: 14),
+                        const SizedBox(width: 6),
+                        Text('Registration opens 1 day before the start date',
+                            style: TextStyle(color: Colors.grey[500], fontSize: 12)),
                       ])
                     else
                       const Row(children: [
