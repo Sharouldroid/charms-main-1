@@ -57,7 +57,8 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen>
+    with WidgetsBindingObserver {
   Staff? _currentStaff;
   bool _isLoading = true;
   String _profilePicture = 'assets/profilepicture.png';
@@ -96,6 +97,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadStaffData();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<InternshipNotificationProvider>().fetchUnreadCount(
@@ -111,6 +113,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _loadInterviewOverview();
       }
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshDashboard();
+    }
+  }
+
+  // ── Pull-to-refresh / resume-refresh entry point ────────────────────────
+  Future<void> _refreshDashboard() async {
+    final futures = <Future>[
+      _loadStaffData(),
+      context.read<InternshipNotificationProvider>().fetchUnreadCount(
+        widget.userId,
+        widget.role == 'Admin' || widget.role == 'Supervisor',
+      ),
+    ];
+    if (widget.role == 'Intern') {
+      futures.addAll([
+        _checkAttendanceState(),
+        _loadAvailableSchedules(),
+        _loadMyInterviewSession(),
+      ]);
+    }
+    if (widget.role == 'Admin' || widget.role == 'Supervisor') {
+      futures.add(_loadInterviewOverview());
+    }
+    await Future.wait(futures);
   }
 
   // ── Load the intern's own interview session (Intern only) ──────────────
@@ -1666,46 +1703,49 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 180,
-            pinned: true,
-            stretch: true,
-            backgroundColor: const Color(0xFF1E3A8A),
-            surfaceTintColor: Colors.transparent,
-            iconTheme: const IconThemeData(color: Colors.white),
-            title: const Text('Dashboard',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600)),
-            actions: [
-              _buildSupervisorNotifBell(),
-              IconButton(
-                icon: const Icon(Icons.logout_rounded,
-                    color: Colors.white70, size: 22),
-                tooltip: 'Logout',
-                onPressed: () => _logout(context),
-              ),
-              const SizedBox(width: 8),
-            ],
-            flexibleSpace: FlexibleSpaceBar(
-              background: _buildSupervisorHero(greeting, dateStr),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Column(
-              children: [
-                _buildSupervisorBody(),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                  child: _buildInterviewOverviewCard(),
+      body: RefreshIndicator(
+        onRefresh: _refreshDashboard,
+        child: CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              expandedHeight: 180,
+              pinned: true,
+              stretch: true,
+              backgroundColor: const Color(0xFF1E3A8A),
+              surfaceTintColor: Colors.transparent,
+              iconTheme: const IconThemeData(color: Colors.white),
+              title: const Text('Dashboard',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600)),
+              actions: [
+                _buildSupervisorNotifBell(),
+                IconButton(
+                  icon: const Icon(Icons.logout_rounded,
+                      color: Colors.white70, size: 22),
+                  tooltip: 'Logout',
+                  onPressed: () => _logout(context),
                 ),
+                const SizedBox(width: 8),
               ],
+              flexibleSpace: FlexibleSpaceBar(
+                background: _buildSupervisorHero(greeting, dateStr),
+              ),
             ),
-          ),
-        ],
+            SliverToBoxAdapter(
+              child: Column(
+                children: [
+                  _buildSupervisorBody(),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                    child: _buildInterviewOverviewCard(),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: _buildSupervisorBottomNav(),
     );
@@ -2123,46 +2163,49 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 180,
-            pinned: true,
-            stretch: true,
-            backgroundColor: const Color(0xFF1E3A8A),
-            surfaceTintColor: Colors.transparent,
-            iconTheme: const IconThemeData(color: Colors.white),
-            title: const Text('Dashboard',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600)),
-            actions: [
-              _buildSupervisorNotifBell(),
-              IconButton(
-                icon: const Icon(Icons.logout_rounded,
-                    color: Colors.white70, size: 22),
-                tooltip: 'Logout',
-                onPressed: () => _logout(context),
-              ),
-              const SizedBox(width: 8),
-            ],
-            flexibleSpace: FlexibleSpaceBar(
-              background: _buildAdminHero(greeting, dateStr),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Column(
-              children: [
-                _buildAdminBody(),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                  child: _buildInterviewOverviewCard(),
+      body: RefreshIndicator(
+        onRefresh: _refreshDashboard,
+        child: CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              expandedHeight: 180,
+              pinned: true,
+              stretch: true,
+              backgroundColor: const Color(0xFF1E3A8A),
+              surfaceTintColor: Colors.transparent,
+              iconTheme: const IconThemeData(color: Colors.white),
+              title: const Text('Dashboard',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600)),
+              actions: [
+                _buildSupervisorNotifBell(),
+                IconButton(
+                  icon: const Icon(Icons.logout_rounded,
+                      color: Colors.white70, size: 22),
+                  tooltip: 'Logout',
+                  onPressed: () => _logout(context),
                 ),
+                const SizedBox(width: 8),
               ],
+              flexibleSpace: FlexibleSpaceBar(
+                background: _buildAdminHero(greeting, dateStr),
+              ),
             ),
-          ),
-        ],
+            SliverToBoxAdapter(
+              child: Column(
+                children: [
+                  _buildAdminBody(),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                    child: _buildInterviewOverviewCard(),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: _buildSupervisorBottomNav(),
     );
@@ -2410,50 +2453,53 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 180,
-            pinned: true,
-            stretch: true,
-            backgroundColor: const Color(0xFF0F766E),
-            surfaceTintColor: Colors.transparent,
-            iconTheme: const IconThemeData(color: Colors.white),
-            title: const Text('Dashboard',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600)),
-            actions: [
-              _buildInternNotifBell(),
-              IconButton(
-                icon: const Icon(Icons.logout_rounded,
-                    color: Colors.white70, size: 22),
-                tooltip: 'Logout',
-                onPressed: () => _logout(context),
-              ),
-              const SizedBox(width: 8),
-            ],
-            flexibleSpace: FlexibleSpaceBar(
-              background: _buildInternHero(greeting, dateStr),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Column(
-              children: [
-                _buildInternBody(),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                  child: _buildInterviewInfoCard(),
+      body: RefreshIndicator(
+        onRefresh: _refreshDashboard,
+        child: CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              expandedHeight: 180,
+              pinned: true,
+              stretch: true,
+              backgroundColor: const Color(0xFF0F766E),
+              surfaceTintColor: Colors.transparent,
+              iconTheme: const IconThemeData(color: Colors.white),
+              title: const Text('Dashboard',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600)),
+              actions: [
+                _buildInternNotifBell(),
+                IconButton(
+                  icon: const Icon(Icons.logout_rounded,
+                      color: Colors.white70, size: 22),
+                  tooltip: 'Logout',
+                  onPressed: () => _logout(context),
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                  child: _buildAvailableSchedulesCard(),
-                ),
+                const SizedBox(width: 8),
               ],
+              flexibleSpace: FlexibleSpaceBar(
+                background: _buildInternHero(greeting, dateStr),
+              ),
             ),
-          ),
-        ],
+            SliverToBoxAdapter(
+              child: Column(
+                children: [
+                  _buildInternBody(),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                    child: _buildInterviewInfoCard(),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                    child: _buildAvailableSchedulesCard(),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: _buildInternBottomNav(),
     );

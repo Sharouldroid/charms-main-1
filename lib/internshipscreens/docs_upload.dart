@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:charms/main.dart';
 import 'package:http_parser/http_parser.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class DocsUpload extends StatefulWidget {
   final int userId;
@@ -30,6 +31,7 @@ class _DocsUploadState extends State<DocsUpload> {
 
   // ✅ NEW: consent checkbox state (Terms & Conditions / Data Privacy)
   bool _consentGiven = false;
+  String get _consentPrefsKey => 'docs_upload_consent_${widget.userId}';
 
   static const List<String> _documentTypes = [
     'Resume',
@@ -43,6 +45,13 @@ class _DocsUploadState extends State<DocsUpload> {
   void initState() {
     super.initState();
     _loadUserSubmissions();
+    _loadConsentState();
+  }
+
+  Future<void> _loadConsentState() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getBool(_consentPrefsKey) ?? false;
+    if (mounted) setState(() => _consentGiven = saved);
   }
 
   @override
@@ -210,7 +219,6 @@ class _DocsUploadState extends State<DocsUpload> {
           _uploadMessage = 'Submitted successfully! Awaiting admin review.';
           _selectedFile = null;
           _linkController.clear();
-          _consentGiven = false; // ✅ reset for next submission
         });
 
         _loadUserSubmissions();
@@ -401,7 +409,12 @@ class _DocsUploadState extends State<DocsUpload> {
             const SizedBox(height: 4),
             CheckboxListTile(
               value: _consentGiven,
-              onChanged: (value) => setState(() => _consentGiven = value ?? false),
+              onChanged: (value) {
+                final agreed = value ?? false;
+                setState(() => _consentGiven = agreed);
+                SharedPreferences.getInstance()
+                    .then((prefs) => prefs.setBool(_consentPrefsKey, agreed));
+              },
               controlAffinity: ListTileControlAffinity.leading,
               contentPadding: EdgeInsets.zero,
               dense: true,

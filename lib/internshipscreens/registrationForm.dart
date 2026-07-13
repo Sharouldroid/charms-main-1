@@ -790,6 +790,7 @@ class _RegistrationFormState extends State<RegistrationForm> {
               // Country Dropdown
               DropdownButtonFormField<String>(
                 value: _selectedInstitutionCountry,
+                isExpanded: true,
                 items: [
                   'Malaysia',
                   'Singapore',
@@ -801,7 +802,7 @@ class _RegistrationFormState extends State<RegistrationForm> {
                 ].map((country) {
                   return DropdownMenuItem<String>(
                     value: country,
-                    child: Text(country),
+                    child: Text(country, overflow: TextOverflow.ellipsis),
                   );
                 }).toList(),
                 decoration: const InputDecoration(labelText: 'Country'),
@@ -822,10 +823,11 @@ class _RegistrationFormState extends State<RegistrationForm> {
               // Level of Study Dropdown
               DropdownButtonFormField<String>(
                 value: _selectedLevel,
+                isExpanded: true,
                 items: _levelsOfStudy.map((level) {
                   return DropdownMenuItem<String>(
                     value: level,
-                    child: Text(level),
+                    child: Text(level, overflow: TextOverflow.ellipsis),
                   );
                 }).toList(),
                 decoration: const InputDecoration(labelText: 'Level of Study'),
@@ -845,10 +847,11 @@ class _RegistrationFormState extends State<RegistrationForm> {
               if (_selectedInstitutionCountry == 'Malaysia') ...[
                 DropdownButtonFormField<String>(
                   value: _selectedInstitution,
+                  isExpanded: true,
                   items: _malaysianUniversities.map((university) {
                     return DropdownMenuItem<String>(
                       value: university,
-                      child: Text(university),
+                      child: Text(university, overflow: TextOverflow.ellipsis),
                     );
                   }).toList(),
                   decoration: const InputDecoration(
@@ -990,10 +993,11 @@ class _RegistrationFormState extends State<RegistrationForm> {
               // ✅ State Field — always a dropdown.
               DropdownButtonFormField<String>(
                 value: _selectedState,
+                isExpanded: true,
                 items: AuthConstants.statesOfMalaysia.map((state) {
                   return DropdownMenuItem<String>(
                     value: state,
-                    child: Text(state),
+                    child: Text(state, overflow: TextOverflow.ellipsis),
                   );
                 }).toList(),
                 decoration: const InputDecoration(labelText: 'State'),
@@ -1214,10 +1218,11 @@ class _RegistrationFormState extends State<RegistrationForm> {
   }) {
     return DropdownButtonFormField<T>(
       value: value,
+      isExpanded: true,
       items: items.map((item) {
         return DropdownMenuItem<T>(
           value: item,
-          child: Text(item.toString()),
+          child: Text(item.toString(), overflow: TextOverflow.ellipsis),
         );
       }).toList(),
       decoration: InputDecoration(

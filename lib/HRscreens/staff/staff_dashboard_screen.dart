@@ -35,7 +35,8 @@ class StaffDashboardScreen extends StatefulWidget {
   State<StaffDashboardScreen> createState() => _StaffDashboardScreenState();
 }
 
-class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
+class _StaffDashboardScreenState extends State<StaffDashboardScreen>
+    with WidgetsBindingObserver {
   int _selectedIndex = 0;
   List<Schedule> _staffSchedules = [];
   Staff? _currentStaff;
@@ -83,6 +84,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadStaffData();
   }
 
@@ -96,8 +98,16 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _mounted) {
+      _loadStaffData();
+    }
+  }
+
+  @override
   void dispose() {
     _mounted = false;
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
@@ -881,21 +891,31 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
               style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
         ),
         Expanded(
-          child: _staffSchedules.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.event_available_rounded,
-                          size: 64, color: Colors.grey.shade300),
-                      const SizedBox(height: 16),
-                      Text('No assigned shifts',
-                          style: TextStyle(
-                              color: Colors.grey.shade500,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500)),
-                    ],
-                  ),
+          child: RefreshIndicator(
+            onRefresh: _loadStaffData,
+            child: _staffSchedules.isEmpty
+              ? ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [
+                    SizedBox(
+                      height: 240,
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.event_available_rounded,
+                                size: 64, color: Colors.grey.shade300),
+                            const SizedBox(height: 16),
+                            Text('No assigned shifts',
+                                style: TextStyle(
+                                    color: Colors.grey.shade500,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 )
               : ListView.builder(
                   physics: const AlwaysScrollableScrollPhysics(),
@@ -1082,6 +1102,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                     );
                   },
                 ),
+          ),
         ),
       ],
     );

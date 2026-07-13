@@ -26,7 +26,8 @@ class PartTimerDashboardScreen extends StatefulWidget {
       _PartTimerDashboardScreenState();
 }
 
-class _PartTimerDashboardScreenState extends State<PartTimerDashboardScreen> {
+class _PartTimerDashboardScreenState extends State<PartTimerDashboardScreen>
+    with WidgetsBindingObserver {
   static const Color _primary    = Color(0xFFF97316);
   static const Color _bg         = Color(0xFFFFF7ED);
   static const Color _cardBorder = Color(0xFFFFE4C4);
@@ -63,7 +64,21 @@ class _PartTimerDashboardScreenState extends State<PartTimerDashboardScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      _load();
+    }
   }
 
   // ── Load ───────────────────────────────────────────────────────────────────
