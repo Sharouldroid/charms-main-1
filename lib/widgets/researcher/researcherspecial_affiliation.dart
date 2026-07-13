@@ -1,7 +1,7 @@
-import 'dart:io';
 import 'package:charms/providers/events_special.dart';
+import 'package:charms/utils/download_bytes.dart';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 
 class ResearcherspecialAffiliation extends StatelessWidget {
@@ -14,7 +14,7 @@ class ResearcherspecialAffiliation extends StatelessWidget {
   final String hostname;
   final int specialid;
 
-  Future<String> downloadPdf(String url, String filename) async {
+  Future<void> downloadPdf(String url, String filename) async {
     // Validate URL
     if (!Uri.parse(url).isAbsolute) {
       throw Exception('Invalid URL: $url');
@@ -27,50 +27,11 @@ class ResearcherspecialAffiliation extends StatelessWidget {
     }
 
     try {
-      final directory = await getApplicationDocumentsDirectory();
-      final filePath = '${directory.path}/$sanitizedFilename';
-      final file = File(filePath);
-
-      // Check if file already exists
-      if (await file.exists()) {
-        final modified = await file.lastModified();
-        final age = DateTime.now().difference(modified);
-        if (age.inDays < 7) {
-          // Use cached file if less than 7 days old
-          return filePath;
-        }
-      }
-
-      // Create request
-      final request = await HttpClient().getUrl(Uri.parse(url));
-      final response = await request.close();
-
-      if (response.statusCode != HttpStatus.ok) {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode != 200) {
         throw Exception('HTTP error ${response.statusCode}');
       }
-
-      // Track download progress
-      final contentLength = response.contentLength;
-      int receivedLength = 0;
-      final List<int> chunks = [];
-
-      await for (final chunk in response) {
-        chunks.addAll(chunk);
-        receivedLength += chunk.length;
-
-        // Optional: Add progress callback here if needed
-        // progressCallback?.call(receivedLength, contentLength);
-      }
-
-      // Write file
-      await file.writeAsBytes(chunks, flush: true);
-      return filePath;
-    } on SocketException catch (e) {
-      throw Exception('Network error: ${e.message}');
-    } on HttpException catch (e) {
-      throw Exception('HTTP request failed: ${e.message}');
-    } on FileSystemException catch (e) {
-      throw Exception('File system error: ${e.message}');
+      await downloadBytes(bytes: response.bodyBytes, fileName: sanitizedFilename);
     } catch (e) {
       throw Exception('Download failed: ${e.toString()}');
     }
@@ -127,15 +88,10 @@ class ResearcherspecialAffiliation extends StatelessWidget {
                               ElevatedButton(
                                 onPressed: () async {
                                   try {
-                                    final filePath = await downloadPdf(
-                                      fileUrl,
-                                      filename,
-                                    );
+                                    await downloadPdf(fileUrl, filename);
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'Downloaded to: $filePath',
-                                        ),
+                                      const SnackBar(
+                                        content: Text('Downloaded'),
                                       ),
                                     );
                                   } catch (e) {

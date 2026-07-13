@@ -369,9 +369,11 @@ class _StaffScheduleDetailsScreenState
                     child: Row(children: [
                       Icon(_acceptanceIcon, color: _acceptanceColor, size: 20),
                       const SizedBox(width: 8),
-                      Text(_acceptanceText,
-                          style: TextStyle(color: _acceptanceColor,
-                              fontWeight: FontWeight.bold, fontSize: 13)),
+                      Expanded(
+                        child: Text(_acceptanceText,
+                            style: TextStyle(color: _acceptanceColor,
+                                fontWeight: FontWeight.bold, fontSize: 13)),
+                      ),
                     ]),
                   ),
 

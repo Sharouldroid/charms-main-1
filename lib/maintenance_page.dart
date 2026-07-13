@@ -1,10 +1,10 @@
-import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:provider/provider.dart';                          
+import 'package:provider/provider.dart';
+import 'package:charms/utils/download_bytes.dart';
 import 'package:charms/utils/responsive_helper.dart';
-import 'package:charms/providers/users.dart';                         
+import 'package:charms/providers/users.dart';
 
 class MaintenancePage extends StatefulWidget {
   const MaintenancePage({super.key});
@@ -143,21 +143,13 @@ class _MaintenancePageState extends State<MaintenancePage> {
       final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
-        final dir = Directory('/storage/emulated/0/Download');
-        if (!await dir.exists()) {
-          await dir.create(recursive: true);
-        }
-
         final fileName =
             '${facilityKey}_report_${DateTime.now().millisecondsSinceEpoch}.html';
-        final filePath = '${dir.path}/$fileName';
-
-        final file = File(filePath);
-        await file.writeAsBytes(response.bodyBytes);
+        await downloadBytes(bytes: response.bodyBytes, fileName: fileName);
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✅ Report saved: $filePath'),
+          const SnackBar(
+            content: Text('✅ Report downloaded'),
             backgroundColor: Colors.green,
           ),
         );

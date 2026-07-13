@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -91,7 +91,8 @@ class _QuartersPageState extends State<QuartersPage> {
   bool isToiletChecked = false;
   bool isQuartersChecked = false;
   DateTime selectedDateTime = DateTime.now();
-  File? _image;
+  XFile? _image;
+  Uint8List? _imageBytes;
   final ImagePicker _picker = ImagePicker();
   bool _isSubmitting = false;
 
@@ -209,7 +210,11 @@ class _QuartersPageState extends State<QuartersPage> {
                     final pickedFile = await _picker.pickImage(
                         source: ImageSource.gallery, imageQuality: 85);
                     if (pickedFile != null) {
-                      setState(() => _image = File(pickedFile.path));
+                      final bytes = await pickedFile.readAsBytes();
+                      setState(() {
+                        _image = pickedFile;
+                        _imageBytes = bytes;
+                      });
                     }
                   }),
               ListTile(
@@ -220,7 +225,11 @@ class _QuartersPageState extends State<QuartersPage> {
                   final pickedFile = await _picker.pickImage(
                       source: ImageSource.camera, imageQuality: 85);
                   if (pickedFile != null) {
-                    setState(() => _image = File(pickedFile.path));
+                    final bytes = await pickedFile.readAsBytes();
+                    setState(() {
+                      _image = pickedFile;
+                      _imageBytes = bytes;
+                    });
                   }
                 },
               ),
@@ -300,9 +309,9 @@ class _QuartersPageState extends State<QuartersPage> {
       }
 
       if (_image != null) {
-        request.files.add(await http.MultipartFile.fromPath(
+        request.files.add(http.MultipartFile.fromBytes(
           'photo',
-          _image!.path,
+          _imageBytes!,
           filename: 'quarters_${DateTime.now().millisecondsSinceEpoch}.jpg',
         ));
       }
@@ -597,7 +606,7 @@ class _QuartersPageState extends State<QuartersPage> {
                             padding: const EdgeInsets.all(12.0),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(8),
-                              child: Image.file(_image!, height: 200, width: double.infinity, fit: BoxFit.cover),
+                              child: Image.memory(_imageBytes!, height: 200, width: double.infinity, fit: BoxFit.cover),
                             ),
                           ),
                         const SizedBox(height: 16),

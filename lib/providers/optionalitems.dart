@@ -1,9 +1,9 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:charms/models/optionalitem.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 class Optionalitems with ChangeNotifier {
   List<Optionalitem> _itemlist = [];
@@ -204,17 +204,18 @@ class Optionalitems with ChangeNotifier {
   }
 
   // --- UPDATED: Returns String? (filename/url) instead of void ---
-  Future<String?> uploadImage(String hostname, File imageFile) async {
+  Future<String?> uploadImage(String hostname, XFile imageFile) async {
     // Assuming the API route for upload is something like: hostname + 'fileupload/upload'
     // Adjust based on your actual Laravel route structure
-    final url = Uri.parse('${hostname}fileupload/upload'); 
+    final url = Uri.parse('${hostname}fileupload/upload');
 
     try {
       final request = http.MultipartRequest('POST', url);
       request.files.add(
-        await http.MultipartFile.fromPath(
+        http.MultipartFile.fromBytes(
           'image',
-          imageFile.path,
+          await imageFile.readAsBytes(),
+          filename: imageFile.name,
         ),
       );
 

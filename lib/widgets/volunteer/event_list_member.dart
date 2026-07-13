@@ -1,15 +1,13 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:charms/models/user.dart';
 import 'package:charms/providers/events.dart';
 import 'package:charms/providers/bookevents.dart';
 import 'package:charms/providers/indemnities.dart';
+import 'package:charms/utils/download_bytes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle; // Required for PDF
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart'; // Required for PDF
-import 'package:open_file/open_file.dart'; // Required for PDF
 import 'package:provider/provider.dart';
 import 'package:signature/signature.dart'; // For signature pad
 
@@ -348,25 +346,16 @@ class _EventListMemberState extends State<EventListMember> {
                   ),
                   onPressed: () async {
                     try {
-                      // Copy PDF from assets to temporary directory
                       final ByteData data = await rootBundle.load(
                         'assets/PARENTAL_CONSENT_LETTER_FOR_UNDERAGE_VOLUNTEER.pdf',
                       );
-                      final Directory tempDir = await getTemporaryDirectory();
-                      final String filePath = '${tempDir.path}/parental_consent.pdf';
-                      final File file = File(filePath);
-                      await file.writeAsBytes(
-                        data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+                      await downloadBytes(
+                        bytes: data.buffer.asUint8List(
+                          data.offsetInBytes,
+                          data.lengthInBytes,
+                        ),
+                        fileName: 'parental_consent.pdf',
                       );
-
-                      // Open the PDF file
-                      final result = await OpenFile.open(filePath);
-                      
-                      if (result.type != ResultType.done && mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Could not open PDF: ${result.message}')),
-                        );
-                      }
                     } catch (e) {
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(

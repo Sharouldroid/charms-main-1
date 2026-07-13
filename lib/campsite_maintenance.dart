@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:charms/utils/responsive_helper.dart';
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 
@@ -48,7 +48,8 @@ class _CampsitePageState extends State<CampsitePage> {
   final TextEditingController _otherDamageController = TextEditingController();
 
   DateTime selectedDateTime = DateTime.now();
-  File? _image;
+  XFile? _image;
+  Uint8List? _imageBytes;
   final ImagePicker _picker = ImagePicker();
   bool _isSubmitting = false;
   final _formKey = GlobalKey<FormState>();
@@ -95,8 +96,10 @@ class _CampsitePageState extends State<CampsitePage> {
         imageQuality: 75,
       );
       if (pickedFile != null) {
+        final bytes = await pickedFile.readAsBytes();
         setState(() {
-          _image = File(pickedFile.path);
+          _image = pickedFile;
+          _imageBytes = bytes;
         });
       }
     } catch (e) {
@@ -130,9 +133,9 @@ class _CampsitePageState extends State<CampsitePage> {
       request.fields['campsite_issues'] = json.encode(issueList);
 
       if (_image != null) {
-        request.files.add(await http.MultipartFile.fromPath(
+        request.files.add(http.MultipartFile.fromBytes(
           'photo',
-          _image!.path,
+          _imageBytes!,
           filename: 'campsite_${DateTime.now().millisecondsSinceEpoch}.jpg',
         ));
       }
@@ -660,7 +663,7 @@ class _CampsitePageState extends State<CampsitePage> {
           const SizedBox(height: 8),
           ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Image.file(_image!,
+              child: Image.memory(_imageBytes!,
                   width: double.infinity, height: 160, fit: BoxFit.cover)),
         ],
       ],

@@ -1,7 +1,7 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:charms/utils/download_bytes.dart';
 import 'package:charms/utils/responsive_helper.dart';
 
 class WaterQualityPage extends StatefulWidget {
@@ -235,9 +235,6 @@ class _WaterQualityPageState extends State<WaterQualityPage> {
       final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
-        final dir = Directory('/storage/emulated/0/Download');
-        if (!dir.existsSync()) dir.createSync(recursive: true);
-
         // Get filename from Server Headers (Malaysia Time)
         String fileName = 'water_quality_report_${DateTime.now().millisecondsSinceEpoch}.html';
         String? contentDisposition = response.headers['content-disposition'];
@@ -245,14 +242,11 @@ class _WaterQualityPageState extends State<WaterQualityPage> {
           fileName = contentDisposition.split('filename=')[1].replaceAll('"', '').trim();
         }
 
-        final filePath = '${dir.path}/$fileName';
-        final file = File(filePath);
-
-        await file.writeAsBytes(response.bodyBytes);
+        await downloadBytes(bytes: response.bodyBytes, fileName: fileName);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('✅ Report saved to: $filePath')),
+            const SnackBar(content: Text('✅ Report downloaded')),
           );
         }
       } else {

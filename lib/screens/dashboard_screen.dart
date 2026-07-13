@@ -162,10 +162,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _fetchUser() async {
-    // HR users don't exist in main DB — skip fetch, use auth data directly
+    // HR-DB users don't exist in main DB — skip fetch, use auth data directly
     final appAuth = Provider.of<app_auth.Auth>(context, listen: false);
 
-    if (appAuth.isHRUser) {
+    if (appAuth.authenticatedViaHRFallback) {
       setState(() {
         // Build a minimal User object from auth data
         userdata = User(

@@ -1,6 +1,4 @@
-import 'dart:io';
 import 'dart:typed_data';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:intl/intl.dart'; // ← NEW
 
 import 'package:charms/HRmodels/staff.dart';
@@ -201,7 +199,7 @@ class _MySelfScreenState extends State<MySelfScreen> {
       final picked = await ImagePicker()
           .pickImage(source: ImageSource.gallery, imageQuality: 70);
       if (picked != null) {
-        final bytes = kIsWeb ? await picked.readAsBytes() : null;
+        final bytes = await picked.readAsBytes();
         setState(() {
           _profileImage = picked;
           _profileImageBytes = bytes;
@@ -547,11 +545,7 @@ class _MySelfScreenState extends State<MySelfScreen> {
                                     backgroundColor:
                                         _primaryBlue.withOpacity(0.12),
                                     backgroundImage: _profileImage != null
-                                        ? (kIsWeb
-                                            ? MemoryImage(_profileImageBytes!)
-                                                as ImageProvider
-                                            : FileImage(
-                                                File(_profileImage!.path)))
+                                        ? MemoryImage(_profileImageBytes!)
                                         : (_currentStaff?.filepath != null &&
                                                 _currentStaff!
                                                     .filepath!.isNotEmpty)

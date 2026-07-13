@@ -1,17 +1,12 @@
-import 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
-import 'package:open_file/open_file.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:charms/HRmodels/staff_document.dart';
 import 'package:charms/HRproviders/staff_documents.dart';
 import 'package:charms/HRwidgets/admin/hr_theme.dart';
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
+import 'package:charms/utils/download_bytes.dart';
 
 class StaffDocumentsAdminScreen extends StatefulWidget {
   final int staffId;
@@ -91,19 +86,7 @@ class _StaffDocumentsAdminScreenState
         return;
       }
 
-      if (kIsWeb) {
-        final blob = html.Blob([res.bodyBytes]);
-        final blobUrl = html.Url.createObjectUrlFromBlob(blob);
-        html.AnchorElement(href: blobUrl)
-          ..setAttribute('download', doc.fileName)
-          ..click();
-        html.Url.revokeObjectUrl(blobUrl);
-      } else {
-        final tempDir = await getTemporaryDirectory();
-        final filePath = '${tempDir.path}/${doc.fileName}';
-        await File(filePath).writeAsBytes(res.bodyBytes);
-        await OpenFile.open(filePath);
-      }
+      await downloadBytes(bytes: res.bodyBytes, fileName: doc.fileName);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(

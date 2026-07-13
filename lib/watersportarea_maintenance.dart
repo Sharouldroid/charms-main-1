@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -27,7 +27,8 @@ class _WaterSportAreaPageState extends State<WaterSportAreaPage> {
 
   String description = '';
   String urgency = 'Low';
-  File? image;
+  XFile? image;
+  Uint8List? imageBytes;
   bool isSubmitting = false;
 
   DateTime selectedDate = DateTime.now();
@@ -117,7 +118,13 @@ class _WaterSportAreaPageState extends State<WaterSportAreaPage> {
                     source: ImageSource.gallery,
                     imageQuality: 85,
                   );
-                  if (picked != null) setState(() => image = File(picked.path));
+                  if (picked != null) {
+                    final bytes = await picked.readAsBytes();
+                    setState(() {
+                      image = picked;
+                      imageBytes = bytes;
+                    });
+                  }
                 },
               ),
               ListTile(
@@ -129,7 +136,13 @@ class _WaterSportAreaPageState extends State<WaterSportAreaPage> {
                     source: ImageSource.camera,
                     imageQuality: 85,
                   );
-                  if (picked != null) setState(() => image = File(picked.path));
+                  if (picked != null) {
+                    final bytes = await picked.readAsBytes();
+                    setState(() {
+                      image = picked;
+                      imageBytes = bytes;
+                    });
+                  }
                 },
               ),
             ],
@@ -230,7 +243,7 @@ class _WaterSportAreaPageState extends State<WaterSportAreaPage> {
       });
 
       if (image != null) {
-        request.files.add(await http.MultipartFile.fromPath('image', image!.path));
+        request.files.add(http.MultipartFile.fromBytes('image', imageBytes!, filename: image!.name));
       }
 
       final response = await request.send();
@@ -360,7 +373,7 @@ class _WaterSportAreaPageState extends State<WaterSportAreaPage> {
             padding: const EdgeInsets.only(top: 10),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Image.file(image!, width: double.infinity, height: 150, fit: BoxFit.cover),
+              child: Image.memory(imageBytes!, width: double.infinity, height: 150, fit: BoxFit.cover),
             ),
           ),
       ],

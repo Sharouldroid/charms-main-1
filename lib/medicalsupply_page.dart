@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'dart:io';
+import 'package:charms/utils/download_bytes.dart';
 
 class MedicalSupplyPage extends StatefulWidget {
   const MedicalSupplyPage({super.key});
@@ -112,16 +112,13 @@ class _MedicalSupplyPageState extends State<MedicalSupplyPage> {
     try {
       final response = await http.get(Uri.parse(reportUrl));
       if (response.statusCode == 200) {
-        final dir = Directory('/storage/emulated/0/Download');
-        final filePath =
-            '${dir.path}/medical_supplies_report_${DateTime.now().millisecondsSinceEpoch}.html';
-
-        final file = File(filePath);
-        await file.writeAsBytes(response.bodyBytes);
+        final fileName =
+            'medical_supplies_report_${DateTime.now().millisecondsSinceEpoch}.html';
+        await downloadBytes(bytes: response.bodyBytes, fileName: fileName);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('✅ Report saved to: $filePath')),
+            const SnackBar(content: Text('✅ Report downloaded')),
           );
         }
       } else {

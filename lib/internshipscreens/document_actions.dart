@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:charms/main.dart';
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
+import 'package:charms/utils/download_bytes.dart';
+import 'package:charms/utils/view_bytes.dart';
 
 /// Shared view/download actions for internship document submissions.
 /// Used by both the admin submissions list and the intern detail screen
@@ -25,15 +24,7 @@ class DocumentActions {
       if (context.mounted) Navigator.of(context).pop();
 
       if (response.statusCode == 200) {
-        if (kIsWeb) {
-          final bytes = response.bodyBytes;
-          final blob = html.Blob([bytes]);
-          final url = html.Url.createObjectUrlFromBlob(blob);
-          html.AnchorElement(href: url)
-            ..setAttribute('download', fileName)
-            ..click();
-          html.Url.revokeObjectUrl(url);
-        }
+        await downloadBytes(bytes: response.bodyBytes, fileName: fileName);
 
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -70,30 +61,23 @@ class DocumentActions {
       if (context.mounted) Navigator.of(context).pop();
 
       if (response.statusCode == 200) {
-        if (kIsWeb) {
-          final bytes = response.bodyBytes;
-
-          String mimeType = 'application/octet-stream';
-          final lower = fileName.toLowerCase();
-          if (lower.endsWith('.pdf')) {
-            mimeType = 'application/pdf';
-          } else if (lower.endsWith('.png')) {
-            mimeType = 'image/png';
-          } else if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) {
-            mimeType = 'image/jpeg';
-          } else if (lower.endsWith('.webp')) {
-            mimeType = 'image/webp';
-          }
-
-          final blob = html.Blob([bytes], mimeType);
-          final url = html.Url.createObjectUrlFromBlob(blob);
-
-          html.window.open(url, '_blank');
-
-          Future.delayed(const Duration(seconds: 10), () {
-            html.Url.revokeObjectUrl(url);
-          });
+        String mimeType = 'application/octet-stream';
+        final lower = fileName.toLowerCase();
+        if (lower.endsWith('.pdf')) {
+          mimeType = 'application/pdf';
+        } else if (lower.endsWith('.png')) {
+          mimeType = 'image/png';
+        } else if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) {
+          mimeType = 'image/jpeg';
+        } else if (lower.endsWith('.webp')) {
+          mimeType = 'image/webp';
         }
+
+        await viewBytes(
+          bytes: response.bodyBytes,
+          fileName: fileName,
+          mimeType: mimeType,
+        );
       } else if (context.mounted) {
         _showError(context, 'Failed to open file: ${response.statusCode}');
       }

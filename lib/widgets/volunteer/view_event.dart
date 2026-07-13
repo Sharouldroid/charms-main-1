@@ -1,15 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:charms/providers/events.dart';
 // IMPORT BOOKEVENTS PROVIDER
-import 'package:charms/providers/bookevents.dart'; 
+import 'package:charms/providers/bookevents.dart';
+import 'package:charms/utils/download_bytes.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:path_provider/path_provider.dart';
-import 'package:open_file/open_file.dart';
 
 import 'package:charms/models/user.dart';
 import 'package:charms/widgets/volunteer/book_slot.dart';
@@ -490,25 +488,16 @@ class _ViewEventState extends State<ViewEvent> {
                   ),
                   onPressed: () async {
                 try {
-                  // Copy PDF from assets to temporary directory
                   final ByteData data = await rootBundle.load(
                     'assets/PARENTAL_CONSENT_LETTER_FOR_UNDERAGE_VOLUNTEER.pdf',
                   );
-                  final Directory tempDir = await getTemporaryDirectory();
-                  final String filePath = '${tempDir.path}/parental_consent.pdf';
-                  final File file = File(filePath);
-                  await file.writeAsBytes(
-                    data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+                  await downloadBytes(
+                    bytes: data.buffer.asUint8List(
+                      data.offsetInBytes,
+                      data.lengthInBytes,
+                    ),
+                    fileName: 'parental_consent.pdf',
                   );
-
-                  // Open the PDF file
-                  final result = await OpenFile.open(filePath);
-                  
-                  if (result.type != ResultType.done && mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Could not open PDF: ${result.message}')),
-                    );
-                  }
                 } catch (e) {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(

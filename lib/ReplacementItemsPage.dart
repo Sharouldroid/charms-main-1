@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
@@ -53,7 +53,8 @@ class _ReplacementItemsPageState extends State<ReplacementItemsPage> {
 
   final Map<String, Map<String, bool>> checkedItems = {};
   final Map<String, Map<String, TextEditingController>> descriptions = {};
-  final Map<String, List<File>> facilityImages = {};
+  final Map<String, List<XFile>> facilityImages = {};
+  final Map<String, List<Uint8List>> facilityImageBytes = {};
 
   final ImagePicker _picker = ImagePicker();
   bool _isSubmitting = false; // ✅ for loading state
@@ -65,6 +66,7 @@ class _ReplacementItemsPageState extends State<ReplacementItemsPage> {
       checkedItems[facility] = {};
       descriptions[facility] = {};
       facilityImages[facility] = [];
+      facilityImageBytes[facility] = [];
       for (var item in items) {
         checkedItems[facility]![item] = false;
         descriptions[facility]![item] = TextEditingController();
@@ -105,8 +107,10 @@ class _ReplacementItemsPageState extends State<ReplacementItemsPage> {
                     imageQuality: 50,
                   );
                   if (pickedFile != null) {
+                    final bytes = await pickedFile.readAsBytes();
                     setState(() {
-                      facilityImages[facility]!.add(File(pickedFile.path));
+                      facilityImages[facility]!.add(pickedFile);
+                      facilityImageBytes[facility]!.add(bytes);
                     });
                   }
                 },
@@ -121,8 +125,10 @@ class _ReplacementItemsPageState extends State<ReplacementItemsPage> {
                     imageQuality: 50,
                   );
                   if (pickedFile != null) {
+                    final bytes = await pickedFile.readAsBytes();
                     setState(() {
-                      facilityImages[facility]!.add(File(pickedFile.path));
+                      facilityImages[facility]!.add(pickedFile);
+                      facilityImageBytes[facility]!.add(bytes);
                     });
                   }
                 },
@@ -203,11 +209,11 @@ class _ReplacementItemsPageState extends State<ReplacementItemsPage> {
 
             Row(
               children: [
-                ...facilityImages[facility]!.map((file) => Padding(
+                ...facilityImageBytes[facility]!.map((bytes) => Padding(
                       padding: const EdgeInsets.only(right: 6),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.file(file, width: 50, height: 50, fit: BoxFit.cover),
+                        child: Image.memory(bytes, width: 50, height: 50, fit: BoxFit.cover),
                       ),
                     )),
                 ElevatedButton.icon(
@@ -280,9 +286,10 @@ class _ReplacementItemsPageState extends State<ReplacementItemsPage> {
         request.fields['items[$i][description]'] = itemsList[i]['description'] ?? '';
 
         for (int j = 0; j < facilityImages[facility]!.length; j++) {
-          request.files.add(await http.MultipartFile.fromPath(
+          request.files.add(http.MultipartFile.fromBytes(
             'items[$i][photos][$j]',
-            facilityImages[facility]![j].path,
+            facilityImageBytes[facility]![j],
+            filename: facilityImages[facility]![j].name,
           ));
         }
       }
@@ -337,6 +344,7 @@ class _ReplacementItemsPageState extends State<ReplacementItemsPage> {
       });
       facilityImages.forEach((facility, images) {
         facilityImages[facility]!.clear();
+        facilityImageBytes[facility]!.clear();
       });
     });
   }

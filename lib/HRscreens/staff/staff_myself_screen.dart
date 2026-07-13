@@ -1,6 +1,4 @@
-import 'dart:io';
 import 'dart:typed_data';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -228,7 +226,7 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
         imageQuality: 70,
       );
       if (pickedFile != null) {
-        final bytes = kIsWeb ? await pickedFile.readAsBytes() : null;
+        final bytes = await pickedFile.readAsBytes();
         setState(() {
           _profileImage = pickedFile;
           _profileImageBytes = bytes;
@@ -637,9 +635,7 @@ class _StaffMySelfScreenState extends State<StaffMySelfScreen> {
                               radius: 52,
                               backgroundColor: Colors.indigo.shade300,
                               backgroundImage: _profileImage != null
-                                  ? (kIsWeb
-                                      ? MemoryImage(_profileImageBytes!) as ImageProvider
-                                      : FileImage(File(_profileImage!.path)))
+                                  ? MemoryImage(_profileImageBytes!)
                                   : (_currentStaff?.filepath != null &&
                                           _currentStaff!.filepath!.isNotEmpty)
                                       ? NetworkImage(

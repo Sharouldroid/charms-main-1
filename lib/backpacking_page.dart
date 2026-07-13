@@ -1,9 +1,10 @@
 import 'dart:convert';
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
+import 'package:charms/utils/download_bytes.dart';
 import 'package:charms/utils/responsive_helper.dart';
 
 class BackpackingPage extends StatefulWidget {
@@ -54,7 +55,8 @@ class _BackpackingPageState extends State<BackpackingPage> {
 
   String status = 'Fully Stocked';
   String restockDescription = "";
-  File? image;
+  XFile? image;
+  Uint8List? imageBytes;
   bool isSubmitting = false;
 
   // Report Download Variables
@@ -181,7 +183,11 @@ class _BackpackingPageState extends State<BackpackingPage> {
   Future<void> _pickImage() async {
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (picked != null) {
-      setState(() => image = File(picked.path));
+      final bytes = await picked.readAsBytes();
+      setState(() {
+        image = picked;
+        imageBytes = bytes;
+      });
     }
   }
 
@@ -200,9 +206,10 @@ class _BackpackingPageState extends State<BackpackingPage> {
 
     if (image != null) {
       req.files.add(
-        await http.MultipartFile.fromPath(
+        http.MultipartFile.fromBytes(
           'photo',
-          image!.path,
+          imageBytes!,
+          filename: image!.name,
           contentType: MediaType('image', 'jpeg'),
         ),
       );
@@ -272,18 +279,13 @@ class _BackpackingPageState extends State<BackpackingPage> {
       final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
-        final dir = Directory('/storage/emulated/0/Download');
-        if (!dir.existsSync()) dir.createSync(recursive: true);
-
-        final filePath =
-            '${dir.path}/backpack_report_${selectedMonth}_${selectedYear}_${DateTime.now().millisecondsSinceEpoch}.html';
-        final file = File(filePath);
-
-        await file.writeAsBytes(response.bodyBytes);
+        final fileName =
+            'backpack_report_${selectedMonth}_${selectedYear}_${DateTime.now().millisecondsSinceEpoch}.html';
+        await downloadBytes(bytes: response.bodyBytes, fileName: fileName);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('✅ Report saved to: $filePath')),
+            const SnackBar(content: Text('✅ Report downloaded')),
           );
         }
       } else {
@@ -598,7 +600,7 @@ class _BackpackingPageState extends State<BackpackingPage> {
                 // PICK IMAGE BUTTON
                 ElevatedButton.icon(
                   icon: image != null
-                      ? Image.file(image!, width: 24, height: 24, fit: BoxFit.cover)
+                      ? Image.memory(imageBytes!, width: 24, height: 24, fit: BoxFit.cover)
                       : const Icon(Icons.photo),
                   label: Text(image == null ? 'Add Photo' : 'Change Photo'),
                   onPressed: _pickImage,

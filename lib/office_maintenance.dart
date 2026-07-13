@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'dart:convert'; // ADDED for jsonDecode
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -51,7 +51,8 @@ class _OfficePageState extends State<OfficePage> {
 
   String description = '';
   String urgency = 'Low';
-  File? image;
+  XFile? image;
+  Uint8List? imageBytes;
   DateTime selectedDate = DateTime.now();
   TimeOfDay selectedTime = TimeOfDay.now();
   bool _isLoading = false;
@@ -171,7 +172,11 @@ class _OfficePageState extends State<OfficePage> {
                       imageQuality: 85,
                     );
                     if (pickedFile != null) {
-                      setState(() => image = File(pickedFile.path));
+                      final bytes = await pickedFile.readAsBytes();
+                      setState(() {
+                        image = pickedFile;
+                        imageBytes = bytes;
+                      });
                     }
                   }),
               ListTile(
@@ -184,7 +189,11 @@ class _OfficePageState extends State<OfficePage> {
                     imageQuality: 85,
                   );
                   if (pickedFile != null) {
-                    setState(() => image = File(pickedFile.path));
+                    final bytes = await pickedFile.readAsBytes();
+                    setState(() {
+                      image = pickedFile;
+                      imageBytes = bytes;
+                    });
                   }
                 },
               ),
@@ -261,7 +270,7 @@ class _OfficePageState extends State<OfficePage> {
     });
 
     if (image != null) {
-      request.files.add(await http.MultipartFile.fromPath('image', image!.path));
+      request.files.add(http.MultipartFile.fromBytes('image', imageBytes!, filename: image!.name));
     }
 
     try {
@@ -458,7 +467,7 @@ class _OfficePageState extends State<OfficePage> {
               const SizedBox(height: 10),
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.file(image!, height: 120),
+                child: Image.memory(imageBytes!, height: 120),
               ),
             ]
           ],

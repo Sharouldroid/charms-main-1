@@ -1,7 +1,8 @@
-import 'dart:io';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:charms/utils/download_bytes.dart';
 import 'package:charms/utils/responsive_helper.dart';
 
 class TransactionHistoryPage extends StatefulWidget {
@@ -161,11 +162,11 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
         final decoded = jsonDecode(response.body);
         final htmlContent = decoded['html'] ?? '';
         final fileName = decoded['fileName'] ?? "monthly_report.html";
-        final dir = Directory('/storage/emulated/0/Download');
-        if (!await dir.exists()) await dir.create(recursive: true);
-        final file = File("${dir.path}/$fileName");
-        await file.writeAsString(htmlContent);
-        _showSnack("✅ Saved to Downloads: $fileName");
+        await downloadBytes(
+          bytes: Uint8List.fromList(utf8.encode(htmlContent as String)),
+          fileName: fileName,
+        );
+        _showSnack("✅ Downloaded: $fileName");
       }
     } catch (e) {
       _showSnack("❌ Error: $e");

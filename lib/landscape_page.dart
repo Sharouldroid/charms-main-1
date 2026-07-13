@@ -1,8 +1,9 @@
 import 'dart:convert';
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:charms/utils/download_bytes.dart';
 import 'package:charms/utils/responsive_helper.dart';
 
 class LandscapePage extends StatefulWidget {
@@ -39,6 +40,13 @@ class _LandscapePageState extends State<LandscapePage> {
   XFile? waterPressurePhoto;
   XFile? treePhoto;
   XFile? leftoverEquipPhoto;
+
+  Uint8List? signboardPhotoBytes;
+  Uint8List? trashPhotoBytes;
+  Uint8List? waterSupplyPhotoBytes;
+  Uint8List? waterPressurePhotoBytes;
+  Uint8List? treePhotoBytes;
+  Uint8List? leftoverEquipPhotoBytes;
 
   // Description controllers
   final TextEditingController signboardDescController = TextEditingController();
@@ -95,7 +103,7 @@ class _LandscapePageState extends State<LandscapePage> {
   }
 
   // ✅ UPDATED: Allows choosing Camera or Gallery
-  Future<void> _pickImage(Function(XFile) setter) async {
+  Future<void> _pickImage(Function(XFile, Uint8List) setter) async {
     showModalBottomSheet(
       context: context,
       builder: (BuildContext context) {
@@ -111,7 +119,7 @@ class _LandscapePageState extends State<LandscapePage> {
                     source: ImageSource.gallery,
                     imageQuality: 75,
                   );
-                  if (image != null) setter(image);
+                  if (image != null) setter(image, await image.readAsBytes());
                 },
               ),
               ListTile(
@@ -123,7 +131,7 @@ class _LandscapePageState extends State<LandscapePage> {
                     source: ImageSource.camera,
                     imageQuality: 75,
                   );
-                  if (image != null) setter(image);
+                  if (image != null) setter(image, await image.readAsBytes());
                 },
               ),
             ],
@@ -135,12 +143,12 @@ class _LandscapePageState extends State<LandscapePage> {
 
   Future<void> _pickFor(String field) async {
     switch (field) {
-      case 'signboard': await _pickImage((img) => setState(() => signboardPhoto = img)); break;
-      case 'trash': await _pickImage((img) => setState(() => trashPhoto = img)); break;
-      case 'watersupply': await _pickImage((img) => setState(() => waterSupplyPhoto = img)); break;
-      case 'waterpressure': await _pickImage((img) => setState(() => waterPressurePhoto = img)); break;
-      case 'tree': await _pickImage((img) => setState(() => treePhoto = img)); break;
-      case 'leftover': await _pickImage((img) => setState(() => leftoverEquipPhoto = img)); break;
+      case 'signboard': await _pickImage((img, bytes) => setState(() { signboardPhoto = img; signboardPhotoBytes = bytes; })); break;
+      case 'trash': await _pickImage((img, bytes) => setState(() { trashPhoto = img; trashPhotoBytes = bytes; })); break;
+      case 'watersupply': await _pickImage((img, bytes) => setState(() { waterSupplyPhoto = img; waterSupplyPhotoBytes = bytes; })); break;
+      case 'waterpressure': await _pickImage((img, bytes) => setState(() { waterPressurePhoto = img; waterPressurePhotoBytes = bytes; })); break;
+      case 'tree': await _pickImage((img, bytes) => setState(() { treePhoto = img; treePhotoBytes = bytes; })); break;
+      case 'leftover': await _pickImage((img, bytes) => setState(() { leftoverEquipPhoto = img; leftoverEquipPhotoBytes = bytes; })); break;
     }
   }
 
@@ -174,7 +182,7 @@ class _LandscapePageState extends State<LandscapePage> {
     );
   }
 
-  Widget _buildPhotoButton(String label, XFile? photo, VoidCallback pick) {
+  Widget _buildPhotoButton(String label, XFile? photo, Uint8List? photoBytes, VoidCallback pick) {
     return Row(children: [
       ElevatedButton.icon(
         onPressed: pick,
@@ -183,7 +191,7 @@ class _LandscapePageState extends State<LandscapePage> {
         style: ElevatedButton.styleFrom(backgroundColor: Colors.pink.shade300, foregroundColor: Colors.white),
       ),
       const SizedBox(width: 10),
-      if (photo != null) SizedBox(width: 100, height: 100, child: Image.file(File(photo.path), fit: BoxFit.cover)),
+      if (photo != null) SizedBox(width: 100, height: 100, child: Image.memory(photoBytes!, fit: BoxFit.cover)),
     ]);
   }
 
@@ -228,12 +236,12 @@ class _LandscapePageState extends State<LandscapePage> {
       request.fields["user_id"] = widget.userId.toString(); // ✅ send user_id
 
       // Photos
-      request.files.add(await http.MultipartFile.fromPath("signboard_photo", signboardPhoto!.path));
-      request.files.add(await http.MultipartFile.fromPath("trash_photo", trashPhoto!.path));
-      request.files.add(await http.MultipartFile.fromPath("water_supply_photo", waterSupplyPhoto!.path));
-      request.files.add(await http.MultipartFile.fromPath("water_pressure_photo", waterPressurePhoto!.path));
-      request.files.add(await http.MultipartFile.fromPath("tree_photo", treePhoto!.path));
-      request.files.add(await http.MultipartFile.fromPath("leftover_equipment_photo", leftoverEquipPhoto!.path));
+      request.files.add(http.MultipartFile.fromBytes("signboard_photo", signboardPhotoBytes!, filename: signboardPhoto!.name));
+      request.files.add(http.MultipartFile.fromBytes("trash_photo", trashPhotoBytes!, filename: trashPhoto!.name));
+      request.files.add(http.MultipartFile.fromBytes("water_supply_photo", waterSupplyPhotoBytes!, filename: waterSupplyPhoto!.name));
+      request.files.add(http.MultipartFile.fromBytes("water_pressure_photo", waterPressurePhotoBytes!, filename: waterPressurePhoto!.name));
+      request.files.add(http.MultipartFile.fromBytes("tree_photo", treePhotoBytes!, filename: treePhoto!.name));
+      request.files.add(http.MultipartFile.fromBytes("leftover_equipment_photo", leftoverEquipPhotoBytes!, filename: leftoverEquipPhoto!.name));
 
       final streamed = await request.send();
       final response = await http.Response.fromStream(streamed);
@@ -345,17 +353,12 @@ class _LandscapePageState extends State<LandscapePage> {
       final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
-        final dir = Directory('/storage/emulated/0/Download');
-        if (!dir.existsSync()) dir.createSync(recursive: true);
-
-        final filePath = '${dir.path}/landscape_report_${selectedMonth}_${selectedYear}_${DateTime.now().millisecondsSinceEpoch}.html';
-        final file = File(filePath);
-
-        await file.writeAsBytes(response.bodyBytes);
+        final fileName = 'landscape_report_${selectedMonth}_${selectedYear}_${DateTime.now().millisecondsSinceEpoch}.html';
+        await downloadBytes(bytes: response.bodyBytes, fileName: fileName);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('✅ Report saved to: $filePath')),
+            const SnackBar(content: Text('✅ Report downloaded')),
           );
         }
       } else {
@@ -458,7 +461,7 @@ class _LandscapePageState extends State<LandscapePage> {
                   dropdown: _buildDropDown("Status", signboardStatus, signboardOptions,
                       (v) => setState(() => signboardStatus = v!)),
                   picker: Column(children: [
-                    _buildPhotoButton("Signboard", signboardPhoto, () => _pickFor("signboard")),
+                    _buildPhotoButton("Signboard", signboardPhoto, signboardPhotoBytes, () => _pickFor("signboard")),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: signboardDescController,
@@ -476,7 +479,7 @@ class _LandscapePageState extends State<LandscapePage> {
                   dropdown: _buildDropDown("Status", trashStatus, trashOptions,
                       (v) => setState(() => trashStatus = v!)),
                   picker: Column(children: [
-                    _buildPhotoButton("Trash", trashPhoto, () => _pickFor("trash")),
+                    _buildPhotoButton("Trash", trashPhoto, trashPhotoBytes, () => _pickFor("trash")),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: trashDescController,
@@ -494,7 +497,7 @@ class _LandscapePageState extends State<LandscapePage> {
                   dropdown: _buildDropDown("Status", waterSupplyStatus, waterSupplyOptions,
                       (v) => setState(() => waterSupplyStatus = v!)),
                   picker: Column(children: [
-                    _buildPhotoButton("Water Supply", waterSupplyPhoto, () => _pickFor("watersupply")),
+                    _buildPhotoButton("Water Supply", waterSupplyPhoto, waterSupplyPhotoBytes, () => _pickFor("watersupply")),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: waterSupplyDescController,
@@ -512,7 +515,7 @@ class _LandscapePageState extends State<LandscapePage> {
                   dropdown: _buildDropDown("Status", waterPressureStatus, waterPressureOptions,
                       (v) => setState(() => waterPressureStatus = v!)),
                   picker: Column(children: [
-                    _buildPhotoButton("Water Pressure", waterPressurePhoto, () => _pickFor("waterpressure")),
+                    _buildPhotoButton("Water Pressure", waterPressurePhoto, waterPressurePhotoBytes, () => _pickFor("waterpressure")),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: waterPressureDescController,
@@ -530,7 +533,7 @@ class _LandscapePageState extends State<LandscapePage> {
                   dropdown: _buildDropDown("Status", treeStatus, treeOptions,
                       (v) => setState(() => treeStatus = v!)),
                   picker: Column(children: [
-                    _buildPhotoButton("Tree", treePhoto, () => _pickFor("tree")),
+                    _buildPhotoButton("Tree", treePhoto, treePhotoBytes, () => _pickFor("tree")),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: treeDescController,
@@ -548,7 +551,7 @@ class _LandscapePageState extends State<LandscapePage> {
                   dropdown: _buildDropDown("Status", leftoverEquipStatus, leftoverEquipmentOptions,
                       (v) => setState(() => leftoverEquipStatus = v!)),
                   picker: Column(children: [
-                    _buildPhotoButton("Leftover Equipment", leftoverEquipPhoto, () => _pickFor("leftover")),
+                    _buildPhotoButton("Leftover Equipment", leftoverEquipPhoto, leftoverEquipPhotoBytes, () => _pickFor("leftover")),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: leftoverDescController,

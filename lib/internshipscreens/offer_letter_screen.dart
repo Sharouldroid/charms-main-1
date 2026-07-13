@@ -9,6 +9,14 @@ import 'package:printing/printing.dart';
 import 'package:charms/main.dart';
 import 'package:charms/utils/pdf_download.dart';
 
+// Offer letter assets — extracted from the official (genuinely blank, no
+// leaked data) SEATRU offer letter Word template.
+const _kLetterheadImg = 'assets/offer_letter/letterhead_banner.png';
+const _kFooterImg     = 'assets/offer_letter/footer_banner.jpeg';
+const _kSignatureImg  = 'assets/offer_letter/signature.png';
+const _kPhoneIconImg  = 'assets/offer_letter/icon_phone.png';
+const _kEmailIconImg  = 'assets/offer_letter/icon_email.png';
+
 class OfferLetterScreen extends StatefulWidget {
   /// The intern's user_id. For Admin/Supervisor, pass the intern's user_id.
   final int userId;
@@ -69,46 +77,6 @@ class _OfferLetterScreenState extends State<OfferLetterScreen> {
       '${d.day} ${_monthsTitle[d.month]} ${d.year}';
 
   bool get _isIntern => widget.role == 'Intern';
-
-  // ── Field positions ─────────────────────────────────────────────────────
-  // Measured DIRECTLY from the official example PDF's text layer (pymupdf).
-  // These are top-of-box Y values (y0), exactly what the pdf package's
-  // Positioned.top expects — NO baseline conversion needed.
-  static const _kDebug = false;
-
-  // Right header block — value text column starts at x0≈403.3
-  static const _kHeaderValueX = 403.3;
-  static const _kRujukanY     = 114.3;  // "SEATRU/2026/LI/.." top-of-box
-  static const _kTarikhY      = 127.6;  // "10 FEBRUARI 2026"  top-of-box
-
-  // Paragraph 2 — bold name starts right after "menerima" at x0≈126.1
-  static const _kNameX        = 126.1;
-  static const _kNameLineY    = 231.3;  // name + IC line, top-of-box
-
-  // IC number — centered INSIDE the template's printed ( ) placeholder.
-  // Official text layer: "(" left edge ≈386.8, ")" right edge ≈490.5.
-  // We place a fixed-width box spanning the inside of the parens and
-  // center the IC within it, so it's always centered regardless of length.
-  static const _kIcParenLeft  = 388.0;  // just inside "("
-  static const _kIcParenRight = 489.0;  // just inside ")"
-  static const _kIcY          = 231.3;  // same line as the name
-
-  // Details table — "Tempoh :" value column starts at x0≈188.8
-  static const _kTableValueX  = 188.8;
-  static const _kTempohY      = 337.5;  // "28 Mac 2026 ..." top-of-box
-
-  // "Kemudahan : diberikan ● Elaun" bullet — V2 template leaves the amount
-  // blank. Value starts right after "● " at x0≈206.8 (same column as the
-  // Skop latihan bullets). A white box first covers that span in case any
-  // leftover "(RM .../bulan)" text remains underneath in the template.
-  static const _kElaunX       = 206.8;
-  static const _kElaunY       = 430.4;  // "Elaun" top-of-box
-  static const _kElaunMaskX   = 204.0;
-  static const _kElaunMaskW   = 250.0;
-  static const _kElaunMaskH   = 16.0;
-
-  // Default body font size for overlays (matches template body text)
-  static const _kFontSize     = 11.0;
 
   // ── Data loading ───────────────────────────────────────────────────────────
 
@@ -243,19 +211,40 @@ class _OfferLetterScreenState extends State<OfferLetterScreen> {
   }
 
   // ── PDF generation ─────────────────────────────────────────────────────────
+  // Built natively — real flowing text and images, not a rasterized
+  // background image with pixel-positioned text on top. The old
+  // rasterize-and-overlay approach was fragile: different platforms' PDF
+  // rasterizers didn't render the old template's covering boxes identically,
+  // so leaked hidden text from a previously-filled copy could bleed through
+  // on some platforms (seen on Android) but not others (not seen on web).
+  // Generating the letter ourselves avoids that failure mode entirely —
+  // there's no rasterization step and no old data that could possibly leak;
+  // every word on the page is either static text we wrote or a value we
+  // filled in, so it renders identically everywhere.
+
+  static const _kBodyFontSize = 10.5;
+  static const _kLabelWidth = 92.0;
+  static const _kContentWidth = 515.0; // A4 (595.28) minus 40pt side margins
+
+  pw.TextStyle get _bodyStyle => const pw.TextStyle(fontSize: _kBodyFontSize);
+  pw.TextStyle get _boldStyle => pw.TextStyle(
+      fontSize: _kBodyFontSize, fontWeight: pw.FontWeight.bold);
+  pw.TextStyle get _boldItalicStyle => pw.TextStyle(
+      fontSize: _kBodyFontSize,
+      fontWeight: pw.FontWeight.bold,
+      fontStyle: pw.FontStyle.italic);
 
   Future<Uint8List> _buildPdf() async {
-    // Raster template page 1 → PNG background
-    final templateData = await rootBundle.load(
-      'assets/Surat_Tawaran_Latihan_Industri_SEATRU_2026_V2Templatepdf.pdf',
-    );
-    final templateBytes = templateData.buffer.asUint8List();
-
-    Uint8List? bgPng;
-    await for (final raster in Printing.raster(templateBytes, pages: [0], dpi: 150)) {
-      bgPng = await raster.toPng();
-      break;
-    }
+    final letterheadImage =
+        pw.MemoryImage((await rootBundle.load(_kLetterheadImg)).buffer.asUint8List());
+    final footerImage =
+        pw.MemoryImage((await rootBundle.load(_kFooterImg)).buffer.asUint8List());
+    final signatureImage =
+        pw.MemoryImage((await rootBundle.load(_kSignatureImg)).buffer.asUint8List());
+    final phoneIcon =
+        pw.MemoryImage((await rootBundle.load(_kPhoneIconImg)).buffer.asUint8List());
+    final emailIcon =
+        pw.MemoryImage((await rootBundle.load(_kEmailIconImg)).buffer.asUint8List());
 
     // Prepare field values
     final reg       = _reg!;
@@ -271,12 +260,9 @@ class _OfferLetterScreenState extends State<OfferLetterScreen> {
             reg['nric'] ??
             reg['no_ic'] ??
             reg['identification_number'] ??
-            '-')
+            '')
         .toString()
         .trim();
-
-    // Name WITHOUT brackets — the IC goes into the template's own ( ).
-    final nameOnly = fullName;
 
     String startDate = '-', endDate = '-';
     if (_sched != null) {
@@ -298,144 +284,182 @@ class _OfferLetterScreenState extends State<OfferLetterScreen> {
     final allowanceAmount = allowanceRaw != null
         ? num.tryParse(allowanceRaw.toString())
         : null;
-    final elaunText = 'Elaun (RM '
-        '${allowanceAmount != null ? allowanceAmount.toStringAsFixed(0) : '550'}'
-        '/bulan)';
+    final elaunAmount =
+        allowanceAmount != null ? allowanceAmount.toStringAsFixed(0) : '550';
 
     final doc = pw.Document();
     doc.addPage(
-      pw.Page(
+      pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        margin: pw.EdgeInsets.zero,
-        build: (_) => pw.Stack(
-          children: [
-            // Template as full-page background
-            if (bgPng != null)
-              pw.Positioned.fill(
-                child: pw.Image(pw.MemoryImage(bgPng), fit: pw.BoxFit.fill),
-              ),
-
-            // Debug grid: 50-pt lines with coordinate labels.
-            // Set _kDebug = false once field positions are calibrated.
-            if (_kDebug) ..._debugGrid(),
-
-            // ── Text overlays (match official layout — image 2) ────────
-            // Header (top-right): reference + date (top-of-box Y, measured).
-            _field(rujukan, left: _kHeaderValueX, top: _kRujukanY),
-            _field(today,   left: _kHeaderValueX, top: _kTarikhY),
-
-            // Name (bold, no brackets) right after "menerima".
-            _field(nameOnly,
-                left: _kNameX, top: _kNameLineY, bold: true),
-
-            // IC number CENTERED inside the template's printed ( ) placeholder.
-            if (icNumber != '-' && icNumber.isNotEmpty)
-              pw.Positioned(
-                left: _kIcParenLeft,
-                top: _kIcY,
-                child: pw.SizedBox(
-                  width: _kIcParenRight - _kIcParenLeft,
-                  child: pw.Text(
-                    icNumber,
-                    textAlign: pw.TextAlign.center,
-                    style: pw.TextStyle(
-                      fontSize: _kFontSize,
-                      fontWeight: pw.FontWeight.bold,
-                    ),
-                  ),
+        margin: const pw.EdgeInsets.only(left: 40, right: 40, top: 24, bottom: 24),
+        header: (context) => pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 12),
+          // Aspect ratio 1727x291 from the source letterhead image.
+          child: pw.Image(letterheadImage, width: _kContentWidth, height: 86.8),
+        ),
+        footer: (context) => pw.Padding(
+          padding: const pw.EdgeInsets.only(top: 12),
+          // Aspect ratio 1637x124 from the source footer image.
+          child: pw.Image(footerImage, width: _kContentWidth, height: 39.0),
+        ),
+        build: (context) => [
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.end,
+            children: [
+              pw.SizedBox(
+                width: 260,
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    _labelValueRow('Rujukan Kami', rujukan),
+                    _labelValueRow('Tarikh', today),
+                  ],
                 ),
               ),
-
-            // Tempoh date range
-            _field(tempoh, left: _kTableValueX, top: _kTempohY),
-
-            // Elaun (allowance) — mask any leftover template text, then
-            // draw the admin-adjustable amount.
-            pw.Positioned(
-              left: _kElaunMaskX,
-              top: _kElaunY - 2,
-              child: pw.Container(
-                width: _kElaunMaskW,
-                height: _kElaunMaskH,
-                color: PdfColors.white,
-              ),
-            ),
-            _field(elaunText, left: _kElaunX, top: _kElaunY),
-
-            // (No report date — official template has no placeholder in para 3)
-          ],
-        ),
+            ],
+          ),
+          pw.SizedBox(height: 12),
+          pw.Text('Assalamualaikum dan Salam Sejahtera.', style: _bodyStyle),
+          pw.SizedBox(height: 10),
+          pw.Text(
+            'PENEMPATAN LATIHAN INDUSTRI DI UNIT PENYELIDIKAN PENYU LAUT '
+            '(SEATRU), UNIVERSITI MALAYSIA TERENGGANU',
+            style: _boldStyle,
+          ),
+          pw.SizedBox(height: 10),
+          pw.RichText(
+            text: pw.TextSpan(style: _bodyStyle, children: [
+              const pw.TextSpan(
+                  text: '2.   Sukacita dimaklumkan bahawa Sea '
+                      'Turtle Research Unit ('),
+              pw.TextSpan(text: 'SEATRU', style: _boldStyle),
+              const pw.TextSpan(text: ') bersetuju menerima '),
+              pw.TextSpan(
+                  text: fullName.isNotEmpty ? fullName : '-',
+                  style: _boldStyle),
+              if (icNumber.isNotEmpty) ...[
+                const pw.TextSpan(text: ' ('),
+                pw.TextSpan(text: icNumber, style: _boldStyle),
+                const pw.TextSpan(text: ')'),
+              ],
+              const pw.TextSpan(
+                  text: ' untuk menjalani latihan industri bersama kami '
+                      'mengenai konservasi dan penyelidikan penyu di Stesen '
+                      'Penyelidikan Alami Penyu Chagar Hutang, Pulau Redang, '
+                      'Terengganu. Perincian latihan industri adalah seperti '
+                      'berikut:'),
+            ]),
+          ),
+          pw.SizedBox(height: 10),
+          _labelBulletsRow('Lokasi', [
+            _richBullet('Pejabat Sea Turtle Research Unit (', 'SEATRU', ')'),
+            pw.Text(
+                'Santuari Penyu Chagar Hutang, Pulau Redang, Terengganu',
+                style: _bodyStyle),
+          ]),
+          pw.SizedBox(height: 8),
+          _labelValueRow('Tempoh', tempoh),
+          pw.SizedBox(height: 8),
+          _labelBulletsRow('Skop latihan', [
+            pw.Text('Membantu dalam membina aplikasi mobile', style: _bodyStyle),
+            pw.Text(
+                'Menjalankan aktiviti penyelidikan penyu bersama penyelidik SEATRU',
+                style: _bodyStyle),
+            pw.Text('Membantu melaksanakan aktiviti konservasi penyu',
+                style: _bodyStyle),
+          ]),
+          pw.SizedBox(height: 8),
+          _labelBulletsRow('Kemudahan', [
+            pw.Text('Elaun (RM $elaunAmount/bulan)', style: _bodyStyle),
+          ]),
+          pw.SizedBox(height: 10),
+          pw.RichText(
+            text: pw.TextSpan(style: _bodyStyle, children: [
+              const pw.TextSpan(
+                  text: '3.   Sehubungan itu, anda diminta '
+                      'untuk menghadirkan diri ke '),
+              pw.TextSpan(text: 'Pejabat SEATRU', style: _boldStyle),
+              const pw.TextSpan(
+                  text: ' bagi urusan lapor diri dan taklimat. Sebarang '
+                      'pertanyaan boleh dilakukan dengan menghubungi Adriana '
+                      'Dania Hemizan (+60 19-3397 104) atau Mustaqim Rosdan '
+                      '(+60 11-3166 0266).'),
+            ]),
+          ),
+          pw.SizedBox(height: 10),
+          pw.Text('"MALAYSIA MADANI"', style: _boldItalicStyle),
+          pw.Text('"BERKHIDMAT UNTUK NEGARA"', style: _boldItalicStyle),
+          pw.SizedBox(height: 10),
+          pw.Text('Yang benar,', style: _bodyStyle),
+          pw.SizedBox(height: 4),
+          pw.Image(signatureImage, height: 45, width: 76.7),
+          pw.SizedBox(height: 2),
+          pw.Text('MOHD UZAIR RUSLI, PhD', style: _boldStyle),
+          pw.Text('Ketua Makmal Penyelidikan Luar', style: _bodyStyle),
+          pw.Text('Unit Penyelidikan Penyu (SEATRU)', style: _bodyStyle),
+          pw.Text('Institut Oseanografi dan Sekitaran', style: _bodyStyle),
+          pw.Text('Universiti Malaysia Terengganu', style: _bodyStyle),
+          pw.SizedBox(height: 4),
+          pw.Row(children: [
+            pw.Image(phoneIcon, width: 10, height: 10),
+            pw.SizedBox(width: 5),
+            pw.Text('09-6683846', style: _bodyStyle),
+          ]),
+          pw.SizedBox(height: 2),
+          pw.Row(children: [
+            pw.Image(emailIcon, width: 11, height: 9),
+            pw.SizedBox(width: 5),
+            pw.Text('uzair@umt.edu.my', style: _bodyStyle),
+          ]),
+          pw.SizedBox(height: 2),
+          pw.Text('s.k   Fail', style: _bodyStyle),
+        ],
       ),
     );
 
     return doc.save();
   }
 
-  // Positioned single-line text overlay helper
-  pw.Widget _field(
-    String text, {
-    required double left,
-    required double top,
-    double fontSize = _kFontSize,
-    bool bold = false,
-  }) =>
-      pw.Positioned(
-        left: left,
-        top: top,
-        child: pw.Text(
-          text,
-          style: pw.TextStyle(
-            fontSize: fontSize,
-            fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
-          ),
+  pw.Widget _labelValueRow(String label, String value) => pw.Padding(
+        padding: const pw.EdgeInsets.only(bottom: 2),
+        child: pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.SizedBox(
+                width: _kLabelWidth, child: pw.Text(label, style: _bodyStyle)),
+            pw.Text(':  ', style: _bodyStyle),
+            pw.Expanded(child: pw.Text(value, style: _bodyStyle)),
+          ],
         ),
       );
 
-  // Semi-transparent 50-pt coordinate grid for calibrating field positions.
-  // Each intersection is labelled "x,y" in grey so you can read exact coords.
-  List<pw.Widget> _debugGrid() {
-    const step = 50.0;
-    const w = 595.28;
-    const h = 841.89;
-    final widgets = <pw.Widget>[];
-
-    // Horizontal rules
-    for (double y = 0; y <= h; y += step) {
-      widgets.add(pw.Positioned(
-        left: 0, top: y,
-        child: pw.Container(
-          width: w, height: 0.3,
-          color: PdfColor.fromHex('#AAAAAA'),
-        ),
-      ));
-    }
-    // Vertical rules
-    for (double x = 0; x <= w; x += step) {
-      widgets.add(pw.Positioned(
-        left: x, top: 0,
-        child: pw.Container(
-          width: 0.3, height: h,
-          color: PdfColor.fromHex('#AAAAAA'),
-        ),
-      ));
-    }
-    // Coordinate labels at each intersection
-    for (double y = 0; y <= h; y += step) {
-      for (double x = 0; x <= w; x += step) {
-        widgets.add(pw.Positioned(
-          left: x + 1, top: y + 1,
-          child: pw.Text(
-            '${x.toInt()},${y.toInt()}',
-            style: pw.TextStyle(
-              fontSize: 5,
-              color: PdfColor.fromHex('#CC0000'),
+  pw.Widget _labelBulletsRow(String label, List<pw.Widget> bullets) => pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.SizedBox(
+              width: _kLabelWidth, child: pw.Text(label, style: _bodyStyle)),
+          pw.Text(':  ', style: _bodyStyle),
+          pw.Expanded(
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: bullets
+                  .map((w) => pw.Padding(
+                        padding: const pw.EdgeInsets.only(bottom: 2),
+                        child: w,
+                      ))
+                  .toList(),
             ),
           ),
-        ));
-      }
-    }
-    return widgets;
-  }
+        ],
+      );
+
+  pw.Widget _richBullet(String pre, String bold, String post) => pw.RichText(
+        text: pw.TextSpan(style: _bodyStyle, children: [
+          pw.TextSpan(text: pre),
+          pw.TextSpan(text: bold, style: _boldStyle),
+          pw.TextSpan(text: post),
+        ]),
+      );
 
   // ── Download ───────────────────────────────────────────────────────────────
 

@@ -1,4 +1,3 @@
-import 'dart:io';
 // <--- Required for Uint8List
 import 'package:charms/models/booking_cart.dart';
 import 'package:charms/models/groupmembers.dart';
@@ -15,8 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter_file_dialog/flutter_file_dialog.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:charms/utils/save_file_dialog.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart'; // Required for TapGestureRecognizer
 import 'package:url_launcher/url_launcher.dart'; // Required to open the link
@@ -58,7 +56,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   bool _isProcessing = false;
   bool _isUploadingProof = false;
   bool _hasBookingBeenCreated = false;
-  File? _proofOfPaymentFile;
+  XFile? _proofOfPaymentFile;
   String? _fileName;
   String? _uploadError;
 
@@ -78,7 +76,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       );
 
       if (image != null) {
-        _proofOfPaymentFile = File(image.path);
+        _proofOfPaymentFile = image;
         _fileName = image.name;
         _uploadError = null;
         setDialogState(() {});
@@ -134,9 +132,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       request.fields['amount'] = totalAmount;
 
       request.files.add(
-        await http.MultipartFile.fromPath(
+        http.MultipartFile.fromBytes(
           'receipt',
-          _proofOfPaymentFile!.path,
+          await _proofOfPaymentFile!.readAsBytes(),
           filename: _fileName,
         ),
       );
@@ -1012,19 +1010,14 @@ void _showPaymentDeclaration(PaymentMethod method) {
       final ByteData byteData = await rootBundle.load(qrCodeImagePath);
       final Uint8List bytes = byteData.buffer.asUint8List();
 
-      // 2. Get the temporary directory
-      final tempDir = await getTemporaryDirectory();
-      final tempFilePath = '${tempDir.path}/cms_payment_qr.jpg';
-      final file = File(tempFilePath);
+      // 2. Ask the user where to save the file (native "Save As" dialog on
+      // mobile/desktop; triggers a browser download on web)
+      final finalPath = await saveFileWithDialog(
+        bytes: bytes,
+        fileName: 'cms_payment_qr.jpg',
+      );
 
-      // 3. Write the bytes to a temporary file
-      await file.writeAsBytes(bytes);
-
-      // 4. Ask the user where to save the file (Native "Save As" dialog)
-      final params = SaveFileDialogParams(sourceFilePath: file.path);
-      final finalPath = await FlutterFileDialog.saveFile(params: params);
-
-      // 5. Check if the user successfully saved the file
+      // 3. Check if the user successfully saved the file
       if (finalPath != null && mounted) {
         ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(

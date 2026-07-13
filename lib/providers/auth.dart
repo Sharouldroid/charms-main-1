@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:charms/models/http_exception.dart';
 import 'package:charms/services/app_config.dart';
@@ -53,9 +52,15 @@ class Auth with ChangeNotifier {
   int get usertype => _usertype;
   String? get profilePic => _profilePic;
 
-  /// True when the current session was authenticated via the HR DB fallback.
-  /// Use this in DashboardScreen to skip `fetchIndividual` (main DB only).
+  /// True only for HR *admin* roles (super/manager/staffAdmin).
+  /// Used to gate the "Switch to HR Dashboard" admin shortcut.
   bool get isHRUser => UserRoles.hrAdmin.contains(_usertype);
+
+  /// True when the current session was authenticated via the HR DB fallback,
+  /// regardless of role. Use this in DashboardScreen to skip `fetchIndividual`
+  /// (main DB only) — HR-DB users (staff, part-timer, supervisor, etc.) don't
+  /// have a main-DB record to fetch.
+  bool get authenticatedViaHRFallback => _isHRUser;
 
   int? get userId {
     if (_token == null) return null;
@@ -161,8 +166,10 @@ class Auth with ChangeNotifier {
       if (mainResponse.statusCode == 404) throw HttpException('user_not_found');
       final responseData = jsonDecode(mainResponse.body);
       throw HttpException(responseData['message'] ?? 'Authentication failed');
-    } on http.ClientException catch (e) {
-      throw SocketException('Network error: ${e.message}');
+    } on http.ClientException {
+      throw HttpException(
+        'Network error. Please check your internet connection.',
+      );
     } catch (e) {
       rethrow;
     }

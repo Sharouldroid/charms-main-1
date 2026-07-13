@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:charms/providers/bookevents.dart';
 import 'package:charms/providers/events.dart';
 import 'package:charms/providers/stripe_service.dart';
@@ -44,7 +43,7 @@ class ViewParticipant extends StatefulWidget {
 
 class _ViewParticipantState extends State<ViewParticipant> {
   PaymentMethod _selectedPaymentMethod = PaymentMethod.stripe;
-  File? _proofOfPaymentFile;
+  XFile? _proofOfPaymentFile;
   String? _fileName;
   String? _uploadError;
   bool _isUploadingProof = false;
@@ -266,7 +265,7 @@ class _ViewParticipantState extends State<ViewParticipant> {
 
       if (image != null) {
         setDialogState(() {
-          _proofOfPaymentFile = File(image.path);
+          _proofOfPaymentFile = image;
           _fileName = image.name;
           _uploadError = null;
         });
@@ -307,9 +306,9 @@ class _ViewParticipantState extends State<ViewParticipant> {
       request.fields['amount'] = amount.toStringAsFixed(2);
 
       request.files.add(
-        await http.MultipartFile.fromPath(
+        http.MultipartFile.fromBytes(
           'receipt',
-          _proofOfPaymentFile!.path,
+          await _proofOfPaymentFile!.readAsBytes(),
           filename: _fileName,
         ),
       );

@@ -1,10 +1,10 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:charms/models/boat.dart';
 import 'package:charms/models/event.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 
 class Boats with ChangeNotifier {
   List<BoatCompany> _companyRecord = [];
@@ -588,7 +588,7 @@ class Boats with ChangeNotifier {
     String hostname,
     int tripId,
     int? status,
-    File? proofFile,
+    XFile? proofFile,
   ) async {
     final url = '${hostname}boat/updatepayment';
 
@@ -600,9 +600,9 @@ class Boats with ChangeNotifier {
 
     if (proofFile != null) {
       request.files.add(
-        await http.MultipartFile.fromPath(
+        http.MultipartFile.fromBytes(
           'paymentproof',
-          proofFile.path,
+          await proofFile.readAsBytes(),
           filename: 'payment_$tripId.${proofFile.path.split('.').last}',
         ),
       );

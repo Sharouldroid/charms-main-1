@@ -2,7 +2,6 @@
 // Service to monitor network connectivity status
 // This checks ACTUAL internet access, not just WiFi/data on/off
 import 'dart:async';
-import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -90,12 +89,6 @@ class ConnectivityService {
       return true;
     }
     
-    // Method 2: Try DNS lookup
-    if (await _tryDnsLookup()) {
-      // debugPrint('📶 DNS check: SUCCESS');
-      return true;
-    }
-    
     // debugPrint('📶 All checks FAILED - no internet');
     return false;
   }
@@ -118,24 +111,6 @@ class ConnectivityService {
         }
       } catch (e) {
         // Try next URL
-        continue;
-      }
-    }
-    return false;
-  }
-
-  // Try DNS lookup as fallback
-  Future<bool> _tryDnsLookup() async {
-    final hosts = ['google.com', 'cloudflare.com', 'microsoft.com'];
-    
-    for (final host in hosts) {
-      try {
-        final result = await InternetAddress.lookup(host)
-            .timeout(const Duration(seconds: 3));
-        if (result.isNotEmpty && result[0].rawAddress.isNotEmpty) {
-          return true;
-        }
-      } catch (e) {
         continue;
       }
     }

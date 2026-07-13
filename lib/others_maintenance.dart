@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:charms/utils/responsive_helper.dart';
@@ -52,7 +52,8 @@ class _OthersMaintenancePageState extends State<OthersMaintenancePage> {
 
   final TextEditingController descriptionController = TextEditingController();
   DateTime selectedDateTime = DateTime.now();
-  File? _image;
+  XFile? _image;
+  Uint8List? _imageBytes;
   final ImagePicker _picker = ImagePicker();
   bool _isSubmitting = false;
   final _formKey = GlobalKey<FormState>();
@@ -169,7 +170,11 @@ class _OthersMaintenancePageState extends State<OthersMaintenancePage> {
         imageQuality: 50,
       );
       if (pickedFile != null) {
-        setState(() => _image = File(pickedFile.path));
+        final bytes = await pickedFile.readAsBytes();
+        setState(() {
+          _image = pickedFile;
+          _imageBytes = bytes;
+        });
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -212,7 +217,7 @@ class _OthersMaintenancePageState extends State<OthersMaintenancePage> {
       }
 
       if (_image != null) {
-        request.files.add(await http.MultipartFile.fromPath('photo', _image!.path));
+        request.files.add(http.MultipartFile.fromBytes('photo', _imageBytes!, filename: _image!.name));
       }
 
       var response = await request.send();

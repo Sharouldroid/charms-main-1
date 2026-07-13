@@ -25,6 +25,7 @@ import 'package:charms/providers/users.dart' as charms_users;
 import 'package:charms/screens/auth_screen.dart';
 import 'package:charms/screens/dashboard_screen.dart'; // CHARMS Dashboard
 import 'package:charms/screens/splash_screen.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:overlay_support/overlay_support.dart';
 import 'package:provider/provider.dart';
@@ -95,8 +96,12 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 🌟 HR MODULE: Initialize Camera
-  await CameraService.initialize();
+  // 🌟 HR MODULE: Initialize Camera (mobile/desktop only — browsers require
+  // a user gesture before granting camera access, so this would hang/reject
+  // on web if awaited unconditionally at boot)
+  if (!kIsWeb) {
+    await CameraService.initialize();
+  }
 
   runApp(const MyApp());
 }

@@ -1,11 +1,9 @@
-import 'dart:typed_data';
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // ✅ rootBundle — fast asset loading
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:charms/HRwidgets/staff/hr_staff_theme.dart';
+import 'package:charms/utils/pdf_download.dart';
 
 class StaffPayrollDetailsScreen extends StatefulWidget {
   final String month;
@@ -209,12 +207,7 @@ class _StaffPayrollDetailsScreenState
       final safeMonth = widget.month.replaceAll(' ', '_').replaceAll('/', '-');
       final fileName  = 'payslip_${widget.staffId}_${safeMonth}_${widget.year}.pdf';
 
-      final blob = html.Blob([bytes], 'application/pdf');
-      final url  = html.Url.createObjectUrlFromBlob(blob);
-      html.AnchorElement(href: url)
-        ..setAttribute('download', fileName)
-        ..click();
-      html.Url.revokeObjectUrl(url);
+      await savePdf(bytes: bytes, fileName: fileName);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

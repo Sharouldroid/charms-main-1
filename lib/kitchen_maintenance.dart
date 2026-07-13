@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -81,7 +81,8 @@ class _KitchenPageState extends State<KitchenPage> {
   bool hygieneMold = false;
 
   bool _isSubmitting = false;
-  File? _imageFile;
+  XFile? _imageFile;
+  Uint8List? _imageBytes;
   DateTime? selectedDateTime;
 
   // Controllers for Used & Unused fields (and a separate total map for display)
@@ -176,7 +177,11 @@ class _KitchenPageState extends State<KitchenPage> {
                       imageQuality: 85,
                     );
                     if (pickedFile != null) {
-                      setState(() => _imageFile = File(pickedFile.path));
+                      final bytes = await pickedFile.readAsBytes();
+                      setState(() {
+                        _imageFile = pickedFile;
+                        _imageBytes = bytes;
+                      });
                     }
                   }),
               ListTile(
@@ -189,7 +194,11 @@ class _KitchenPageState extends State<KitchenPage> {
                     imageQuality: 85,
                   );
                   if (pickedFile != null) {
-                    setState(() => _imageFile = File(pickedFile.path));
+                    final bytes = await pickedFile.readAsBytes();
+                    setState(() {
+                      _imageFile = pickedFile;
+                      _imageBytes = bytes;
+                    });
                   }
                 },
               ),
@@ -397,7 +406,7 @@ Future<void> _showSuccessDialog(BuildContext context, String message) {
       });
 
       if (_imageFile != null) {
-        request.files.add(await http.MultipartFile.fromPath('photo', _imageFile!.path));
+        request.files.add(http.MultipartFile.fromBytes('photo', _imageBytes!, filename: _imageFile!.name));
       }
 
       var response = await request.send();
@@ -697,7 +706,7 @@ Future<void> _showSuccessDialog(BuildContext context, String message) {
             padding: const EdgeInsets.only(top: 10),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Image.file(_imageFile!,
+              child: Image.memory(_imageBytes!,
                   height: 180, width: double.infinity, fit: BoxFit.cover),
             ),
           ),

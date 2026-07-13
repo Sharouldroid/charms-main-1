@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -32,7 +32,8 @@ class _OutdoorClassroomPageState extends State<OutdoorClassroomPage> {
   final TextEditingController otherIssueController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
   DateTime selectedDateTime = DateTime.now();
-  File? _image;
+  XFile? _image;
+  Uint8List? _imageBytes;
   final ImagePicker _picker = ImagePicker();
   bool _isSubmitting = false;
 
@@ -148,7 +149,11 @@ class _OutdoorClassroomPageState extends State<OutdoorClassroomPage> {
                     imageQuality: 85,
                   );
                   if (pickedFile != null) {
-                    setState(() => _image = File(pickedFile.path));
+                    final bytes = await pickedFile.readAsBytes();
+                    setState(() {
+                      _image = pickedFile;
+                      _imageBytes = bytes;
+                    });
                   }
                 },
               ),
@@ -162,7 +167,11 @@ class _OutdoorClassroomPageState extends State<OutdoorClassroomPage> {
                     imageQuality: 85,
                   );
                   if (pickedFile != null) {
-                    setState(() => _image = File(pickedFile.path));
+                    final bytes = await pickedFile.readAsBytes();
+                    setState(() {
+                      _image = pickedFile;
+                      _imageBytes = bytes;
+                    });
                   }
                 },
               ),
@@ -217,8 +226,8 @@ class _OutdoorClassroomPageState extends State<OutdoorClassroomPage> {
       request.fields['user_id'] = userId.toString();  // ✅ send user_id
 
       if (_image != null && needMaintenance == 'Yes') {
-        request.files.add(await http.MultipartFile.fromPath(
-            'photo', _image!.path,
+        request.files.add(http.MultipartFile.fromBytes(
+            'photo', _imageBytes!,
             filename: 'outdoor_${DateTime.now().millisecondsSinceEpoch}.jpg'));
       }
 
@@ -491,7 +500,7 @@ class _OutdoorClassroomPageState extends State<OutdoorClassroomPage> {
                                 padding: const EdgeInsets.all(8.0),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(8),
-                                  child: Image.file(_image!,
+                                  child: Image.memory(_imageBytes!,
                                       height: 150, fit: BoxFit.cover),
                                 ),
                               ),

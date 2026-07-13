@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:charms/models/optionalitem.dart';
 import 'package:charms/providers/optionalitems.dart';
 import 'package:flutter/material.dart';
@@ -28,8 +28,9 @@ class CreateOptionalItem extends StatefulWidget {
 class _CreateOptionalItemState extends State<CreateOptionalItem> {
   final GlobalKey<FormState> _formKey = GlobalKey();
   
-  File? _pickedImage; 
-  String? _existingImageUrl; 
+  XFile? _pickedImage;
+  Uint8List? _pickedImageBytes;
+  String? _existingImageUrl;
 
   var _newItem = const Optionalitem(
     id: 0,
@@ -119,8 +120,10 @@ class _CreateOptionalItemState extends State<CreateOptionalItem> {
     );
 
     if (pickedFile != null) {
+      final bytes = await pickedFile.readAsBytes();
       setState(() {
-        _pickedImage = File(pickedFile.path);
+        _pickedImage = pickedFile;
+        _pickedImageBytes = bytes;
       });
     }
   }
@@ -277,8 +280,8 @@ class _CreateOptionalItemState extends State<CreateOptionalItem> {
                               children: [
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(14),
-                                  child: Image.file(
-                                    _pickedImage!,
+                                  child: Image.memory(
+                                    _pickedImageBytes!,
                                     fit: BoxFit.cover,
                                     width: double.infinity,
                                     height: double.infinity,

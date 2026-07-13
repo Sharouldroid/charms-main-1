@@ -1,6 +1,4 @@
 // auth_card.dart
-import 'dart:io';
-
 import 'package:charms/models/http_exception.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -467,11 +465,6 @@ class AuthCardState extends State<AuthCard> {
   void _handleError(dynamic error) {
     if (error is HttpException) {
       AuthUtils.showErrorDialog(context, message: error.toString());
-    } else if (error is SocketException) {
-      AuthUtils.showErrorDialog(
-        context,
-        message: 'Network error. Please check your internet connection.',
-      );
     } else {
       AuthUtils.showErrorDialog(context, message: error.toString());
     }

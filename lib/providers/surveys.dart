@@ -1,7 +1,7 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:charms/models/survey.dart';
+import 'package:charms/utils/network_error.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:overlay_support/overlay_support.dart';
@@ -363,7 +363,7 @@ class Surveys with ChangeNotifier {
       }
     } catch (error) {
       // You might want to handle different error types differently
-      if (error is SocketException) {
+      if (isNetworkError(error)) {
         throw Exception('No Internet connection');
       } else if (error is FormatException) {
         throw Exception('Bad response format');
@@ -429,7 +429,7 @@ class Surveys with ChangeNotifier {
       }
     } catch (error) {
       // You might want to handle different error types differently
-      if (error is SocketException) {
+      if (isNetworkError(error)) {
         throw Exception('No Internet connection');
       } else if (error is FormatException) {
         throw Exception('Bad response format');

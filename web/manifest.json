@@ -4,7 +4,7 @@
     "start_url": ".",
     "display": "standalone",
     "background_color": "#ffffff",
-    "theme_color": "#0175C2",
+    "theme_color": "#FF0037",
     "description": "Charms app",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,

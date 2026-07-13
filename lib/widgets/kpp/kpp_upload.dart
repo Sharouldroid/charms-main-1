@@ -1,9 +1,7 @@
-import 'dart:io';
-
 import 'package:charms/providers/events_kpp.dart';
+import 'package:charms/utils/download_bytes.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 
@@ -30,7 +28,7 @@ class _KPPUploadState extends State<KPPUpload> {
   String? fileUrl;
 
   void _pickFile() async {
-    final result = await FilePicker.platform.pickFiles();
+    final result = await FilePicker.platform.pickFiles(withData: true);
 
     if (result != null && result.files.isNotEmpty) {
       setState(() {
@@ -62,9 +60,9 @@ class _KPPUploadState extends State<KPPUpload> {
         Uri.parse('${widget.hostname}$urlsegment'),
       );
 
-      request.files.add(await http.MultipartFile.fromPath(
+      request.files.add(http.MultipartFile.fromBytes(
         'file',
-        _selectedFile!.path!,
+        _selectedFile!.bytes!,
         filename: _filename,
       ));
 
@@ -87,23 +85,12 @@ class _KPPUploadState extends State<KPPUpload> {
     }
   }
 
-  Future<String> downloadPdf(String url, String filename) async {
-    try {
-      // Get the application's documents directory
-      final directory = await getApplicationDocumentsDirectory();
-      final filePath = '${directory.path}/$filename';
-
-      // Download the file
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        final file = File(filePath);
-        await file.writeAsBytes(response.bodyBytes);
-        return filePath; // Return the path of the downloaded file
-      } else {
-        throw Exception('Failed to download file');
-      }
-    } catch (e) {
-      throw Exception('Error downloading file: $e');
+  Future<void> downloadPdf(String url, String filename) async {
+    final response = await http.get(Uri.parse(url));
+    if (response.statusCode == 200) {
+      await downloadBytes(bytes: response.bodyBytes, fileName: filename);
+    } else {
+      throw Exception('Failed to download file');
     }
   }
 
@@ -157,13 +144,12 @@ class _KPPUploadState extends State<KPPUpload> {
                               child: ElevatedButton(
                                 onPressed: () async {
                                   try {
-                                    final filePath = await downloadPdf(
+                                    await downloadPdf(
                                         '$fileUrl${eventData.kppdata[i].filename}',
                                         eventData.kppdata[i].filename);
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content:
-                                            Text('Downloaded to: $filePath'),
+                                      const SnackBar(
+                                        content: Text('Downloaded'),
                                       ),
                                     );
                                   } catch (e) {

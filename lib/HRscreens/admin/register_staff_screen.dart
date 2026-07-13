@@ -1,7 +1,5 @@
-import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -106,7 +104,7 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
       imageQuality: 70,
     );
     if (picked != null) {
-      final bytes = kIsWeb ? await picked.readAsBytes() : null;
+      final bytes = await picked.readAsBytes();
       setState(() {
         _profileImage = picked;
         _profileImageBytes = bytes;
@@ -292,10 +290,7 @@ class _RegisterStaffFormState extends State<RegisterStaffForm> {
                           radius: 60,
                           backgroundColor: Colors.blue.shade50,
                           backgroundImage: _profileImage != null
-                              ? (kIsWeb
-                                  ? MemoryImage(_profileImageBytes!)
-                                      as ImageProvider
-                                  : FileImage(File(_profileImage!.path)))
+                              ? MemoryImage(_profileImageBytes!)
                               : null,
                           child: _profileImage == null
                               ? Icon(Icons.person_rounded,

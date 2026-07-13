@@ -1,10 +1,11 @@
 import 'dart:convert';
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:charms/utils/download_bytes.dart';
 import 'package:charms/utils/responsive_helper.dart';
 
 class IncidentReportingPage extends StatefulWidget {
@@ -26,7 +27,8 @@ class _IncidentReportingPageState extends State<IncidentReportingPage> {
 
   String _category = 'Facility Safety';
   String _severity = 'Low';
-  File? _image;
+  XFile? _image;
+  Uint8List? _imageBytes;
   bool _isLoading = false;
   String? _imageUploadTime;
 
@@ -93,8 +95,10 @@ class _IncidentReportingPageState extends State<IncidentReportingPage> {
     final pickedFile =
         await _picker.pickImage(source: source, imageQuality: 85);
     if (pickedFile != null) {
+      final bytes = await pickedFile.readAsBytes();
       setState(() {
-        _image = File(pickedFile.path);
+        _image = pickedFile;
+        _imageBytes = bytes;
         _imageUploadTime = DateFormat('yyyy-MM-dd HH:mm:ss')
             .format(DateTime.now());
       });
@@ -145,8 +149,8 @@ class _IncidentReportingPageState extends State<IncidentReportingPage> {
 
     if (_image != null) {
       request.fields['photo_uploaded_at'] = _imageUploadTime ?? '';
-      request.files.add(
-          await http.MultipartFile.fromPath('photo', _image!.path));
+      request.files.add(http.MultipartFile.fromBytes(
+          'photo', _imageBytes!, filename: _image!.name));
     }
 
     try {
@@ -430,13 +434,10 @@ class _IncidentReportingPageState extends State<IncidentReportingPage> {
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
-        final dir = Directory('/storage/emulated/0/Download');
-        if (!await dir.exists()) await dir.create(recursive: true);
-        final filePath =
-            '${dir.path}/incident_report_${DateTime.now().millisecondsSinceEpoch}.html';
-        final file = File(filePath);
-        await file.writeAsBytes(response.bodyBytes);
-        _showSnack('✅ HTML Report saved: $filePath', Colors.green);
+        final fileName =
+            'incident_report_${DateTime.now().millisecondsSinceEpoch}.html';
+        await downloadBytes(bytes: response.bodyBytes, fileName: fileName);
+        _showSnack('✅ HTML Report downloaded', Colors.green);
       }
     } catch (e) {
       _showSnack('❌ Error: $e', Colors.red);
@@ -600,7 +601,7 @@ class _IncidentReportingPageState extends State<IncidentReportingPage> {
           if (_image != null)
             ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.file(_image!,
+                child: Image.memory(_imageBytes!,
                     height: 200,
                     width: double.infinity,
                     fit: BoxFit.cover)),

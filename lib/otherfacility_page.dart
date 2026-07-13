@@ -1,7 +1,7 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:charms/utils/download_bytes.dart';
 import 'package:charms/utils/responsive_helper.dart';
 
 class Facility {
@@ -146,14 +146,11 @@ class _OtherFacilityPageState extends State<OtherFacilityPage> {
       final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
-        final dir = Directory('/storage/emulated/0/Download');
-        final filePath =
-            '${dir.path}/facility_report_${DateTime.now().millisecondsSinceEpoch}.html';
+        final fileName =
+            'facility_report_${DateTime.now().millisecondsSinceEpoch}.html';
+        await downloadBytes(bytes: response.bodyBytes, fileName: fileName);
 
-        final file = File(filePath);
-        await file.writeAsBytes(response.bodyBytes);
-
-        _showSnack('✅ Report saved to Downloads: $filePath');
+        _showSnack('✅ Report downloaded');
       } else {
         _showSnack('❌ Failed: ${response.body}');
       }

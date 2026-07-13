@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:charms/models/event.dart';
 import 'package:charms/providers/boats.dart';
 import 'package:charms/providers/events.dart';
@@ -5,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'dart:io';
 
 class History extends StatefulWidget {
   final String hostname;
@@ -23,7 +24,6 @@ class History extends StatefulWidget {
 
 class _HistoryState extends State<History> {
   final ImagePicker _picker = ImagePicker();
-  File? _paymentProof;
   bool _isUploading = false;
 
   @override
@@ -205,7 +205,8 @@ class _HistoryState extends State<History> {
   Future<void> _showPaymentDialog(
       BuildContext context, Event event, int? tripId) async {
     int? selectedStatus;
-    File? paymentProof;
+    XFile? paymentProof;
+    Uint8List? paymentProofBytes;
 
     await showDialog(
       context: context,
@@ -237,14 +238,18 @@ class _HistoryState extends State<History> {
                   const SizedBox(height: 16),
                   const Text('Resit Pembayaran:'),
                   const SizedBox(height: 8),
-                  if (paymentProof != null)
-                    Image.file(paymentProof!, height: 100),
+                  if (paymentProofBytes != null)
+                    Image.memory(paymentProofBytes!, height: 100),
                   ElevatedButton(
                     onPressed: () async {
                       final pickedFile =
                           await _picker.pickImage(source: ImageSource.gallery);
                       if (pickedFile != null) {
-                        setState(() => paymentProof = File(pickedFile.path));
+                        final bytes = await pickedFile.readAsBytes();
+                        setState(() {
+                          paymentProof = pickedFile;
+                          paymentProofBytes = bytes;
+                        });
                       }
                     },
                     child: const Text('Muat Naik Resit'),
@@ -275,7 +280,7 @@ class _HistoryState extends State<History> {
   }
 
   Future<void> _processPayment(
-      BuildContext context, int tripId, int? status, File? proofFile) async {
+      BuildContext context, int tripId, int? status, XFile? proofFile) async {
     try {
       setState(() => _isUploading = true);
 
