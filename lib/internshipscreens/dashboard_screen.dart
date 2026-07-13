@@ -1470,7 +1470,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ]),
                     const SizedBox(height: 12),
-                    if (hasLink)
+                    if (hasLink && session.isCompleted)
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: null,
+                          icon: const Icon(Icons.check_circle_outline, size: 16),
+                          label: const Text('Interview Completed'),
+                          style: ElevatedButton.styleFrom(
+                            disabledBackgroundColor: Colors.grey.shade300,
+                            disabledForegroundColor: Colors.grey.shade600,
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      )
+                    else if (hasLink)
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(

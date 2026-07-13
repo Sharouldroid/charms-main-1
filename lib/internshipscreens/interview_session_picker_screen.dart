@@ -210,7 +210,23 @@ class _InterviewSessionPickerScreenState
                       style: const TextStyle(fontSize: 14)),
                 ]),
                 const SizedBox(height: 16),
-                if (hasLink)
+                if (hasLink && session.isCompleted)
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: null,
+                      icon: const Icon(Icons.check_circle_outline),
+                      label: const Text('Interview Completed'),
+                      style: ElevatedButton.styleFrom(
+                        disabledBackgroundColor: Colors.grey.shade300,
+                        disabledForegroundColor: Colors.grey.shade600,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  )
+                else if (hasLink)
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
