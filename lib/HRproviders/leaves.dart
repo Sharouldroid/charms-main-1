@@ -61,6 +61,27 @@ class Leaves with ChangeNotifier {
     }
   }
 
+  Future<bool> markLeaveViewed(int leaveId) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$_hostname/leave/$leaveId/mark-viewed'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (response.statusCode == 200) {
+        final index = _leaves.indexWhere((l) => l.leaveId == leaveId);
+        if (index != -1) {
+          _leaves[index] = _leaves[index].copyWith(staffViewedAt: DateTime.now());
+          notifyListeners();
+        }
+        return true;
+      }
+      return false;
+    } catch (error) {
+      debugPrint('Error marking leave as viewed: $error');
+      return false;
+    }
+  }
+
   Future<void> getLeaveByStaffId({int? staffId}) async {
     try {
       final url = staffId != null 

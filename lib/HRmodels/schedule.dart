@@ -22,6 +22,7 @@ class Schedule {
 
   final int acceptanceStatus; // 0=Pending, 1=Accepted, 2=Rejected
   final String? staffNote;
+  final DateTime? staffViewedAt;
 
   Schedule({
     required this.schedId,
@@ -39,6 +40,7 @@ class Schedule {
     this.acceptanceStatus = 0,
     this.staffNote,
     this.hrDismissed = false,
+    this.staffViewedAt,
   });
 
   factory Schedule.fromJson(Map<String, dynamic> json) {
@@ -67,6 +69,9 @@ class Schedule {
         acceptanceStatus: int.tryParse(json['acceptance_status']?.toString() ?? '') ?? 0,
       staffNote: json['staff_note'],
        hrDismissed:      (json['hr_dismissed'] as bool?) ?? false,
+       staffViewedAt: json['staff_viewed_at'] != null
+        ? DateTime.tryParse(json['staff_viewed_at'])
+        : null,
   );
 }
 
@@ -87,6 +92,7 @@ class Schedule {
        'acceptance_status': acceptanceStatus,
       'staff_note':      staffNote,
       'hr_dismissed': hrDismissed,
+      'staff_viewed_at': staffViewedAt?.toIso8601String(),
     };
   }
 }

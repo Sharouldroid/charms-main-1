@@ -72,10 +72,14 @@ class _InternshipNotificationScreenState
 
   Future<void> _markAsRead(int notificationId) async {
     try {
-      await http.put(
+      final response = await http.put(
         Uri.parse('${AppConfig.hostname}/api/internship/notifications/$notificationId/read'),
         headers: {'Content-Type': 'application/json'},
       );
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        debugPrint('❌ Mark as read failed: ${response.statusCode}');
+        return;
+      }
       setState(() {
         final index = _notifications.indexWhere((n) => n['id'] == notificationId);
         if (index != -1) _notifications[index]['is_read'] = 1;
@@ -91,7 +95,17 @@ class _InternshipNotificationScreenState
       final url = widget.isAdmin
           ? '${AppConfig.hostname}/api/internship/notifications/admin/read-all'
           : '${AppConfig.hostname}/api/internship/notifications/user/${widget.userId}/read-all';
-      await http.put(Uri.parse(url), headers: {'Content-Type': 'application/json'});
+      final response = await http.put(Uri.parse(url), headers: {'Content-Type': 'application/json'});
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        debugPrint('❌ Mark all as read failed: ${response.statusCode}');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Failed to mark notifications as read. Try again.'),
+            backgroundColor: Colors.redAccent,
+          ));
+        }
+        return;
+      }
       setState(() { for (final n in _notifications) n['is_read'] = 1; });
       if (mounted) {
         context.read<InternshipNotificationProvider>().clearCount();

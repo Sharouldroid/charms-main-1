@@ -45,6 +45,27 @@ class Claims with ChangeNotifier {
     }
   }
 
+  Future<bool> markClaimViewed(int claimId) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$_hostname/claim/$claimId/mark-viewed'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (response.statusCode == 200) {
+        final index = _claims.indexWhere((c) => c.claimId == claimId);
+        if (index != -1) {
+          _claims[index] = _claims[index].copyWith(staffViewedAt: DateTime.now());
+          notifyListeners();
+        }
+        return true;
+      }
+      return false;
+    } catch (error) {
+      debugPrint('Error marking claim as viewed: $error');
+      return false;
+    }
+  }
+
   /// 3) CREATE CLAIM (MULTIPART)
   /// - Supports image/pdf upload
   /// - Works for Flutter Web/PWA and mobile

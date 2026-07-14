@@ -17,7 +17,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:charms/utils/logout_helper.dart';
 import 'package:charms/HRproviders/schedule_exchanges.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // ✅ NEW
 
 class PayrollDashboardScreen extends StatefulWidget {
   final String username;
@@ -125,21 +124,6 @@ class _PayrollDashboardScreenState extends State<PayrollDashboardScreen> {
     }
   }
 
-  // ✅ Same helper as other staff screens
-  Future<Map<String, Set<String>>> _loadDismissedIds(int staffId) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      return {
-        'leaves':    (prefs.getStringList('dismissed_leaves_$staffId')    ?? []).toSet(),
-        'claims':    (prefs.getStringList('dismissed_claims_$staffId')    ?? []).toSet(),
-        'schedules': (prefs.getStringList('dismissed_schedules_$staffId') ?? []).toSet(),
-        'exchanges': (prefs.getStringList('dismissed_exchanges_$staffId') ?? []).toSet(),
-      };
-    } catch (_) {
-      return {'leaves': {}, 'claims': {}, 'schedules': {}, 'exchanges': {}};
-    }
-  }
-
   void _viewPayslip(String monthName) {
     try {
       final monthIndex = months.indexOf(monthName) + 1;
@@ -218,65 +202,48 @@ class _PayrollDashboardScreenState extends State<PayrollDashboardScreen> {
         automaticallyImplyLeading: false,
         roundedBottom: false,
         actions: [
-          // ✅ FIXED bell badge — reads dismissed IDs from SharedPreferences
+          // ✅ FIXED bell badge — reads staffViewedAt, same as staff_dashboard_screen
           Consumer4<Leaves, Claims, Schedules, ScheduleExchanges>(
             builder: (context, leaves, claims, schedules, exchanges, child) {
               final staffId = _currentStaff?.staffId ?? 0;
 
-              return FutureBuilder<Map<String, Set<String>>>(
-                future: _loadDismissedIds(staffId),
-                builder: (context, snapshot) {
-                  final dismissed = snapshot.data ?? {
-                    'leaves':    <String>{},
-                    'claims':    <String>{},
-                    'schedules': <String>{},
-                    'exchanges': <String>{},
-                  };
-                  final dl = dismissed['leaves']!;
-                  final dc = dismissed['claims']!;
-                  final ds = dismissed['schedules']!;
-                  final de = dismissed['exchanges']!;
+              final totalNotifications =
+                  leaves.leaves.where((l) =>
+                      l.staffId == staffId &&
+                      l.status != 'Pending' &&
+                      l.staffViewedAt == null).length +
+                  claims.claims.where((c) =>
+                      c.staffId == staffId &&
+                      c.status != 'Pending' &&
+                      c.staffViewedAt == null).length +
+                  schedules.schedules.where((s) =>
+                      s.staffId == staffId &&
+                      s.staffViewedAt == null).length +
+                  exchanges.exchanges.where((e) =>
+                      e.targetId == staffId &&
+                      e.status == 0 &&
+                      e.staffViewedAt == null).length +
+                  exchanges.exchanges.where((e) =>
+                      e.requesterId == staffId &&
+                      e.status != 0 &&
+                      e.staffViewedAt == null).length;
 
-                  final totalNotifications =
-                      leaves.leaves.where((l) =>
-                          l.staffId == staffId &&
-                          l.status != 'Pending' &&
-                          !dl.contains(l.leaveId.toString())).length +
-                      claims.claims.where((c) =>
-                          c.staffId == staffId &&
-                          c.status != 'Pending' &&
-                          !dc.contains(c.claimId.toString())).length +
-                      schedules.schedules.where((s) =>
-                          s.staffId == staffId &&
-                          !ds.contains(s.schedId.toString())).length +
-                      exchanges.exchanges.where((e) =>
-                          e.targetId == staffId &&
-                          e.status == 0 &&
-                          !de.contains(e.exchangeId.toString())).length +
-                      exchanges.exchanges.where((e) =>
-                          e.requesterId == staffId &&
-                          e.status != 0 &&
-                          !de.contains(e.exchangeId.toString())).length;
-
-                  return IconButton(
-                    icon: totalNotifications > 0
-                        ? Badge(
-                            label: Text(totalNotifications.toString()),
-                            backgroundColor: Colors.redAccent,
-                            child: const Icon(
-                                Icons.notifications_active_rounded))
-                        : const Icon(Icons.notifications_none_rounded),
-                    onPressed: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) =>
-                                StaffNotificationScreen(staffId: staffId)),
-                      );
-                      // ✅ Force FutureBuilder to re-read SharedPreferences
-                      if (mounted) setState(() {});
-                    },
+              return IconButton(
+                icon: totalNotifications > 0
+                    ? Badge(
+                        label: Text(totalNotifications.toString()),
+                        backgroundColor: Colors.redAccent,
+                        child: const Icon(
+                            Icons.notifications_active_rounded))
+                    : const Icon(Icons.notifications_none_rounded),
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) =>
+                            StaffNotificationScreen(staffId: staffId)),
                   );
+                  if (mounted) setState(() {});
                 },
               );
             },

@@ -16,6 +16,7 @@ class Leave {
   final DateTime createdAt;
   final DateTime updatedAt;
   final String? rejectionReason;
+  final DateTime? staffViewedAt;
 
   Leave({
     required this.leaveId,
@@ -33,6 +34,7 @@ class Leave {
     required this.status,
     required this.createdAt,
     required this.updatedAt,
+    this.staffViewedAt,
   });
 
   factory Leave.fromJson(Map<String, dynamic> json) {
@@ -79,6 +81,9 @@ class Leave {
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
       rejectionReason: json['rejection_reason'],
+      staffViewedAt: json['staff_viewed_at'] != null
+          ? DateTime.tryParse(json['staff_viewed_at'])
+          : null,
     );
   }
 
@@ -97,6 +102,45 @@ class Leave {
       'rejection_reason': rejectionReason,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
+      'staff_viewed_at': staffViewedAt?.toIso8601String(),
     };
+  }
+
+  Leave copyWith({
+    int? leaveId,
+    int? staffId,
+    String? leaveType,
+    DateTime? startDate,
+    DateTime? endDate,
+    String? reason,
+    String? proofFileName,
+    String? proofFileType,
+    List<int>? proofFile,
+    String? proofFilePath,
+    String? proofFileUrl,
+    String? status,
+    String? rejectionReason,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    DateTime? staffViewedAt,
+  }) {
+    return Leave(
+      leaveId: leaveId ?? this.leaveId,
+      staffId: staffId ?? this.staffId,
+      leaveType: leaveType ?? this.leaveType,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+      reason: reason ?? this.reason,
+      proofFileName: proofFileName ?? this.proofFileName,
+      proofFileType: proofFileType ?? this.proofFileType,
+      proofFile: proofFile ?? this.proofFile,
+      proofFilePath: proofFilePath ?? this.proofFilePath,
+      proofFileUrl: proofFileUrl ?? this.proofFileUrl,
+      status: status ?? this.status,
+      rejectionReason: rejectionReason ?? this.rejectionReason,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      staffViewedAt: staffViewedAt ?? this.staffViewedAt,
+    );
   }
 }

@@ -11,6 +11,7 @@ class ScheduleExchange {
   final String? targetNote;
   final String? hrNote;
   final DateTime? createdAt;
+  final DateTime? staffViewedAt;
 
   // Populated from API joins
   final String? requesterName;
@@ -45,7 +46,7 @@ class ScheduleExchange {
     this.targetDepartment,
     this.requesterWorkLocation,
     this.targetWorkLocation,
-
+    this.staffViewedAt,
   });
 
   factory ScheduleExchange.fromJson(Map<String, dynamic> json) {
@@ -70,6 +71,9 @@ class ScheduleExchange {
       targetDepartment:    json['target_department'],
       requesterWorkLocation: json['requester_work_location']?.toString(),
       targetWorkLocation:    json['target_work_location']?.toString(),
+      staffViewedAt: json['staff_viewed_at'] != null
+          ? DateTime.tryParse(json['staff_viewed_at'])
+          : null,
     );
   }
 

@@ -19,6 +19,7 @@ class Claim {
   final String? rejectionReason;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final DateTime? staffViewedAt;   
 
   Claim({
     required this.claimId,
@@ -36,6 +37,7 @@ class Claim {
     this.rejectionReason,
     required this.createdAt,
     required this.updatedAt,
+    this.staffViewedAt,
   });
 
   factory Claim.fromJson(Map<String, dynamic> json) {
@@ -81,6 +83,9 @@ class Claim {
       rejectionReason: json['rejection_reason'],
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
+      staffViewedAt: json['staff_viewed_at'] != null
+          ? DateTime.tryParse(json['staff_viewed_at'])
+          : null,
     );
   }
 
@@ -99,6 +104,7 @@ class Claim {
       'rejection_reason': rejectionReason,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
+      'staff_viewed_at': staffViewedAt?.toIso8601String(),
     };
   }
 
@@ -118,6 +124,7 @@ class Claim {
     String? proofFileUrl,
     DateTime? createdAt,
     DateTime? updatedAt,
+    DateTime? staffViewedAt,
   }) {
     return Claim(
       claimId: claimId ?? this.claimId,
@@ -135,6 +142,7 @@ class Claim {
       rejectionReason: rejectionReason ?? this.rejectionReason,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      staffViewedAt: staffViewedAt ?? this.staffViewedAt,
     );
   }
 }

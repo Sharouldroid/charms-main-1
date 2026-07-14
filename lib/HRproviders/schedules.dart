@@ -314,4 +314,41 @@ class Schedules with ChangeNotifier {
       rethrow;
     }
   }
+
+  Future<bool> markScheduleViewed(int schedId) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$_hostname/staff-schedule/$schedId/mark-viewed'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (response.statusCode == 200) {
+        final index = _schedules.indexWhere((s) => s.schedId == schedId);
+        if (index != -1) {
+          final old = _schedules[index];
+          _schedules[index] = Schedule(
+            schedId:          old.schedId,
+            staffId:          old.staffId,
+            workDate:         old.workDate,
+            workLocation:     old.workLocation,
+            staffType:        old.staffType,
+            internSlot:       old.internSlot,
+            workStartTime:    old.workStartTime,
+            workEndTime:      old.workEndTime,
+            breakStartTime:   old.breakStartTime,
+            breakEndTime:     old.breakEndTime,
+            acceptanceStatus: old.acceptanceStatus,
+            staffNote:        old.staffNote,
+            hrDismissed:      old.hrDismissed,
+            staffViewedAt:    DateTime.now(),
+          );
+          notifyListeners();
+        }
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error marking schedule as viewed: $e');
+      return false;
+    }
+  }
 }

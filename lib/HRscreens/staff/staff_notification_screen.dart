@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:http/http.dart' as http;
 import 'package:charms/HRproviders/leaves.dart';
 import 'package:charms/HRproviders/claims.dart';
 import 'package:charms/HRproviders/schedules.dart';
 import 'package:charms/HRproviders/schedule_exchanges.dart';
+import 'package:charms/HRmodels/leave.dart';
+import 'package:charms/HRmodels/claim.dart';
+import 'package:charms/HRmodels/schedule.dart';
 import 'package:charms/HRmodels/schedule_exchange.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:charms/HRwidgets/staff/hr_staff_theme.dart';
 
 class StaffNotificationScreen extends StatefulWidget {
@@ -26,130 +29,88 @@ class StaffNotificationScreen extends StatefulWidget {
 
 class _StaffNotificationScreenState
     extends State<StaffNotificationScreen> {
-  Set<String> _dismissedLeaves    = {};
-  Set<String> _dismissedClaims    = {};
-  Set<String> _dismissedSchedules = {};
-  Set<String> _dismissedExchanges = {};
-  DateTime?   _lastClearedAt;
+  static const _hostname = 'https://devcms.com.my/charmsAPI/api';
 
-  bool _isLoadingPrefs = true;
+  bool _isClearingAll = false;
 
   final Color staffPrimary    = const Color(0xFF4F46E5);
   final Color staffBg         = const Color(0xFFF8FAFC);
   final Color staffCardBorder = const Color(0xFFE2E8F0);
 
-  String get _leaveKey       => 'dismissed_leaves_${widget.staffId}';
-  String get _claimKey       => 'dismissed_claims_${widget.staffId}';
-  String get _scheduleKey    => 'dismissed_schedules_${widget.staffId}';
-  String get _exchangeKey    => 'dismissed_exchanges_${widget.staffId}';
-  String get _clearedAtKey   => 'notif_cleared_at_${widget.staffId}';
-
   @override
   void initState() {
     super.initState();
-
-    // 🔍 DEBUG: confirm staffId is consistent across logins/sessions
-    debugPrint('🔍 [NotifScreen] initState -> staffId=${widget.staffId} '
-        '(isPartTimer=${widget.isPartTimer})');
-    debugPrint('🔍 [NotifScreen] prefs keys -> '
-        'leave=$_leaveKey | claim=$_claimKey | '
-        'schedule=$_scheduleKey | exchange=$_exchangeKey | '
-        'clearedAt=$_clearedAtKey');
-
-    _loadDismissed();
     Future.microtask(() =>
         Provider.of<ScheduleExchanges>(context, listen: false)
             .fetchExchangesByStaff(widget.staffId));
   }
 
-  Future<void> _loadDismissed() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!mounted) return;
-    final clearedStr = prefs.getString(_clearedAtKey);
-
-    final loadedLeaves    = prefs.getStringList(_leaveKey)    ?? [];
-    final loadedClaims    = prefs.getStringList(_claimKey)    ?? [];
-    final loadedSchedules = prefs.getStringList(_scheduleKey) ?? [];
-    final loadedExchanges = prefs.getStringList(_exchangeKey) ?? [];
-
-    // 🔍 DEBUG: see exactly what was read back from SharedPreferences
-    debugPrint('🔍 [NotifScreen] _loadDismissed -> staffId=${widget.staffId}');
-    debugPrint('🔍 [NotifScreen] loaded dismissedLeaves=$loadedLeaves');
-    debugPrint('🔍 [NotifScreen] loaded dismissedClaims=$loadedClaims');
-    debugPrint('🔍 [NotifScreen] loaded dismissedSchedules=$loadedSchedules');
-    debugPrint('🔍 [NotifScreen] loaded dismissedExchanges=$loadedExchanges');
-    debugPrint('🔍 [NotifScreen] loaded clearedAt(raw)=$clearedStr');
-
-    setState(() {
-      _dismissedLeaves    = loadedLeaves.toSet();
-      _dismissedClaims    = loadedClaims.toSet();
-      _dismissedSchedules = loadedSchedules.toSet();
-      _dismissedExchanges = loadedExchanges.toSet();
-      _lastClearedAt      = clearedStr != null ? DateTime.tryParse(clearedStr) : null;
-      _isLoadingPrefs     = false;
-    });
-
-    // 🔍 DEBUG: confirm parsed clearedAt and final in-memory sets
-    debugPrint('🔍 [NotifScreen] parsed _lastClearedAt=$_lastClearedAt');
-    debugPrint('🔍 [NotifScreen] in-memory dismissedLeaves=$_dismissedLeaves');
+  Future<void> _dismissLeave(Leave leave) async {
+    await Provider.of<Leaves>(context, listen: false)
+        .markLeaveViewed(leave.leaveId);
   }
 
-  Future<void> _saveDismissed() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(_leaveKey,    _dismissedLeaves.toList());
-    await prefs.setStringList(_claimKey,    _dismissedClaims.toList());
-    await prefs.setStringList(_scheduleKey, _dismissedSchedules.toList());
-    await prefs.setStringList(_exchangeKey, _dismissedExchanges.toList());
-    if (_lastClearedAt != null) {
-      await prefs.setString(_clearedAtKey, _lastClearedAt!.toIso8601String());
+  Future<void> _dismissClaim(Claim claim) async {
+    await Provider.of<Claims>(context, listen: false)
+        .markClaimViewed(claim.claimId);
+  }
+
+  Future<void> _dismissSchedule(Schedule schedule) async {
+    await Provider.of<Schedules>(context, listen: false)
+        .markScheduleViewed(schedule.schedId);
+  }
+
+  Future<void> _dismissExchange(ScheduleExchange exchange) async {
+    await Provider.of<ScheduleExchanges>(context, listen: false)
+        .markExchangeViewed(exchange.exchangeId);
+  }
+
+  // Hits the bulk clear-all endpoint, then refetches all four providers
+  // the same way the dashboard already does, so both stay in sync.
+  Future<void> _clearAllOnServer() async {
+    setState(() => _isClearingAll = true);
+    try {
+      final response = await http.post(
+        Uri.parse('$_hostname/staff/notifications/${widget.staffId}/clear-all'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to clear notifications: ${response.body}');
+      }
+
+      if (!mounted) return;
+      await Future.wait([
+        Provider.of<Leaves>(context, listen: false).fetchLeaves(),
+        Provider.of<Claims>(context, listen: false).fetchClaims(),
+        Provider.of<Schedules>(context, listen: false).fetchSchedules(),
+        Provider.of<ScheduleExchanges>(context, listen: false)
+            .fetchExchangesByStaff(widget.staffId),
+      ]);
+    } catch (error) {
+      debugPrint('Error clearing all notifications: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Failed to clear notifications. Try again.'),
+          backgroundColor: Colors.red,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _isClearingAll = false);
     }
-
-    // 🔍 DEBUG: confirm what was just written to disk, and read it back
-    debugPrint('🔍 [NotifScreen] _saveDismissed -> staffId=${widget.staffId}');
-    debugPrint('🔍 [NotifScreen] saved dismissedLeaves=$_dismissedLeaves');
-    debugPrint('🔍 [NotifScreen] saved dismissedClaims=$_dismissedClaims');
-    debugPrint('🔍 [NotifScreen] saved dismissedSchedules=$_dismissedSchedules');
-    debugPrint('🔍 [NotifScreen] saved dismissedExchanges=$_dismissedExchanges');
-    debugPrint('🔍 [NotifScreen] saved _lastClearedAt=$_lastClearedAt');
-
-    // Read-back sanity check (helps catch silent write failures, esp. on web)
-    final verifyLeaves = prefs.getStringList(_leaveKey);
-    debugPrint('🔍 [NotifScreen] verify read-back dismissedLeaves=$verifyLeaves');
   }
 
-  Future<void> _dismissLeave(String id) async {
-    setState(() => _dismissedLeaves.add(id));
-    await _saveDismissed();
-  }
-
-  Future<void> _dismissClaim(String id) async {
-    setState(() => _dismissedClaims.add(id));
-    await _saveDismissed();
-  }
-
-  Future<void> _dismissSchedule(String id) async {
-    setState(() => _dismissedSchedules.add(id));
-    await _saveDismissed();
-  }
-
-  Future<void> _dismissExchange(String id) async {
-    setState(() => _dismissedExchanges.add(id));
-    await _saveDismissed();
+  String _getBranchName(int workLocation) {
+    const branches = {
+      1: 'Chagar Hutang',
+      2: 'Turtle Lab',
+      3: 'UMT',
+    };
+    return branches[workLocation] ?? 'Unknown Location';
   }
 
   void _dismissAll(List leaves, List claims, List schedules,
       List exchanges) {
-    // 🔍 DEBUG: snapshot exactly which IDs are about to be cleared
-    debugPrint('🔍 [NotifScreen] _dismissAll called -> staffId=${widget.staffId}');
-    debugPrint('🔍 [NotifScreen] about to clear leaves='
-        '${leaves.map((l) => l.leaveId).toList()}');
-    debugPrint('🔍 [NotifScreen] about to clear claims='
-        '${claims.map((c) => c.claimId).toList()}');
-    debugPrint('🔍 [NotifScreen] about to clear schedules='
-        '${schedules.map((s) => s.schedId).toList()}');
-    debugPrint('🔍 [NotifScreen] about to clear exchanges='
-        '${exchanges.map((e) => e.exchangeId).toList()}');
-
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -186,28 +147,7 @@ class _StaffNotificationScreenState
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-
-              final now = DateTime.now();
-              // 🔍 DEBUG: confirm the exact timestamp being stored as the cutoff
-              debugPrint('🔍 [NotifScreen] Clear All confirmed -> '
-                  'setting _lastClearedAt=$now');
-
-              setState(() {
-                _lastClearedAt = now;
-                for (final l in leaves)
-                  _dismissedLeaves.add(l.leaveId.toString());
-                for (final c in claims)
-                  _dismissedClaims.add(c.claimId.toString());
-                for (final s in schedules)
-                  _dismissedSchedules.add(s.schedId.toString());
-                for (final e in exchanges)
-                  _dismissedExchanges.add(e.exchangeId.toString());
-              });
-              await _saveDismissed();
-
-              debugPrint('🔍 [NotifScreen] Clear All -> save complete. '
-                  'Re-open the app/screen now and check the '
-                  '_loadDismissed logs above to confirm persistence.');
+              await _clearAllOnServer();
             },
             child: const Text('Clear All',
                 style: TextStyle(
@@ -216,15 +156,6 @@ class _StaffNotificationScreenState
         ],
       ),
     );
-  }
-
-  String _getBranchName(int workLocation) {
-    const branches = {
-      1: 'Chagar Hutang',
-      2: 'Turtle Lab',
-      3: 'UMT',
-    };
-    return branches[workLocation] ?? 'Unknown Location';
   }
 
   Widget _buildDismissBackground() => Container(
@@ -531,30 +462,19 @@ class _StaffNotificationScreenState
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoadingPrefs) {
-      return Scaffold(
-        backgroundColor: staffBg,
-        body: Center(
-            child: CircularProgressIndicator(color: staffPrimary)),
-      );
-    }
-
     return Scaffold(
       backgroundColor: staffBg,
       appBar: const StaffAppBar(title: 'NOTIFICATIONS', roundedBottom: false),
       body: Consumer4<Leaves, Claims, Schedules, ScheduleExchanges>(
         builder: (context, leavesProvider, claimsProvider,
             schedulesProvider, exchangesProvider, child) {
-          final clearedAt = _lastClearedAt;
-
           final myLeaves = widget.isPartTimer
               ? []
               : leavesProvider.leaves
                   .where((l) =>
                       l.staffId == widget.staffId &&
                       l.status != 'Pending' &&
-                      !_dismissedLeaves.contains(l.leaveId.toString()) &&
-                      (clearedAt == null || l.updatedAt.isAfter(clearedAt)))
+                      l.staffViewedAt == null)
                   .toList();
 
           final myClaims = widget.isPartTimer
@@ -563,8 +483,7 @@ class _StaffNotificationScreenState
                   .where((c) =>
                       c.staffId == widget.staffId &&
                       c.status != 'Pending' &&
-                      !_dismissedClaims.contains(c.claimId.toString()) &&
-                      (clearedAt == null || c.updatedAt.isAfter(clearedAt)))
+                      c.staffViewedAt == null)
                   .toList();
 
           final mySchedules = widget.isPartTimer
@@ -572,24 +491,21 @@ class _StaffNotificationScreenState
               : schedulesProvider.schedules
                   .where((s) =>
                       s.staffId == widget.staffId &&
-                      !_dismissedSchedules
-                          .contains(s.schedId.toString()))
+                      s.staffViewedAt == null)
                   .toList();
 
           final incomingExchanges = exchangesProvider.exchanges
               .where((e) =>
                   e.targetId == widget.staffId &&
                   e.status == 0 &&
-                  !_dismissedExchanges
-                      .contains(e.exchangeId.toString()))
+                  e.staffViewedAt == null)
               .toList();
 
           final myExchanges = exchangesProvider.exchanges
               .where((e) =>
                   e.requesterId == widget.staffId &&
                   e.status != 0 &&
-                  !_dismissedExchanges
-                      .contains(e.exchangeId.toString()))
+                  e.staffViewedAt == null)
               .toList();
 
           final hasAny = myLeaves.isNotEmpty ||
@@ -603,20 +519,6 @@ class _StaffNotificationScreenState
               mySchedules.length +
               incomingExchanges.length +
               myExchanges.length;
-
-          // 🔍 DEBUG: per-build snapshot — compare this across app restarts
-          debugPrint('🔍 [NotifScreen] build() -> staffId=${widget.staffId} '
-              'clearedAt=$clearedAt totalCount=$totalCount '
-              '(leaves=${myLeaves.length}, claims=${myClaims.length}, '
-              'schedules=${mySchedules.length}, '
-              'incomingExch=${incomingExchanges.length}, '
-              'myExch=${myExchanges.length})');
-          if (mySchedules.isNotEmpty) {
-            debugPrint('🔍 [NotifScreen] mySchedules ids='
-                '${mySchedules.map((s) => s.schedId).toList()} '
-                '(NOTE: schedules are not filtered by clearedAt time, '
-                'only by _dismissedSchedules)');
-          }
 
           return Column(children: [
             // ── Header banner ───────────────────────────────────── (full-bleed, not width-capped)
@@ -651,14 +553,16 @@ class _StaffNotificationScreenState
                   ]),
                   if (hasAny)
                     GestureDetector(
-                      onTap: () => _dismissAll(
-                          myLeaves,
-                          myClaims,
-                          mySchedules,
-                          [
-                            ...incomingExchanges,
-                            ...myExchanges
-                          ]),
+                      onTap: _isClearingAll
+                          ? null
+                          : () => _dismissAll(
+                              myLeaves,
+                              myClaims,
+                              mySchedules,
+                              [
+                                ...incomingExchanges,
+                                ...myExchanges
+                              ]),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 8),
@@ -670,16 +574,24 @@ class _StaffNotificationScreenState
                               color:
                                   Colors.white.withOpacity(0.3)),
                         ),
-                        child: const Row(children: [
-                          Icon(Icons.delete_sweep_rounded,
-                              size: 16, color: Colors.white),
-                          SizedBox(width: 6),
-                          Text('Clear all',
-                              style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white)),
-                        ]),
+                        child: _isClearingAll
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white),
+                              )
+                            : const Row(children: [
+                                Icon(Icons.delete_sweep_rounded,
+                                    size: 16, color: Colors.white),
+                                SizedBox(width: 6),
+                                Text('Clear all',
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white)),
+                              ]),
                       ),
                     ),
                 ],
@@ -724,8 +636,8 @@ class _StaffNotificationScreenState
                                     DismissDirection.endToStart,
                                 background:
                                     _buildDismissBackground(),
-                                onDismissed: (_) => _dismissLeave(
-                                    leave.leaveId.toString()),
+                                onDismissed: (_) =>
+                                    _dismissLeave(leave),
                                 child: _buildNotifCard(
                                   leading: _buildStatusIcon(
                                       leave.status),
@@ -736,8 +648,8 @@ class _StaffNotificationScreenState
                                       leave.status == 'Approved'
                                           ? Colors.green
                                           : Colors.red,
-                                  onDismiss: () => _dismissLeave(
-                                      leave.leaveId.toString()),
+                                  onDismiss: () =>
+                                      _dismissLeave(leave),
                                 ),
                               )),
                           const SizedBox(height: 20),
@@ -756,8 +668,8 @@ class _StaffNotificationScreenState
                                     DismissDirection.endToStart,
                                 background:
                                     _buildDismissBackground(),
-                                onDismissed: (_) => _dismissClaim(
-                                    claim.claimId.toString()),
+                                onDismissed: (_) =>
+                                    _dismissClaim(claim),
                                 child: _buildNotifCard(
                                   leading: _buildStatusIcon(
                                       claim.status),
@@ -768,8 +680,8 @@ class _StaffNotificationScreenState
                                       claim.status == 'Approved'
                                           ? Colors.green
                                           : Colors.red,
-                                  onDismiss: () => _dismissClaim(
-                                      claim.claimId.toString()),
+                                  onDismiss: () =>
+                                      _dismissClaim(claim),
                                 ),
                               )),
                           const SizedBox(height: 20),
@@ -790,9 +702,7 @@ class _StaffNotificationScreenState
                                     background:
                                         _buildDismissBackground(),
                                     onDismissed: (_) =>
-                                        _dismissSchedule(schedule
-                                            .schedId
-                                            .toString()),
+                                        _dismissSchedule(schedule),
                                     child: _buildNotifCard(
                                       leading: Container(
                                         padding:
@@ -816,9 +726,7 @@ class _StaffNotificationScreenState
                                           'Time: ${schedule.workStartTime} – ${schedule.workEndTime}',
                                       accentColor: staffPrimary,
                                       onDismiss: () =>
-                                          _dismissSchedule(schedule
-                                              .schedId
-                                              .toString()),
+                                          _dismissSchedule(schedule),
                                     ),
                                   )),
                           const SizedBox(height: 20),
@@ -839,9 +747,7 @@ class _StaffNotificationScreenState
                                     background:
                                         _buildDismissBackground(),
                                     onDismissed: (_) =>
-                                        _dismissExchange(exchange
-                                            .exchangeId
-                                            .toString()),
+                                        _dismissExchange(exchange),
                                     child:
                                         _buildExchangeIncomingCard(
                                             exchange),
@@ -864,9 +770,7 @@ class _StaffNotificationScreenState
                                     background:
                                         _buildDismissBackground(),
                                     onDismissed: (_) =>
-                                        _dismissExchange(exchange
-                                            .exchangeId
-                                            .toString()),
+                                        _dismissExchange(exchange),
                                     child: _buildNotifCard(
                                       leading: Container(
                                         padding:
@@ -894,9 +798,7 @@ class _StaffNotificationScreenState
                                       accentColor:
                                           exchange.statusColor,
                                       onDismiss: () =>
-                                          _dismissExchange(exchange
-                                              .exchangeId
-                                              .toString()),
+                                          _dismissExchange(exchange),
                                     ),
                                   )),
                           const SizedBox(height: 20),

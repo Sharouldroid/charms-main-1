@@ -25,7 +25,7 @@ import 'package:charms/constants/user_roles.dart';
 import 'package:charms/utils/logout_helper.dart';
 import 'package:charms/HRproviders/schedule_exchanges.dart';
 import 'package:charms/HRscreens/staff/staff_attendance_history_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
 
 class StaffDashboardScreen extends StatefulWidget {
   final String username;
@@ -357,27 +357,6 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen>
     }
   }
 
-  // ✅ NEW — reads dismissed IDs from SharedPreferences
-  // Same keys as StaffNotificationScreen so they stay in sync
-  Future<Map<String, Set<String>>> _loadDismissedIds(int staffId) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      return {
-        'leaves':    (prefs.getStringList('dismissed_leaves_$staffId')    ?? []).toSet(),
-        'claims':    (prefs.getStringList('dismissed_claims_$staffId')    ?? []).toSet(),
-        'schedules': (prefs.getStringList('dismissed_schedules_$staffId') ?? []).toSet(),
-        'exchanges': (prefs.getStringList('dismissed_exchanges_$staffId') ?? []).toSet(),
-      };
-    } catch (_) {
-      return {
-        'leaves':    {},
-        'claims':    {},
-        'schedules': {},
-        'exchanges': {},
-      };
-    }
-  }
-
   void _onItemTapped(int index) {
     if (index == _selectedIndex) return;
     setState(() => _selectedIndex = index);
@@ -462,77 +441,49 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen>
                 return const Icon(Icons.notifications_none_rounded);
               }
 
-              return FutureBuilder<Map<String, Set<String>>>(
-                future: _loadDismissedIds(staffId),
-                builder: (context, snapshot) {
-                  final dismissed = snapshot.data ?? {
-                    'leaves':    <String>{},
-                    'claims':    <String>{},
-                    'schedules': <String>{},
-                    'exchanges': <String>{},
-                  };
+              final totalNotifications =
+                  leaves.leaves.where((l) =>
+                      l.staffId == staffId &&
+                      l.status != 'Pending' &&
+                      l.staffViewedAt == null).length +
+                  claims.claims.where((c) =>
+                      c.staffId == staffId &&
+                      c.status != 'Pending' &&
+                      c.staffViewedAt == null).length +
+                  schedules.schedules.where((s) =>
+                      s.staffId == staffId &&
+                      s.staffViewedAt == null).length +
+                  exchanges.exchanges.where((e) =>
+                      e.targetId == staffId &&
+                      e.status == 0 &&
+                      e.staffViewedAt == null).length +
+                  exchanges.exchanges.where((e) =>
+                      e.requesterId == staffId &&
+                      e.status != 0 &&
+                      e.staffViewedAt == null).length;
 
-                  final dismissedLeaves    = dismissed['leaves']!;
-                  final dismissedClaims    = dismissed['claims']!;
-                  final dismissedSchedules = dismissed['schedules']!;
-                  final dismissedExchanges = dismissed['exchanges']!;
-
-                  final totalNotifications =
-                      leaves.leaves.where((l) =>
-                          l.staffId == staffId &&
-                          l.status != 'Pending' &&
-                          !dismissedLeaves.contains(
-                              l.leaveId.toString())).length +
-                      claims.claims.where((c) =>
-                          c.staffId == staffId &&
-                          c.status != 'Pending' &&
-                          !dismissedClaims.contains(
-                              c.claimId.toString())).length +
-                      schedules.schedules.where((s) =>
-                          s.staffId == staffId &&
-                          !dismissedSchedules.contains(
-                              s.schedId.toString())).length +
-                      exchanges.exchanges.where((e) =>
-                          e.targetId == staffId &&
-                          e.status == 0 &&
-                          !dismissedExchanges.contains(
-                              e.exchangeId.toString())).length +
-                      exchanges.exchanges.where((e) =>
-                          e.requesterId == staffId &&
-                          e.status != 0 &&
-                          !dismissedExchanges.contains(
-                              e.exchangeId.toString())).length;
-
-                  return IconButton(
-                    icon: totalNotifications > 0
-                        ? Badge(
-                            label: Text(
-                                totalNotifications.toString()),
-                            backgroundColor: Colors.redAccent,
-                            child: const Icon(
-                                Icons.notifications_active_rounded))
-                        : const Icon(
-                            Icons.notifications_none_rounded),
-                    onPressed: () async {
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              StaffNotificationScreen(
-                            staffId:     staffId,
-                            isPartTimer: false,
-                          ),
-                        ),
-                      );
-                      if (result != null &&
-                          result['refreshDashboard'] == true) {
-                        await _loadStaffData();
-                      }
-                      // ✅ Force FutureBuilder to re-read
-                      // SharedPreferences after returning
-                      if (_mounted) setState(() {});
-                    },
+              return IconButton(
+                icon: totalNotifications > 0
+                    ? Badge(
+                        label: Text(totalNotifications.toString()),
+                        backgroundColor: Colors.redAccent,
+                        child: const Icon(
+                            Icons.notifications_active_rounded))
+                    : const Icon(Icons.notifications_none_rounded),
+                onPressed: () async {
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => StaffNotificationScreen(
+                        staffId:     staffId,
+                        isPartTimer: false,
+                      ),
+                    ),
                   );
+                  if (result != null &&
+                      result['refreshDashboard'] == true) {
+                    await _loadStaffData();
+                  }
                 },
               );
             },

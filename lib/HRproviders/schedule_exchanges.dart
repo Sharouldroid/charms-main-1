@@ -53,6 +53,50 @@ class ScheduleExchanges with ChangeNotifier {
     }
   }
 
+  Future<bool> markExchangeViewed(int exchangeId) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$_hostname/schedule-exchange/$exchangeId/mark-viewed'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (response.statusCode == 200) {
+        final index = _exchanges.indexWhere((e) => e.exchangeId == exchangeId);
+        if (index != -1) {
+          final old = _exchanges[index];
+          _exchanges[index] = ScheduleExchange(
+            exchangeId:            old.exchangeId,
+            requesterId:           old.requesterId,
+            targetId:              old.targetId,
+            requesterSched:        old.requesterSched,
+            targetSched:           old.targetSched,
+            status:                old.status,
+            requesterNote:         old.requesterNote,
+            targetNote:            old.targetNote,
+            hrNote:                old.hrNote,
+            createdAt:             old.createdAt,
+            requesterName:         old.requesterName,
+            targetName:            old.targetName,
+            requesterWorkDate:     old.requesterWorkDate,
+            targetWorkDate:        old.targetWorkDate,
+            requesterStartTime:    old.requesterStartTime,
+            targetStartTime:       old.targetStartTime,
+            requesterDepartment:   old.requesterDepartment,
+            targetDepartment:      old.targetDepartment,
+            requesterWorkLocation: old.requesterWorkLocation,
+            targetWorkLocation:    old.targetWorkLocation,
+            staffViewedAt:         DateTime.now(),
+          );
+          notifyListeners();
+        }
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error marking exchange as viewed: $e');
+      return false;
+    }
+  }
+
   // Fetch all pending for HR (notification screen)
   Future<List<ScheduleExchange>> fetchPendingForHR() async {
   try {

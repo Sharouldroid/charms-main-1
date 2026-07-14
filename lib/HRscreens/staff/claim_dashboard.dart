@@ -19,7 +19,6 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:charms/HRproviders/schedule_exchanges.dart';
 import 'package:charms/utils/logout_helper.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class ClaimDashboardScreen extends StatefulWidget {
   final String username;
@@ -90,21 +89,6 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
       context.read<Claims>().getClaimByStaffId(widget.staffId);
 
   Future<void> _logout() async => LogoutHelper.fullLogout(context);
-
-  // ✅ Same helper as staff_dashboard_screen
-  Future<Map<String, Set<String>>> _loadDismissedIds(int staffId) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      return {
-        'leaves':    (prefs.getStringList('dismissed_leaves_$staffId')    ?? []).toSet(),
-        'claims':    (prefs.getStringList('dismissed_claims_$staffId')    ?? []).toSet(),
-        'schedules': (prefs.getStringList('dismissed_schedules_$staffId') ?? []).toSet(),
-        'exchanges': (prefs.getStringList('dismissed_exchanges_$staffId') ?? []).toSet(),
-      };
-    } catch (_) {
-      return {'leaves': {}, 'claims': {}, 'schedules': {}, 'exchanges': {}};
-    }
-  }
 
   List<Claim> _applyDateFilter(List<Claim> claims) {
     if (_fromDate == null && _toDate == null) return claims;
@@ -632,46 +616,32 @@ class _ClaimDashboardScreenState extends State<ClaimDashboardScreen>
         automaticallyImplyLeading: false,
         bottomHeight: 48,
         actions: [
-          // ✅ FIXED bell badge
+          // ✅ FIXED bell badge — reads staffViewedAt, same as staff_dashboard_screen
           Consumer4<Leaves, Claims, Schedules, ScheduleExchanges>(
             builder: (context, leaves, claims, schedules, exchanges, child) {
-              return FutureBuilder<Map<String, Set<String>>>(
-                future: _loadDismissedIds(widget.staffId),
-                builder: (context, snapshot) {
-                  final dismissed = snapshot.data ?? {
-                    'leaves': <String>{}, 'claims': <String>{},
-                    'schedules': <String>{}, 'exchanges': <String>{},
-                  };
-                  final dl = dismissed['leaves']!;
-                  final dc = dismissed['claims']!;
-                  final ds = dismissed['schedules']!;
-                  final de = dismissed['exchanges']!;
+              final total =
+                  leaves.leaves.where((l) => l.staffId == widget.staffId &&
+                      l.status != 'Pending' && l.staffViewedAt == null).length +
+                  claims.claims.where((c) => c.staffId == widget.staffId &&
+                      c.status != 'Pending' && c.staffViewedAt == null).length +
+                  schedules.schedules.where((s) => s.staffId == widget.staffId &&
+                      s.staffViewedAt == null).length +
+                  exchanges.exchanges.where((e) => e.targetId == widget.staffId &&
+                      e.status == 0 && e.staffViewedAt == null).length +
+                  exchanges.exchanges.where((e) => e.requesterId == widget.staffId &&
+                      e.status != 0 && e.staffViewedAt == null).length;
 
-                  final total =
-                      leaves.leaves.where((l) => l.staffId == widget.staffId &&
-                          l.status != 'Pending' && !dl.contains(l.leaveId.toString())).length +
-                      claims.claims.where((c) => c.staffId == widget.staffId &&
-                          c.status != 'Pending' && !dc.contains(c.claimId.toString())).length +
-                      schedules.schedules.where((s) => s.staffId == widget.staffId &&
-                          !ds.contains(s.schedId.toString())).length +
-                      exchanges.exchanges.where((e) => e.targetId == widget.staffId &&
-                          e.status == 0 && !de.contains(e.exchangeId.toString())).length +
-                      exchanges.exchanges.where((e) => e.requesterId == widget.staffId &&
-                          e.status != 0 && !de.contains(e.exchangeId.toString())).length;
-
-                  return IconButton(
-                    icon: total > 0
-                        ? Badge(label: Text(total.toString()),
-                            backgroundColor: Colors.redAccent,
-                            child: const Icon(Icons.notifications_active_rounded))
-                        : const Icon(Icons.notifications_none_rounded),
-                    onPressed: () async {
-                      await Navigator.push(context, MaterialPageRoute(
-                          builder: (_) => StaffNotificationScreen(
-                              staffId: widget.staffId)));
-                      if (mounted) setState(() {});
-                    },
-                  );
+              return IconButton(
+                icon: total > 0
+                    ? Badge(label: Text(total.toString()),
+                        backgroundColor: Colors.redAccent,
+                        child: const Icon(Icons.notifications_active_rounded))
+                    : const Icon(Icons.notifications_none_rounded),
+                onPressed: () async {
+                  await Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => StaffNotificationScreen(
+                          staffId: widget.staffId)));
+                  if (mounted) setState(() {});
                 },
               );
             },
