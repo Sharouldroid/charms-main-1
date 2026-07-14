@@ -8,7 +8,6 @@ import 'package:charms/HRproviders/staffs.dart';
 import 'package:charms/HRproviders/leaves.dart';
 import 'package:charms/HRmodels/staff.dart';
 import 'package:charms/HRscreens/admin/staff_on_leave_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'intern_leave_status_screen.dart';
 import 'package:charms/internshipscreens/assessment_intern.dart';
 import 'package:charms/internshipservices/intern_helper.dart';
@@ -288,26 +287,19 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   // ── Check for approved/rejected leaves the intern hasn't seen yet ───────
-  // Uses SharedPreferences (works on web/PWA via localStorage) rather than a
-  // backend push, since leave approvals don't emit a server notification.
+  // Uses the same server-tracked staffViewedAt field as the staff module,
+  // so "seen" state survives reinstalls/devices instead of living only in
+  // local SharedPreferences.
   Future<void> _checkLeaveNotifications() async {
     if (_currentStaff == null) return;
     try {
       final leavesProvider = context.read<Leaves>();
       await leavesProvider.getLeaveByStaffId(staffId: _currentStaff!.staffId);
 
-      final decided = leavesProvider.leaves.where((l) {
+      final hasUnseen = leavesProvider.leaves.any((l) {
         final s = l.status.trim().toLowerCase();
-        return s == 'approved' || s == 'rejected';
+        return (s == 'approved' || s == 'rejected') && l.staffViewedAt == null;
       });
-
-      final prefs = await SharedPreferences.getInstance();
-      final seenIds = (prefs.getStringList(
-              'intern_seen_leave_ids_${_currentStaff!.staffId}') ??
-          [])
-          .toSet();
-      final hasUnseen =
-          decided.any((l) => !seenIds.contains(l.leaveId.toString()));
 
       if (mounted) setState(() => _hasUnseenLeaveDecision = hasUnseen);
     } catch (e) {

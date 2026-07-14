@@ -4,7 +4,6 @@ import 'package:charms/HRwidgets/staff/proof_attachment.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'intern_apply_leave_screen.dart';
 
 // Intern-facing "My Leaves" screen. Shares the Leave model/Leaves provider
@@ -57,21 +56,19 @@ class _InternLeaveStatusScreenState extends State<InternLeaveStatusScreen>
   }
 
   // Record every approved/rejected leave as "seen" so the dashboard's alert
-  // dot clears once the intern has actually viewed this screen. Stored
-  // locally (works on web/PWA via localStorage) since there's no backend
-  // notification tied to leave status changes.
+  // dot clears once the intern has actually viewed this screen. Uses the
+  // same server-tracked staffViewedAt field as the staff module.
   Future<void> _markDecidedLeavesSeen(List<Leave> leaves) async {
-    final decidedIds = leaves
-        .where((l) => l.staffId == widget.staffId)
-        .where((l) {
-          final s = l.status.trim().toLowerCase();
-          return s == 'approved' || s == 'rejected';
-        })
-        .map((l) => l.leaveId.toString())
-        .toList();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(
-        'intern_seen_leave_ids_${widget.staffId}', decidedIds);
+    final leavesProvider = context.read<Leaves>();
+    final unseenDecided = leaves.where((l) {
+      final s = l.status.trim().toLowerCase();
+      return l.staffId == widget.staffId &&
+          (s == 'approved' || s == 'rejected') &&
+          l.staffViewedAt == null;
+    });
+    for (final leave in unseenDecided) {
+      await leavesProvider.markLeaveViewed(leave.leaveId);
+    }
   }
 
   Future<void> _cancelLeave(Leave leave) async {
