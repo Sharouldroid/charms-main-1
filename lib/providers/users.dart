@@ -212,7 +212,13 @@ class Users with ChangeNotifier {
       );
 
       if (response.statusCode != 200) {
-        throw Exception('Failed to fetch user. Status: ${response.statusCode}');
+        throw Exception('Failed to fetch user. Status: ${response.statusCode}, URL: $url');
+      }
+
+      final contentType = response.headers['content-type'] ?? '';
+      if (!contentType.contains('application/json')) {
+        throw Exception(
+            'Expected JSON but got "$contentType" from $url. Check that the hostname/route is correct.');
       }
 
       final extractedData = jsonDecode(response.body);
